@@ -4054,3 +4054,75 @@ def test_42j_normsuz_testte_uyari_metni(tmp_path, monkeypatch):
         at = _p35_uygula(tmp_path, monkeypatch, test, deger="12")
         assert [i.value for i in at.info if "doğrulanmış norm" in i.value] == ["Bu test için doğrulanmış norm bulunmamaktadır."], test
         assert not [i.value for i in at.info if "henüz mevcut değil" in i.value]
+
+
+# ════════════════════════════════════════════════════════════
+# 43. Paket 38f: en iyi deneme, yetişkin metni, sapmanın büyüklüğü (veli raporu)
+# ════════════════════════════════════════════════════════════
+def _p38f_satir(test, deg, deger, p, kategori="Çok Düşük"):
+    return {"Test": test, "Değişken": deg, "Değer": deger, "Tarih": "29.07.2026", "Tür": "Performans",
+            "Kategori": kategori, "Performans persentili": p}
+
+
+def test_43a_en_iyi_deneme_ham_degerden(app):
+    """
+    Persentil tablonun ucunda sabitlenince (P5) denemeler eşit görünüyordu ve ilk deneme seçiliyordu (atlama
+    50/54/60 → 50). Şimdi: "En İyi …" varsa o; yoksa ham değer ve test yönü; eşitlikte yüksek persentil;
+    sağ/sol gibi deneme olmayan değişkenlerde en yüksek persentil (önceki davranış).
+    """
+    sec = app["veli_en_iyi_satir"]
+    s = lambda *a: (a[3], _p38f_satir(*a), 1)
+    atl = [s("Durarak Uzun Atlama", f"Deneme {i} (cm)", v, 5) for i, v in ((1, 50), (2, 54), (3, 60))]
+    assert sec("Durarak Uzun Atlama", atl)[1]["Değer"] == 60
+    sprint = [s("20m Sprint (KMS)", "Deneme 1 (sn)", 4.1, 95), s("20m Sprint (KMS)", "Deneme 2 (sn)", 3.9, 95)]
+    assert sec("20m Sprint (KMS)", sprint)[1]["Değer"] == 3.9                       # düşük daha iyi
+    esit = [s("Durarak Uzun Atlama", "Deneme 1 (cm)", 60, 5), s("Durarak Uzun Atlama", "Deneme 2 (cm)", 60, 7)]
+    assert sec("Durarak Uzun Atlama", esit)[1]["Değişken"] == "Deneme 2 (cm)"     # eşit değer: yüksek persentil
+    en_iyi = atl + [s("Durarak Uzun Atlama", "En İyi Değer (cm)", 58, 5)]
+    assert sec("Durarak Uzun Atlama", en_iyi)[1]["Değişken"] == "En İyi Değer (cm)"  # testin En İyi değişkeni önce
+    el = [s("El Kavrama Kuvveti (TSYT)", "Sağ El (kg)", 19, 40), s("El Kavrama Kuvveti (TSYT)", "Sol El (kg)", 21, 30)]
+    assert sec("El Kavrama Kuvveti (TSYT)", el)[1]["Değişken"] == "Sağ El (kg)"   # sağ/sol: persentil
+    # uçtan uca: veli özeti tek kutu, en iyi deneme 60
+    zp = {"satirlar": [r for _, r, _ in atl], "z_sozlugu": {}}
+    grup = app["VELI_TEST_GRUBU"]["Durarak Uzun Atlama"][0]
+    kutu = app["veli_test_ozeti"](zp)[grup]["testler"]
+    assert len(kutu) == 1 and kutu[0]["deger"] == 60 and kutu[0]["ad"].endswith("(en iyi deneme)")
+
+
+def test_43b_yetiskin_raporunda_cocuk_dili_yok(app):
+    """Yetişkinde 'çocuklar için', 'çocukların çoğunun', 'büyümeyle', 'Bu yaşta' yok; araştırma tanımları aynen kalır."""
+    v, _ = _veli_ornek(app)
+    cocuk = app["veli_raporu_html"](v)
+    v["bilgi"] = {**v["bilgi"], "Yaş": 23}
+    yetiskin = app["veli_raporu_html"](v)
+    cocuk_dili = ["çocuklar için yayımlanmış", "Koyu bant çocukların", "spor gruplarındaki çocuklara", "büyümeyle",
+                  "Bu yaşta "]
+    assert all(c in cocuk for c in cocuk_dili), [c for c in cocuk_dili if c not in cocuk]   # çocukta değişmedi
+    assert not [c for c in cocuk_dili if c in yetiskin]
+    assert "sporcular için yayımlanmış" in yetiskin and "Fiziksel özellikler antrenmanla değişir" in yetiskin
+    assert "620 çocukla" in yetiskin                                     # araştırma tanımı değişmez
+
+
+def test_43c_buyuk_sapma_belirgin_ve_dogru_mu(app):
+    """
+    Bant P10–P90 = ±1,2816 SD. |z| ≤ 1,96 'biraz', 1,96–3 'belirgin şekilde', > 3 'çok' + 'Değer doğru mu?'.
+    Aralığın içindeki ve 'biraz' dışındaki metinler önceki gibi.
+    """
+    yer = app["veli_aralik_konumu"]
+    k = lambda d: {"deger": d, "p10": 10.0, "p90": 20.0}
+    assert [yer(k(d)) for d in (15, 21, 25, 26.5, 27, 5, 0)] == [
+        "icinde", "ustunde", "ustunde_belirgin", "ustunde_belirgin", "ustunde_cok", "altinda_belirgin", "altinda_cok"]
+    renk = app["palet"]("acik")["renk"]
+    t = lambda d: {"ad": "Durarak uzun atlama", "deger": d, "p10": 10.0, "p90": 20.0, "birim": "cm", "kesin": True,
+                   "tarih": "29.07.2026", "dusuk_iyi": False}
+    kutu = lambda d: app["veli_sonuc_kutusu_html"](t(d), "Ali", "Erkek", False, renk)
+    assert "aralığın biraz üstünde" in kutu(21) and app["VELI_DOGRU_MU_BASLIK"] not in kutu(21)
+    assert "aralığın belirgin şekilde üstünde" in kutu(25) and app["VELI_DOGRU_MU_BASLIK"] not in kutu(25)
+    assert "aralığın çok üstünde" in kutu(30) and "⚠ Değer doğru mu?" in kutu(30)
+    d = app["veli_grup_aralik_durumu"]
+    assert d(["icinde", "ustunde", "altinda"]) == ("Bu başlıkta 3 test yapıldı: 1 testte aralığın içinde, 1 testte "
+                                                   "aralığın biraz üstünde, 1 testte aralığın biraz altında.")
+    assert d(["icinde", "ustunde_belirgin"]) == ("Bu başlıkta 2 test yapıldı: 1 testte aralığın içinde, 1 testte "
+                                                 "aralığın belirgin şekilde üstünde.")
+    km = app["veli_konum_metni"]({**k(0), "cinsiyet": "Erkek", "birim": "cm"}, "Ali")
+    assert "Ali bu aralığın çok altında." in km and app["VELI_DOGRU_MU"] in km

@@ -9859,8 +9859,19 @@ VELI_ARALIK_KIM = {("Erkek", False): "erkek çocukların", ("Kadın", False): "k
                    ("Erkek", True): "erkek sporcuların", ("Kadın", True): "kadın sporcuların"}
 VELI_ARALIK_YERI = {"icinde": "{ad} bu aralığın içinde.",
                     "altinda": "{ad} bu aralığın biraz altında.",
-                    "ustunde": "{ad} bu aralığın biraz üstünde."}
-VELI_ARALIK_NOTU = "Aralığın dışında olmak bir sorun anlamına gelmez."
+                    "ustunde": "{ad} bu aralığın biraz üstünde.",
+                    "altinda_belirgin": "{ad} bu aralığın belirgin şekilde altında.",
+                    "ustunde_belirgin": "{ad} bu aralığın belirgin şekilde üstünde.",
+                    "altinda_cok": "{ad} bu aralığın çok altında.",
+                    "ustunde_cok": "{ad} bu aralığın çok üstünde."}
+# Paket 38f: sapmanın büyüklüğü. P10–P90 normal dağılımda ±1,2816 SD'dir; bant genişliğinden SD tahmin edilir ve
+# değerin yaklaşık z'si bulunur. |z| > 1,96 (dışarıda kalan ~%5) "belirgin şekilde"; |z| > 3 (~%0,3) "çok" ve
+# "Değer doğru mu?" uyarısı (yargı değil, ölçüm/kayıt denetimi çağrısı).
+VELI_SAPMA_Z = (1.96, 3.0)
+VELI_DOGRU_MU_BASLIK = "Değer doğru mu?"
+VELI_DOGRU_MU = ("Bu sonuç aralıktan çok uzak; ölçüm ya da kayıt hatası olabilir. Değeri antrenörle birlikte "
+                 "kontrol edin.")
+VELI_ARALIK_NOTU ="Aralığın dışında olmak bir sorun anlamına gelmez."
 VELI_YASIT_BASLIK = "Yaşıtlarına göre nerede?"
 YETISKIN_YAS = 18                    # bu yaştan itibaren veli raporu "Çocuğunuz…" yerine "Sporcu…" der
 # Yetişkin sporcuda hitap: "Çocuğunuzun …" → "Sporcunun …" (yalnız hitap biçimleri; araştırma tanımı değişmez)
@@ -9868,6 +9879,15 @@ VELI_YETISKIN_HITAP = (("Çocuğunuzun", "Sporcunun"), ("çocuğunuzun", "sporcu
                        ("çocuğunuzla", "sporcuyla"), ("Çocuğunuzu", "Sporcuyu"), ("çocuğunuzu", "sporcuyu"),
                        ("Çocuğunuza", "Sporcuya"), ("çocuğunuza", "sporcuya"), ("Çocuğunuz", "Sporcu"),
                        ("çocuğunuz", "sporcu"), ("çocuğun ölçümleriyle", "sporcunun ölçümleriyle"))
+# Paket 38f: yetişkinde raporun kendi cümleleri (çocuk/büyüme dili). Araştırma tanımları ("9-11 yaş çocuklar",
+# "620 çocukla") değişmez.
+VELI_YETISKIN_IFADE = (
+    ("aynı yaş ve cinsiyetteki çocuklar için", "aynı yaş ve cinsiyetteki sporcular için"),
+    ("Koyu bant çocukların çoğunun", "Koyu bant sporcuların çoğunun"),
+    ("hangi spor gruplarındaki çocuklara benzediğini", "hangi spor gruplarına benzediğini"),
+    ("Bu yaşta fiziksel özellikler antrenmanla ve büyümeyle hızla değişir", "Fiziksel özellikler antrenmanla değişir"),
+    ("Bu yaşta birden fazla sporu denemek önerilir.", "Birden fazla sporu denemek önerilir."),
+)
 
 
 def yetiskin_mi(bilgi):
@@ -9880,7 +9900,7 @@ def veli_hitabi(metin, yetiskin):
     """Yetişkin sporcuda 'Çocuğunuz…' hitabını 'Sporcu…' yapar; çocukta metin aynen kalır."""
     if not yetiskin:
         return metin
-    for eski, yeni in VELI_YETISKIN_HITAP:
+    for eski, yeni in VELI_YETISKIN_HITAP + VELI_YETISKIN_IFADE:
         metin = metin.replace(eski, yeni)
     return metin
 
@@ -10476,7 +10496,11 @@ def veli_grup_durumu(seviyeler):
 # yöntemiyle (medyan ± z·SS, kuyruklar ayrı) tahmin — bu iki durumda metinde "yaklaşık" yazar.
 VELI_ARALIK_Z = 1.2816                  # standart normalde P90'ın z değeri (P10 için −)
 VELI_YER_ISARETI = {"icinde": ("●", "aralığın içinde"), "ustunde": ("▲", "aralığın biraz üstünde"),
-                    "altinda": ("▼", "aralığın biraz altında")}
+                    "altinda": ("▼", "aralığın biraz altında"),
+                    "ustunde_belirgin": ("▲", "aralığın belirgin şekilde üstünde"),
+                    "altinda_belirgin": ("▼", "aralığın belirgin şekilde altında"),
+                    "ustunde_cok": ("▲", "aralığın çok üstünde"), "altinda_cok": ("▼", "aralığın çok altında")}
+VELI_YER_SIRASI = ("icinde", "ustunde", "ustunde_belirgin", "ustunde_cok", "altinda", "altinda_belirgin", "altinda_cok")
 VELI_YAKLASIK_NOTU = ("“Yaklaşık” yazan aralıklar, kaynak tablodaki en yakın değerlerden hesaplanmıştır; "
                       "tabloda bu aralık doğrudan verilmemiştir.")
 VELI_SONUC_GIRIS = ("Her sonuç, aynı yaş ve cinsiyetteki çocuklar için yayımlanmış değerlerle karşılaştırıldı. "
@@ -10532,16 +10556,18 @@ def veli_aralik_cumlesi(cinsiyet, yetiskin, a, b, birim, kesin):
 def veli_sonuc_kutusu_html(t, ad, cinsiyet, yetiskin, renk):
     """Tek test kutusu: ad, 'Son ölçüm, tarih', değer + yer (simge ve sözcük), aralık cümlesi, bant, sabit not."""
     k = {"deger": t["deger"], "p10": t["p10"], "p90": t["p90"], "birim": t["birim"]}
-    yer = veli_aralik_yeri(k)
+    yer = veli_aralik_konumu(k)                      # Paket 38f: biraz / belirgin şekilde / çok
     isaret, kelime = VELI_YER_ISARETI[yer]
     ipucu = ("Bu testte süre kısaldıkça sonuç iyileşir." if t.get("dusuk_iyi") and t["birim"] in ("sn", "dk")
              else "Bu testte daha düşük değer daha iyidir." if t.get("dusuk_iyi") else "")
+    dogru_mu = (f'<p class="veli-dogru-mu"><b>⚠ {_e(VELI_DOGRU_MU_BASLIK)}</b> {_e(VELI_DOGRU_MU)}</p>'
+                if yer.endswith("_cok") else "")
     return (f'<div class="veli-aralik"><h4>{_e(t["ad"])}</h4>'
             f'<p class="kucuk">Son ölçüm, {_e(t["tarih"])}</p>'
             f'<p class="veli-deger"><b>{_e(_konum_sayi(t["deger"]))}{(" " + _e(t["birim"])) if t["birim"] else ""}</b>'
             f' · <span>{isaret} {_e(kelime)}</span></p>'
             f'<p>{_e(veli_aralik_cumlesi(cinsiyet, yetiskin, t["p10"], t["p90"], t["birim"], t["kesin"]))} '
-            f'{_e(VELI_ARALIK_YERI[yer].format(ad=ad))}{(" " + _e(ipucu)) if ipucu else ""}</p>'
+            f'{_e(VELI_ARALIK_YERI[yer].format(ad=ad))}{(" " + _e(ipucu)) if ipucu else ""}</p>{dogru_mu}'
             f'{konum_seridi_veli_svg(k, renk)}<p class="kucuk">{_e(VELI_ARALIK_NOTU)}</p></div>')
 
 
@@ -10552,9 +10578,31 @@ def veli_grup_aralik_durumu(yerler):
     if len(yerler) == 1:
         return VELI_GRUP_TEK_TEST
     s = collections.Counter(yerler)
-    ad = {"icinde": "aralığın içinde", "ustunde": "aralığın biraz üstünde", "altinda": "aralığın biraz altında"}
-    return (f"Bu başlıkta {len(yerler)} test yapıldı: "
-            + ", ".join(f"{s[y]} testte {ad[y]}" for y in ("icinde", "ustunde", "altinda") if s[y]) + ".")
+    return (f"Bu başlıkta {len(yerler)} test yapıldı: "            # Paket 38f: derece de sayılır
+            + ", ".join(f"{s[y]} testte {VELI_YER_ISARETI[y][1]}" for y in VELI_YER_SIRASI if s[y]) + ".")
+
+
+def veli_en_iyi_satir(test, adaylar):
+    """
+    Paket 38f: bir testin veli kutusundaki tek sonucu. adaylar: [(persentil, satır, seviye)], aynı gün.
+    (1) "En İyi …" değişkeni varsa o; (2) yoksa denemeler (Deneme 1/2/3) arasında HAM değer ve test yönü (düşük
+    iyi → en küçük), eşitlikte yüksek persentil; (3) öbür çoklu değişkenlerde (sağ/sol) en yüksek persentil.
+    Persentil tablonun ucunda (P5/P95) sabitlendiğinde denemeler eşit görünür; o zaman ilk deneme seçiliyordu.
+    """
+    en_iyi = [a for a in adaylar if str(a[1]["Değişken"]).startswith("En İyi")]
+    if en_iyi:
+        return max(en_iyi, key=lambda a: a[0])
+    denemeler = []
+    for a in adaylar:
+        if "Deneme" in str(a[1]["Değişken"]):
+            try:
+                denemeler.append((float(a[1]["Değer"]), a))
+            except (TypeError, ValueError):
+                pass
+    if denemeler:
+        dusuk = bool(NORMATIF_YAS.get(f"{test} › {denemeler[0][1][1]['Değişken']}", {}).get("dusuk_iyi"))
+        return max(denemeler, key=lambda d: (-d[0] if dusuk else d[0], d[1][0]))[1]
+    return max(adaylar, key=lambda a: a[0])            # eşitlikte ilk (önceki davranış)
 
 
 def veli_test_ozeti(zp):
@@ -10584,11 +10632,10 @@ def veli_test_ozeti(zp):
         sev = kategori_bilgisi(r["Kategori"])["seviye"]
         if sev is None:
             continue
-        onceki = secim.get(r["Test"])
         p = r.get("Performans persentili")
         p = -1 if p is None else p
-        if onceki is None or p > onceki[0]:
-            secim[r["Test"]] = (p, r, sev)
+        secim.setdefault(r["Test"], []).append((p, r, sev))
+    secim = {test: veli_en_iyi_satir(test, adaylar) for test, adaylar in secim.items()}
     ozet = {g: {"testler": [], "durum": ""} for g in VELI_GRUPLARI}
     for test, (_, r, sev) in sorted(secim.items()):
         grup, ad = VELI_TEST_GRUBU[test]
@@ -10639,7 +10686,7 @@ def veli_sonuclari_html(zp, bilgi=None):
         p.append(f'<p class="kucuk">{_e(VELI_SONUC_GIRIS.format(ad=ad))}</p>')
         for g in VELI_GRUPLARI:
             p.append(f'<h3 class="veli-grup">{veli_grup_simgesi(g)}<span>{_e(g)}</span></h3>'
-                     f'<p class="veli-durum">{_e(veli_grup_aralik_durumu([veli_aralik_yeri({"deger": t["deger"], "p10": t["p10"], "p90": t["p90"]}) for t in gosterilen[g]]))}</p>')
+                     f'<p class="veli-durum">{_e(veli_grup_aralik_durumu([veli_aralik_konumu({"deger": t["deger"], "p10": t["p10"], "p90": t["p90"]}) for t in gosterilen[g]]))}</p>')
             for t in gosterilen[g]:
                 p.append(veli_sonuc_kutusu_html(t, ad, cins, yetiskin, renk))
         if any(not t["kesin"] for ts in gosterilen.values() for t in ts):
@@ -10911,6 +10958,25 @@ def veli_aralik_yeri(k):
     return "altinda" if k["deger"] < k["p10"] else ("ustunde" if k["deger"] > k["p90"] else "icinde")
 
 
+def veli_aralik_konumu(k):
+    """
+    Paket 38f: yer + sapmanın büyüklüğü — "icinde", "ustunde"/"altinda" (biraz), "…_belirgin", "…_cok".
+    SD, P10–P90 bandından tahmin edilir (bant = 2 × 1,2816 SD); eşikler VELI_SAPMA_Z.
+    """
+    yer = veli_aralik_yeri(k)
+    genislik = k["p90"] - k["p10"]
+    if yer == "icinde" or not genislik or genislik <= 0:
+        return yer
+    sd = genislik / (2 * VELI_ARALIK_Z)
+    uzaklik = (k["deger"] - k["p90"]) if yer == "ustunde" else (k["p10"] - k["deger"])
+    z = VELI_ARALIK_Z + uzaklik / sd
+    if z > VELI_SAPMA_Z[1]:
+        return f"{yer}_cok"
+    if z > VELI_SAPMA_Z[0]:
+        return f"{yer}_belirgin"
+    return yer
+
+
 def konum_seridi_veli_svg(k, renk):
     """
     Veli sürümü şerit: yalnız P10–P90 bandı (açık palet, düz ton) ve çocuğun yeri tek işaret. Havuzdaki öbür
@@ -10938,9 +11004,11 @@ def konum_seridi_veli_svg(k, renk):
 def veli_konum_metni(k, ad, yetiskin=False):
     """İki cümle: aralık ("Bu yaştaki erkek çocukların çoğu A–B birim arasında") ve yeri. Çeyrek/yüzdelik/sıra yok."""
     kim = VELI_ARALIK_KIM.get((k.get("cinsiyet"), bool(yetiskin)), "sporcuların" if yetiskin else "çocukların")
+    yer = veli_aralik_konumu(k)                      # Paket 38f: biraz / belirgin şekilde / çok (+ doğru mu?)
     return (VELI_ARALIK_METNI.format(kim=kim, a=_aralik_sayi(k["p10"], k["birim"]),
                                      b=_aralik_sayi(k["p90"], k["birim"]), birim=k["birim"]).replace("  ", " ")
-            + " " + VELI_ARALIK_YERI[veli_aralik_yeri(k)].format(ad=ad))
+            + " " + VELI_ARALIK_YERI[yer].format(ad=ad)
+            + (f" {VELI_DOGRU_MU_BASLIK} {VELI_DOGRU_MU}" if yer.endswith("_cok") else ""))
 
 
 def veli_konum_html(v, haric=()):
