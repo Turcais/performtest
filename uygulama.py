@@ -3626,25 +3626,6 @@ TEST_DOSYA = "test_sonuclari.xlsx"
 # ════════════════════════════════════════════════════════════
 
 
-# Paket 38a: kullanıcıya dönük teknik terimlerin sade karşılığı (aynı "Bu ne demek?" düğmesinde)
-ACIKLAMALAR = {**ACIKLAMALAR,
-    "Örneklem": ("Karşılaştırma grubu: bir araştırmada ölçülen sporcuların ortalaması. Sıralama ya da not değildir; "
-                 "değer bu grubun ortalamasının yanında gösterilir."),
-    "SD (standart sapma)": ("Yayılım: grubun değerlerinin ortalamadan ne kadar uzaklaştığı. Ortalamadan 1 SD uzak "
-                            "olmak, grubun büyük kısmının içinde olmak demektir."),
-    "Rölatif değer": "Vücut ağırlığına bölünmüş değer (ör. kaldırılan kg ÷ vücut ağırlığı): farklı kilodaki sporcular karşılaştırılabilir.",
-    "Kademe 2": "Karşılaştırma bir araştırma grubunun ortalamasıyla yapılır; yaşa göre yüzdelik tablo (norm) değildir.",
-    "Batarya": "Birlikte uygulanan test takımı (ör. TSYT bataryası: aynı gün sırayla yapılan testler).",
-}
-TERIM_ARAMA = {**TERIM_ARAMA,
-    "Örneklem": r"[Öö]rneklem",
-    "SD (standart sapma)": r"\bSD\b",
-    "Rölatif değer": r"[Rr]ölatif",
-    "Kademe 2": r"Kademe 2",
-    "Batarya": r"[Bb]atarya",
-}
-
-
 def terimleri_bul(*metinler):
     """Metinlerde geçen terimler (ACIKLAMALAR'daki adlarıyla, tekrarsız)."""
     birlesik = " ".join(str(m) for m in metinler if m)
