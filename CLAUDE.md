@@ -1,6 +1,6 @@
 # Ölçüt — devralma notu
 
-Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38j** (son etiket `v107-38h`).
+Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38k** (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
 Kullanıcı: Ertuğrul (spor bilimleri doktora öğrencisi, Gazi Üniversitesi). **Türkçe yazın, adım adım açıklayın.**
 Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `sporcular.xlsx`, `test_sonuclari.xlsx`, `ilgi_anketi.xlsx`, `ayarlar.json`, `oturum_taslagi.json`; uygulamanın ürettiği `.streamlit/config.toml` da girmez.
 
@@ -37,6 +37,12 @@ Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma** (`ol
 - *Oturumlar arası*: iki "Oturum seç" sütunu (ad + tarih + sporcu sayısı); aynı sporcu için Önce / Sonra / Fark, yön testin yönünden (simge + sözcük); "İstatistik göster": n ≥ 6 Wilcoxon işaretli sıra + eşleştirilmiş sıra-iki serili r, n < 6 yalnız tanımlayıcı.
 - Eski "Kapsam" radio'su kalktı; mantığı (`kayit.oturum_degerleri`, `oturumlar_arasi_fark`) yeni ekranın altında kullanılır.
 
+## Gezinme, Hakkında, alt bilgi (Paket 38k)
+- Gezinme: `SAYFALAR` bütün sayfalar (sayfa_goruntusu okur). **Üst menü** (`UST_MENU`: ⌂ Ana Sayfa · Raporlar · Kaynakça · Hakkında) site menüsü gibi ana alanın en üstünde, her sayfada (`bilesenler.ust_menu`; bulunulan sayfa `ust-menu-<kod>-aktif`, kalın + altı çizili); telefonda yan menü kapalıyken de görünür, tek satır. **Sol menü** (`YAN_MENU`, anahtar `yan_menu`) yalnız iş sayfaları; üst menü sayfasındayken boş ("Bölüm seçin"). `st.session_state["sayfa"]` yönlendirme durumudur, artık bir seçicinin anahtarı değil.
+- Hakkında: `olcut/sayfalar/hakkinda.py`; metinler `veri/metinler.py` `HAKKINDA_*`, Ertuğrul'un verdiği gibi (değiştirmeden önce sorun). Test Oturumu'ndan üst menüyle çıkışta taslak diskte kalır.
+- Her sayfanın en altında alt bilgi (`bilesenler.alt_bilgi`): "© 2026 Ölçüt · Tüm hakları saklıdır." + "Hakkında" düğmesi (Hakkında sayfasında düğme yok). Raporlara girmez. Test Oturumu Sıradaki kipinde alt çubuğun altında kalır. Sayfa kodunda `st.stop()` kullanmayın (alt bilgi çizilmez); `return`.
+- Veri gizliliği (38k denetimi): uygulama kodunda ağ çağrısı yok (test 48d). Streamlit'in kullanım istatistiği varsayılanı AÇIK idi; `tema_toml()` artık `[browser] gatherUsageStats = false` yazar (sunucu yeniden başlatılınca etkin). Streamlit'in kendisi: başsız (`--server.headless`) çalıştırmada dış IP için checkip.amazonaws.com'a sorar (normal çalıştırmada sormaz); ilk kurulumda isteğe bağlı e-posta sorusu (bu bilgisayarda boş). Sunucu 0.0.0.0'da dinler: aynı ağdaki cihazlar (tablet) uygulamayı açabilir.
+
 ## PDF ve dışa aktarma (Paket 38i)
 - Raporlar: "PDF olarak indir" (`olcut/sayfalar/raporlar.py` `rapor_indirme`). Ekrandaki rapor HTML'i aynen çevrilir (`disa_aktarma.pdf_cevir`); sıra: kurulu Edge/Chrome başsız yazdırma → WeasyPrint → xhtml2pdf; hiçbiri yoksa yazdırmaya hazır HTML + talimat. Tarayıcı yolunda süreç + dosya bekleme toplamı en çok `PDF_SURE_SN` = 20 sn. A4 ve kart bölünmemesi `RAPOR_CSS`'teki `@page` / `@media print`'te. Dosya adı `Veli_raporu_<Ad_Soyad>_<GGAAYYYY>.pdf` (`guvenli_dosya_adi`).
 - Karşılaştırma: "Tabloyu Excel olarak indir" + "CSV olarak indir" (UTF-8 BOM, `;`, ondalık virgül; 38j: metin hücresi `= + - @` ya da sekmeyle başlarsa başına `'`). Oturum sütunlarında oturumun adı (etiket değil). Tablolar `karsilastirma.sporcular_arasi_disa` / `oturumlar_arasi_disa` / `grup_ozeti_disa` / `istatistik_disa`: ekrandaki sonuçtan yazılır, hesap yok; sıra/yüzdelik sütunu yok, çeyrekler yalnız her grupta n ≥ 20.
@@ -61,3 +67,4 @@ Arayüz taslağı (Adım 1–4, Sıradaki kipi, Sonuçlar, Veli kartı): https:/
 Yeni test paketleri (FMS, antropometri, kendi hokey/ragbi protokolleri, kaleci testleri), pozisyon ve amaç alanı, norm genişletme (bacak presi, barfiks, şınav, mekik), kuvvet platformu içe aktarma (RFD/GRF). SQLite'a geçiş yok (xlsx yeterli).
 - (karar bekliyor) Karşılaştırma dışa aktarımında sporcu adı yerine kod seçeneği.
 - (karar bekliyor) Branş grubu eşleştirmesinde gruplar arası uzaklık farkları çok küçük: ayırt edilemezlik kuralı (ör. ilk iki grubun farkı eşiğin altındaysa "ayırt edilemedi").
+- Yapay zeka katmanı (en son): (A) test önerici: kullanıcı amacını yazar, yapay zeka yalnızca katalogdaki testlerden seçer, ekipman/süre/yaş uygunluğunu gösterir, sporcu verisi servise gitmez; (B) sonuç yorumlayıcı: yalnız hesaplanmış, anonim değerlerle (yaş, cinsiyet, değer; ad ve doğum tarihi yok), sabit kurallarla (sıralama yok, yargılayıcı dil yok, sayı üretmez). API anahtarı ayar dosyasında, çıktıda "yönlendirici bilgi, karar değil" notu. İnternet yoksa düğme pasif, uygulama normal çalışır. Başlamadan önce kullanıcıyla karar ver.

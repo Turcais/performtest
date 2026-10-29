@@ -12,6 +12,8 @@ import pandas as pd
 import re
 from datetime import date
 
+SURUM = "Paket 38k"          # tek yer: Hakkında sayfası ve testler bunu okur
+
 
 def _desteklenen(fn, **secenek):
     """Kurulu Streamlit sürümünün desteklediği anahtar sözcükler (eski sürümde bilinmeyen parametre verilmez)."""

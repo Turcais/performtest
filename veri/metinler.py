@@ -653,3 +653,47 @@ TERIM_ARAMA = {**TERIM_ARAMA,
     "Kademe 2": r"Kademe 2",
     "Batarya": r"[Bb]atarya",
 }
+
+
+# ── Hakkında sayfası ve alt bilgi (Paket 38k): metinler Ertuğrul'un verdiği gibi, aynen ──
+HAKKINDA_BOLUMLERI = [
+    ("Ölçüt nedir?",
+     "Ölçüt, sporcuların test sonuçlarını kaydeden ve bu sonuçları yaşa ve cinsiyete göre yayımlanmış normlarla "
+     "karşılaştıran bir performans takip uygulamasıdır. Antrenör ve beden eğitimi öğretmenleri için sahada, tablet "
+     "ya da telefonda kullanılmak üzere tasarlanmıştır."),
+    ("Misyon",
+     "Çocuk ve gençlerin fiziksel özelliklerini ve ilgilerini bilimsel testlerle ölçmek, sonuçları kaynağı açık "
+     "normlarla karşılaştırmak ve antrenörlerle ailelerin çocuğa uygun spor branşını birlikte bulmasına yardımcı "
+     "olmak. Amacımız, hiçbir çocuğun kendisine uymayan bir branşta yıllarını kaybetmemesidir."),
+    ("Vizyon",
+     "Türkiye'de sahada kullanılabilen, her normunun kaynağı açıkça belirtilmiş, kanıta dayalı kapsamlı bir test ve "
+     "norm deposu olmak; uygulama üzerinden toplanan verilerle yerel Türk normları oluşturmak; web ve mobil "
+     "sürümlerle kulüplere ve okullara ulaşmak."),
+]
+HAKKINDA_ILKELER = [
+    "Her norm yayımlanmış bir kaynağa dayanır; kaynağı olmayan teste norm bağlanmaz.",
+    "Sonuçlar karar değil, konuşmayı başlatacak bilgidir.",
+    "11 yaş altındaki çocuklar birbiriyle sıralanmaz; hiçbir raporda başka bir çocuğun adı geçmez.",
+    "Veriler kullanıcının kendi bilgisayarında tutulur.",
+]
+HAKKINDA_EKIP = [
+    ("Geliştirici", ["Öğr. Gör. Müslim Ertuğrul KAYIŞOĞLU"]),
+    ("Geliştirme ekibi", ["Öğr. Gör. Dr. İlyas KARAKAŞ", "Öğr. Gör. Salih Burhan GÖKMEN"]),
+    ("Akademik danışmanlar", ["Prof. Dr. Ömer ŞENEL", "Prof. Dr. Cengiz AKARÇEŞME"]),
+]
+HAKKINDA_BILGILENDIRME = [
+    "Ölçüt bir değerlendirme ve takip aracıdır; tıbbi tanı ya da sağlık değerlendirmesi yerine geçmez.",
+    "Maksimal efor gerektiren testlerden önce katılımcının sağlık durumu sorgulanmalı (ör. PAR-Q+); şüphe varsa "
+    "hekime danışılmalıdır.",
+    "Branş yönlendirme çıktıları yönlendirici bilgidir, bağlayıcı değildir. Uygulamanın ilgi anketinin geçerlik ve "
+    "güvenirlik çalışması henüz yapılmamıştır.",
+    "18 yaşından küçüklerin verileri için velinin bilgilendirilmesi ve onayının alınması kullanıcının "
+    "sorumluluğundadır.",
+]
+HAKKINDA_GIZLILIK = (
+    "Ölçüt, girilen verileri yalnızca çalıştığı bilgisayardaki dosyalarda (sporcular.xlsx, test_sonuclari.xlsx, "
+    "ilgi_anketi.xlsx) saklar; verileri hiçbir sunucuya göndermez. PDF dönüştürme de aynı bilgisayardaki "
+    "tarayıcıyla yapılır.")
+ILETISIM_EPOSTA = "ertugrulkayisoglu@gmail.com"
+HAKKINDA_ILETISIM = "Görüş, öneri ve hata bildirimi için:"
+ALT_BILGI_METNI = "© 2026 Ölçüt · Tüm hakları saklıdır."

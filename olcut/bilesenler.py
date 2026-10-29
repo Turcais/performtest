@@ -10,7 +10,7 @@ import pandas as pd
 import re
 import streamlit as st
 from datetime import date
-from veri.metinler import ACIKLAMALAR, ILGI_KAYNAKLARI, ILGI_MADDELERI, TERIM_ARAMA
+from veri.metinler import ACIKLAMALAR, ALT_BILGI_METNI, ILGI_KAYNAKLARI, ILGI_MADDELERI, TERIM_ARAMA
 from olcut.analiz import (
     ILGI_ANKET_ADI, ILGI_DOSYA, ILGI_HAKKINDA, ILGI_OLCEK, ILGI_TERCIHLERI, ILGI_UYARI, _profil_haritasi,
     gelisim_ozeti, grup_ici_konum, ilgi_son_anket, konum_metinleri, konum_seridi_svg, rapor_konum_degiskenleri)
@@ -397,3 +397,37 @@ def _nitelik_kartina_git(kart):
 
 def _sayfaya_git(hedef):
     st.session_state["sayfa"] = hedef
+
+
+UST_MENU_ETIKETLERI = {"Ana Sayfa": "⌂ Ana Sayfa"}
+_UST_MENU_KODU = {"Ana Sayfa": "ana-sayfa", "Raporlar": "raporlar", "Kaynakça": "kaynakca", "Hakkında": "hakkinda"}
+HAKKINDA_SAYFASI = "Hakkında"
+
+
+def ust_menu(sayfa, sayfalar):
+    """
+    Paket 38k: site menüsü gibi üst gezinme (Ana Sayfa · Raporlar · Kaynakça · Hakkında) — ana alanın en üstünde, her
+    sayfada; telefonda yan menü kapalıyken de görünür. Bulunulan sayfa kalın ve altı çizili (renk tek başına değil).
+    Test Oturumu'nda taslak her değişiklikte diske yazıldığı için buradan çıkışta veri kaybolmaz.
+    """
+    with st.container(key="ust-menu", **_desteklenen(st.container, horizontal=True, vertical_alignment="center")):
+        for hedef in sayfalar:
+            kod = _UST_MENU_KODU.get(hedef, re.sub(r"\W+", "-", hedef.lower()))
+            st.button(UST_MENU_ETIKETLERI.get(hedef, hedef), type="tertiary",
+                      key=f"ust-menu-{kod}" + ("-aktif" if hedef == sayfa else ""),
+                      on_click=_sayfaya_git, args=(hedef,))
+
+
+def yan_menu_secildi():
+    """Sol menüde (iş sayfaları) seçim → yönlendirme durumu."""
+    if st.session_state.get("yan_menu"):
+        st.session_state["sayfa"] = st.session_state["yan_menu"]
+
+
+def alt_bilgi(sayfa):
+    """Paket 38k: her sayfanın en altında telif satırı + Hakkında düğmesi (Hakkında sayfasının kendisinde düğme yok)."""
+    with st.container(key="alt-bilgi", **_desteklenen(st.container, horizontal=True, vertical_alignment="center")):
+        st.markdown(f'<p class="sp-alt-bilgi">{_html.escape(ALT_BILGI_METNI)}</p>', unsafe_allow_html=True)
+        if sayfa != HAKKINDA_SAYFASI:
+            st.button(HAKKINDA_SAYFASI, type="tertiary", key="alt_hakkinda", on_click=_sayfaya_git,
+                      args=(HAKKINDA_SAYFASI,))

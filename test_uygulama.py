@@ -1763,7 +1763,9 @@ def test_23f_yonlendirme_ekrani_bos_dosyayla_acilir(tmp_path, monkeypatch):
     for hazirla in (lambda d: None, bos):
         at = _apptest(tmp_path, monkeypatch, hazirla)
         assert not at.exception, [e.value for e in at.exception]
-        assert [b.label for b in at.button] == ["İlk sporcuyu ekle"]
+        # Paket 38k: gezinme (üst menü, alt bilgideki "Hakkında") eylem sayılmaz
+        assert [b.label for b in at.button if b.key != "alt_hakkinda" and not (b.key or "").startswith("ust-menu-")]\
+            == ["İlk sporcuyu ekle"]
         assert any("Ne yapmak istiyorsunuz?" in m.value for m in at.markdown)
         # Paket 33 B: düğmenin üstünde en fazla üç satır tanıtım (ne yapar + üç adım)
         tanitim = [m.value for m in at.markdown if "Sporcu ekle" in m.value and "Test uygula" in m.value]
@@ -4752,3 +4754,149 @@ def test_47k_oturma_yuksekligi_tsyt_eslesir_eslestirme_degismez(tmp_path, monkey
                                           "Oturma Yüksekliği (cm)": 74.0, "Test Yaşı": 10}])])
     df2["Tarih_dt"] = _pd.to_datetime(df2["Tarih"], format="%d.%m.%Y")
     assert A.sporcu_fsc_profili(df2, "Elif Demo")["degerler"]["SH"]["deger"] == 74.0
+
+
+
+# ════════════════════════════════════════════════════════════
+# 48. Paket 38k: Ana Sayfa düğmesi, Hakkında sayfası, alt bilgi satırı, kullanım istatistiği kapalı
+# ════════════════════════════════════════════════════════════
+_P38K_SAYFALAR = ["Ana Sayfa", "Sporcu Girişi", "Niteliğe göre test bul", "Test Uygula", "Test Oturumu",
+                  "Sonuçları Görüntüle", "Raporlar", "Kaynakça", "Hakkında"]
+
+
+def _duz_agac(at):
+    """Ana gövdedeki öğeler belge sırasıyla (iç içe kapsayıcılar açılır)."""
+    sira = []
+
+    def yuru(d):
+        for c in (d.children.values() if isinstance(getattr(d, "children", None), dict) else ()):
+            sira.append(c)
+            yuru(c)
+    yuru(at.main)
+    return sira
+
+
+def _alt_bilgi_sayisi(at, M):
+    return sum(M.ALT_BILGI_METNI in str(getattr(m, "value", "")) for m in at.markdown)
+
+
+def test_48a_hakkinda_sayfasi(tmp_path, monkeypatch):
+    """Menüde Kaynakça'dan sonra 'Hakkında'; bütün bölümler, verilen metinler aynen, mailto ve sürüm sabiti."""
+    M, O = _modul("veri.metinler"), _modul("olcut.ortak")
+    at = _apptest(tmp_path, monkeypatch, _p38g_veri)
+    # Paket 38k: Ana Sayfa · Raporlar · Kaynakça · Hakkında üst menüde; sol menüde yalnız iş sayfaları
+    assert [b.label for b in at.button if (b.key or "").startswith("ust-menu-")] ==         ["⌂ Ana Sayfa", "Raporlar", "Kaynakça", "Hakkında"]
+    assert at.selectbox(key="yan_menu").options == ["Sporcu Girişi", "Niteliğe göre test bul", "Test Uygula",
+                                                     "Test Oturumu", "Sonuçları Görüntüle"]
+    at.button(key="ust-menu-hakkinda").click().run()
+    assert at.session_state["sayfa"] == "Hakkında"
+    assert not at.exception, [e.value for e in at.exception]
+    assert [h.value for h in at.subheader] == ["Ölçüt nedir?", "Misyon", "Vizyon", "İlkelerimiz", "Ekip",
+                                               "Bilgilendirme", "Veri gizliliği", "İletişim", "Sürüm"]
+    metin = "\n".join(m.value for m in at.markdown)
+    for _, govde in M.HAKKINDA_BOLUMLERI:
+        assert govde in metin
+    for m in M.HAKKINDA_ILKELER + M.HAKKINDA_BILGILENDIRME + [M.HAKKINDA_GIZLILIK]:
+        assert m in metin, m
+    for _, kisiler in M.HAKKINDA_EKIP:
+        assert all(k in metin for k in kisiler)
+    assert "- **Geliştirici:** Öğr. Gör. Müslim Ertuğrul KAYIŞOĞLU\n" in metin and "doktora" not in metin
+    assert "Amacımız, hiçbir çocuğun kendisine uymayan bir branşta yıllarını kaybetmemesidir." in metin
+    assert "[ertugrulkayisoglu@gmail.com](mailto:ertugrulkayisoglu@gmail.com)" in metin
+    assert O.SURUM.startswith("Paket ") and O.SURUM in metin
+    assert [h.value for h in at.header] == ["Ölçüt Hakkında"] and "Öğr. Gör. Dr. İlyas KARAKAŞ" in metin
+    assert M.ALT_BILGI_METNI == "© 2026 Ölçüt · Tüm hakları saklıdır."
+
+
+def test_48b_ust_menu_ve_alt_bilgi_her_sayfada(tmp_path, monkeypatch):
+    """
+    Üst menü (⌂ Ana Sayfa · Raporlar · Kaynakça · Hakkında) her sayfada ana alanın en üstünde; bulunulan sayfa '-aktif'
+    (kalın + altı çizili). Sol menü iş sayfaları; üst menü sayfasındayken boş. Alt bilgi her sayfada tek ve en sonda.
+    """
+    M = _modul("veri.metinler")
+    kod = {"Ana Sayfa": "ana-sayfa", "Raporlar": "raporlar", "Kaynakça": "kaynakca", "Hakkında": "hakkinda"}
+    at = _apptest(tmp_path, monkeypatch, _p38g_veri)
+    for sayfa in _P38K_SAYFALAR:
+        at.session_state["sayfa"] = sayfa
+        at.run()
+        assert not at.exception, (sayfa, [e.value for e in at.exception])
+        ust = [b.key for b in at.button if (b.key or "").startswith("ust-menu-")]
+        beklenen = [f"ust-menu-{k}" + ("-aktif" if s_ == sayfa else "") for s_, k in kod.items()]
+        assert ust == beklenen, sayfa
+        assert at.selectbox(key="yan_menu").value == (None if sayfa in kod else sayfa), sayfa
+        assert _alt_bilgi_sayisi(at, M) == 1, sayfa
+        assert len([b for b in at.button if b.key == "alt_hakkinda"]) == (0 if sayfa == "Hakkında" else 1), sayfa
+        sira = _duz_agac(at)
+        ilk_dugme = next(c for c in sira if type(c).__name__ == "Button")
+        assert ilk_dugme.key == beklenen[0], sayfa                       # menü ana alanın en üstünde
+        assert getattr(sira[-1], "key", None) == "alt_hakkinda" or M.ALT_BILGI_METNI in str(
+            getattr(sira[-1], "value", "")), sayfa                        # alt bilgi en sonda
+    at.session_state["sayfa"] = "Kaynakça"
+    at.run()
+    at.button(key="ust-menu-ana-sayfa").click().run()
+    assert at.session_state["sayfa"] == "Ana Sayfa"
+    at.button(key="ust-menu-raporlar").click().run()
+    assert at.session_state["sayfa"] == "Raporlar" and any(h.value == "Raporlar" for h in at.header)
+    at.selectbox(key="yan_menu").select("Test Uygula").run()
+    assert at.session_state["sayfa"] == "Test Uygula" and at.selectbox(key="yan_menu").value == "Test Uygula"
+    at.button(key="alt_hakkinda").click().run()
+    assert at.session_state["sayfa"] == "Hakkında" and any(h.value == "Misyon" for h in at.subheader)
+    assert at.selectbox(key="yan_menu").value is None
+
+
+def test_48c_test_oturumundan_cikista_taslak_kalir(tmp_path, monkeypatch):
+    """
+    Test Oturumu Sıradaki kipinde üst menüden ⌂ Ana Sayfa: taslak diskte aynen kalır (veri kaybı yok). Alt bilgi alt çubuğun
+    ALTINDA (belgede sonra), ölçüm düğmelerinin arasına girmez.
+    """
+    T, K = _modul("olcut.sayfalar.test_oturumu"), _modul("olcut.kayit")
+    M = _modul("veri.metinler")
+
+    def hazirla(d):
+        _p38g_veri(d)
+        t = T.taslak_bos(["Durarak Uzun Atlama"], ["Elif Demo", "Onur Demo"], {"tarih": "2026-10-29"})
+        t["degerler"]["Elif Demo"] = {K.oturum_sutunu("Durarak Uzun Atlama", "Deneme 1 (cm)"): "131"}
+        assert T.taslak_yaz(t, str(d / T.TASLAK_DOSYA))
+    at = _apptest(tmp_path, monkeypatch, hazirla)
+    at.session_state["sayfa"] = "Test Oturumu"
+    at.session_state["ots::otomatik"] = True
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    sira = _duz_agac(at)
+    anahtar = [getattr(c, "key", None) for c in sira]
+    alt = next(i for i, c in enumerate(sira) if M.ALT_BILGI_METNI in str(getattr(c, "value", "")))
+    assert "ot_geri" in anahtar and anahtar.index("ot_geri") < alt and anahtar.index("ust-menu-ana-sayfa") == min(
+        i for i, k in enumerate(anahtar) if k)
+    at.button(key="ust-menu-ana-sayfa").click().run()
+    assert not at.exception and at.session_state["sayfa"] == "Ana Sayfa"
+    disk = T.taslak_oku(str(tmp_path / T.TASLAK_DOSYA))
+    assert disk and disk["degerler"]["Elif Demo"] == {K.oturum_sutunu("Durarak Uzun Atlama", "Deneme 1 (cm)"): "131"}
+
+
+def test_48d_kullanim_istatistigi_kapali_ve_ag_cagrisi_yok(app):
+    """
+    config.toml'da browser.gatherUsageStats = false (Streamlit'in varsayılanı açık). Uygulama kodunda ağ kitaplığı
+    (requests, urllib, http, socket…) içe aktarılmaz ve dış adrese bağlantı yoktur.
+    """
+    import tomllib
+    for yer in ("kurulu", "tema", "ortak", None):
+        assert tomllib.loads(app["tema_toml"](yer))["browser"]["gatherUsageStats"] is False
+    kok = os.path.dirname(DOSYA)
+    sorun = []
+    for yol in _kaynak_dosyalari(veri=True):
+        agac = ast.parse(_oku(yol))
+        for d in ast.walk(agac):
+            adlar = ([a.name for a in d.names] if isinstance(d, ast.Import)
+                     else [d.module or ""] if isinstance(d, ast.ImportFrom) else [])
+            sorun += [f"{os.path.relpath(yol, kok)}: {a}" for a in adlar
+                      if a.split(".")[0] in ("requests", "urllib", "urllib3", "http", "socket", "httpx", "aiohttp",
+                                             "ftplib", "smtplib")]
+    assert not sorun, sorun
+
+
+def test_48e_raporlara_alt_bilgi_girmez(app):
+    """Alt bilgi ve gezinme yalnız uygulama sayfasında; veli/antrenör rapor HTML'inde yok."""
+    M = _modul("veri.metinler")
+    v = app["rapor_verisi"]("Yok Sporcu")
+    for html in (app["veli_raporu_html"](v), app["antrenor_raporu_html"](v)):
+        assert M.ALT_BILGI_METNI not in html and "⌂" not in html and "Tüm hakları saklıdır" not in html

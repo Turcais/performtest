@@ -485,7 +485,9 @@ from olcut.sayfalar.sonuclar import (   # Bölme Aşama 2: olcut/sayfalar/sonucl
 # YAN MENÜ
 # ════════════════════════════════════════════════════════════
 SAYFALAR = ["Ana Sayfa", "Sporcu Girişi", "Niteliğe göre test bul", "Test Uygula", "Test Oturumu",
-            "Sonuçları Görüntüle", "Raporlar", "Kaynakça"]
+            "Sonuçları Görüntüle", "Raporlar", "Kaynakça", "Hakkında"]
+UST_MENU = ["Ana Sayfa", "Raporlar", "Kaynakça", "Hakkında"]          # Paket 38k: üstte, site menüsü gibi
+YAN_MENU = [s_ for s_ in SAYFALAR if s_ not in UST_MENU]                # sol menüde iş sayfaları
 
 
 # Paket 38b: değer girilirken sayfa yenilendiyse (adreste ?taslak=1 ve diskte taslak) kaldığı yere döner
@@ -495,9 +497,17 @@ if "sayfa" not in st.session_state and _qp_al("taslak") == "1" and taslak_oku():
 # "Açılışta bu ekranı gösterme" seçiliyse oturumun ilk açılışı doğrudan iş sayfasına (menü aynen kalır)
 if "sayfa" not in st.session_state and ayar_oku().get("yonlendirme_gizle"):
     st.session_state["sayfa"] = "Test Uygula" if os.path.exists(SPORCU_DOSYA) else "Sporcu Girişi"
-sayfa = st.sidebar.selectbox("Menü", SAYFALAR, key="sayfa")
+from olcut.bilesenler import alt_bilgi, ust_menu, yan_menu_secildi   # Paket 38k: üst menü, alt bilgi
+from olcut.sayfalar.hakkinda import hakkinda_sayfasi                  # Paket 38k: olcut/sayfalar/hakkinda.py
+# Paket 38k: "sayfa" yönlendirme durumu (artık bir seçicinin anahtarı değil); sol menü yalnız iş sayfaları
+if st.session_state.get("sayfa") not in SAYFALAR:
+    st.session_state["sayfa"] = "Ana Sayfa"
+sayfa = st.session_state["sayfa"]
+st.session_state["yan_menu"] = sayfa if sayfa in YAN_MENU else None
+st.sidebar.selectbox("Menü", YAN_MENU, key="yan_menu", placeholder="Bölüm seçin", on_change=yan_menu_secildi)
 if sayfa != "Test Oturumu":
     _qp_ayarla("taslak", None)
+ust_menu(sayfa, UST_MENU)
 
 from olcut.sayfalar.sporcu_girisi import sporcu_girisi_sayfasi   # Bölme Aşama 2: olcut/sayfalar/sporcu_girisi.py
 
@@ -551,3 +561,9 @@ elif sayfa == "Raporlar":
 # ── SAYFA 4: KAYNAKÇA ──
 elif sayfa == "Kaynakça":
     kaynakca_sayfasi()
+
+# ── HAKKINDA (Paket 38k) ──
+elif sayfa == "Hakkında":
+    hakkinda_sayfasi()
+
+alt_bilgi(sayfa)                                 # Paket 38k: her sayfanın en altında (raporlara girmez)

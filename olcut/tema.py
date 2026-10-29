@@ -478,6 +478,19 @@ hr {{ border-color:{renk_css("cizgi")} !important; margin:{b(2)} 0 !important; }
 [data-testid="stAppDeployButton"], [data-testid="stDeployButton"] {{ display:none !important; }}
 [data-testid="stButton"] button, [data-testid="stDownloadButton"] button, [data-testid="stPopover"] button,
 [data-testid="stFormSubmitButton"] button {{ min-height:44px; min-width:44px; }}
+.st-key-ust-menu {{ flex-wrap:wrap; gap:0 {b(0.5)}; margin:0 0 {b(2)}; padding-bottom:{b(0.5)};
+    border-bottom:1px solid {renk_css("cizgi")}; }}
+.st-key-ust-menu button {{ min-height:44px; padding:0 6px; color:{renk_css("murekkep")}; }}
+.st-key-ust-menu button p {{ font-size:{YAZI["govde"][0]}; font-weight:600; }}
+.st-key-ust-menu [class*="-aktif"] button {{ color:{renk_css("ana")}; }}
+.st-key-ust-menu [class*="-aktif"] button p {{ font-weight:700; text-decoration:underline; text-underline-offset:6px;
+    text-decoration-thickness:3px; }}
+.st-key-alt-bilgi {{ flex-wrap:wrap; gap:{b(1)} {b(2)}; margin-top:{b(4)}; padding-top:{b(1.5)};
+    border-top:1px solid {renk_css("cizgi")}; }}
+.st-key-alt-bilgi [data-testid="stMarkdownContainer"] {{ margin-bottom:0 !important; }}
+.sp-alt-bilgi {{ margin:0; font-size:{YAZI["etiket"][0]}; color:{renk_css("ikincil")}; }}
+.st-key-alt-bilgi button {{ min-height:44px; color:{renk_css("ana")}; }}
+.st-key-alt-bilgi button p {{ font-size:{YAZI["etiket"][0]}; font-weight:600; text-decoration:underline; }}
 *:focus-visible {{ outline:3px solid {renk_css("ana")} !important; outline-offset:2px; }}
 /* Paket 38d: metin/sayı/tarih kutusu ve açılır listede odak çerçevesi DIŞ kutuda (tek çerçeve); içteki input,
    tarih parçası ya da düğme ikinci çerçeve çizmez. Streamlit'in yeni (react-aria) ve eski (baseweb) yapısı birlikte. */
@@ -605,6 +618,10 @@ def tema_toml(grafik_yeri="kurulu"):
         "",
         "[theme.dark]",
         *renkler("koyu"),
+        "",
+        "# Paket 38k: Streamlit'in kullanım istatistiği kapalı (varsayılanı açık; hiçbir şey dışarı gönderilmez)",
+        "[browser]",
+        "gatherUsageStats = false",
         "",
     ])
 

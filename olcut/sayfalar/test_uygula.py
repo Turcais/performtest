@@ -84,7 +84,7 @@ def test_uygula_sayfasi():
                     secim = None
                     test_tarihi = date.today()
             if not secim:
-                st.stop()
+                return                                   # Paket 38k: st.stop() değil — alt bilgi yine çizilsin
             test_adi = secim.split(" › ")[-1]
             test_bilgi = filtreli[secim]
             kategori = secim.split(" › ")[0]
