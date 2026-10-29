@@ -344,38 +344,11 @@ ACILIS_TANIM = ("Çocukların ve sporcuların test sonuçlarını, aynı yaş ve
                 "sonuçlarıyla karşılaştırır.")
 
 
-def _desteklenen(fn, **secenek):
-    """Kurulu Streamlit sürümünün desteklediği anahtar sözcükler (eski sürümde bilinmeyen parametre verilmez)."""
-    try:
-        kabul = set(inspect.signature(fn).parameters)
-    except (TypeError, ValueError):
-        kabul = set()
-    return {k: v for k, v in secenek.items() if k in kabul}
-
-
-# Paket 38c: ad ve soyadda Türkçe baş harf. Sözcük TÜMÜYLE küçük ya da TÜMÜYLE büyük yazılmışsa ilk harf büyük,
-# kalanı küçük (i/İ, ı/I kuralıyla; çeviri tablosu — Python'un hazır büyük/küçük harf işlevleri Türkçe kuralı
-# bilmez). Karışık yazılmış
-# sözcüğe dokunulmaz ("Gülru", "McDonald", "De La Cruz" aynen kalır). Kayıtta uygulanır; eski kayıtlar
-# görüntülemede aynı biçimle gösterilir (kayıttaki ad, eşleştirme anahtarı olarak değişmez).
-_TR_KUCUK = "abcçdefgğhıijklmnoöprsştuüvyzqwxâîû"
-_TR_BUYUK = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZQWXÂÎÛ"
-_TR_BUYUT = str.maketrans(_TR_KUCUK, _TR_BUYUK)
-_TR_KUCULT = str.maketrans(_TR_BUYUK, _TR_KUCUK)
-
-
-def _sozcuk_bicimi(m):
-    s = m.group(0)
-    if all(c in _TR_KUCUK for c in s) or all(c in _TR_BUYUK for c in s):
-        return s[:1].translate(_TR_BUYUT) + s[1:].translate(_TR_KUCULT)
-    return s
-
-
-def ad_bicimi(ad):
-    """'ahmet yilmaz' → 'Ahmet Yilmaz', 'MEHMET KAYA' → 'Mehmet Kaya'; karışık yazılmış sözcük aynen kalır."""
-    if ad is None:
-        return ""
-    return re.sub(r"[^\W\d_]+", _sozcuk_bicimi, str(ad).strip())
+from olcut.ortak import (   # Bölme Aşama 2: olcut/ortak.py
+    _desteklenen, _TR_KUCUK, _TR_BUYUK, _TR_BUYUT, _TR_KUCULT, _sozcuk_bicimi, ad_bicimi, _girildi, DOGUM_KOLON,
+    tarih_coz, dogum_ceyregi, tam_yas, _yas_degeri, _e, _sayi, _tarih_gunu, guvenli_float,
+    METIN_DEGISKEN_KALIBI, AYAR_DOSYA, ayar_oku, ayar_yaz, _tablo_guvenli, tablo_oku, _dt_simdi, NOT_CIPLERI,
+    not_metni, not_coz)
 
 
 def coklu_secim(etiket, secenekler, *, tumunu_sec=False, **k):
@@ -1185,18 +1158,6 @@ def sifir_gecerli(test_adi, degisken):
     return False
 
 
-def _girildi(v):
-    """Alan doldurulmuş mu? (boş metin ve Excel'deki NaN 'girilmedi' sayılır)"""
-    if v is None:
-        return False
-    try:
-        if pd.isna(v):
-            return False
-    except (TypeError, ValueError):
-        pass
-    return str(v).strip() != ""
-
-
 def ktk3_toplamlari(test_adi, degerler):
     """
     KTK3+ testlerinin norma bağlanan toplam skorları. Hem test ekranında hem
@@ -1671,47 +1632,6 @@ def sporcu_antrenman(bilgi):
         v = "Bilinmiyor"
     t = bilgi.get(ANTRENMAN_TARIH_KOLON)
     return v, (str(t).strip() if _girildi(t) else "")
-
-
-# ── Doğum tarihi (Paket 9): yaşın yanına, yerine değil ──
-DOGUM_KOLON = "Doğum Tarihi"
-
-
-def tarih_coz(deger):
-    """date / Timestamp / 'gg.aa.yyyy' → date; çözülemezse None."""
-    if deger is None or (not isinstance(deger, (date, str)) and not hasattr(deger, "year")):
-        return None
-    try:
-        if pd.isna(deger):
-            return None
-    except (TypeError, ValueError):
-        pass
-    if hasattr(deger, "date") and callable(getattr(deger, "date")) and not isinstance(deger, date):
-        return deger.date()
-    if isinstance(deger, date):
-        return deger
-    metin = str(deger).strip()
-    for bicim in ("%d.%m.%Y", "%Y-%m-%d", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S"):
-        try:
-            from datetime import datetime as _dt
-            return _dt.strptime(metin, bicim).date()
-        except ValueError:
-            continue
-    return None
-
-
-def dogum_ceyregi(dogum):
-    """Takvim doğum çeyreği: 1 = Ocak-Mart, 2 = Nisan-Haziran, 3 = Temmuz-Eylül, 4 = Ekim-Aralık."""
-    d = tarih_coz(dogum)
-    return None if d is None else (d.month - 1) // 3 + 1
-
-
-def tam_yas(dogum, tarih):
-    """O tarihteki tamamlanmış yaş (yıl)."""
-    d, t = tarih_coz(dogum), tarih_coz(tarih)
-    if d is None or t is None:
-        return None
-    return t.year - d.year - ((t.month, t.day) < (d.month, d.day))
 
 
 def tsyt_hucre(dogum, test_tarihi):
@@ -2270,14 +2190,6 @@ def _profil_haritasi(df_sp):
                                                   df_sp.to_dict("records"))}
 
 
-def _yas_degeri(x):
-    try:
-        y = float(x)
-        return y if y == y else None
-    except (TypeError, ValueError):
-        return None
-
-
 def grup_ici_konum(df_test, df_sp, sporcu, test, degisken):
     """
     Sporcunun son ölçümünün, aynı testi yapan aynı cinsiyet ve aynı 2 yıllık yaş bandındaki sporcuların SON
@@ -2502,18 +2414,6 @@ RAPOR_CSS = f"""
 {BILESEN_CSS}
 </style>
 """
-
-
-def _e(x):
-    return _html.escape("" if x is None else str(x))
-
-
-def _sayi(x, ondalik=2, isaret=False):
-    try:
-        f = float(x)
-    except (TypeError, ValueError):
-        return "—"
-    return f"{f:+.{ondalik}f}" if isaret else f"{f:.{ondalik}f}".rstrip("0").rstrip(".") if ondalik else f"{f:.0f}"
 
 
 def _tablolari_sar(metin):
@@ -2836,15 +2736,6 @@ def _gelisim_grafik_svg(o, renk):
                      f'{_e(ay)}</text>')
     p.append("</svg>")
     return "".join(p)
-
-
-def _tarih_gunu(t):
-    """'gg.aa.yyyy' → date ya da None."""
-    try:
-        g, a, y = (int(x) for x in str(t).strip().split("."))
-        return date(y, a, g)
-    except (TypeError, ValueError):
-        return None
 
 
 def _tarih_konumlari(olcumler):
@@ -3769,13 +3660,6 @@ def protokol_ozet_cikar(protokol_metni: str) -> str:
 
 
 
-def guvenli_float(deger):
-    try:
-        return float(deger)
-    except (ValueError, TypeError):
-        return 0.0
-
-
 def turetilmis_degerler(test_adi, degerler, sporcu_satir, sporcu_kilo):
     """
     Girilen değerlerden otomatik hesaplanan değerler (en iyi deneme, KTK3+ toplamları, VO2max,
@@ -4077,7 +3961,6 @@ def turetilmis_degerler(test_adi, degerler, sporcu_satir, sporcu_kilo):
 # ════════════════════════════════════════════════════════════
 GRUP_KOLON = "Grup/Sınıf"
 OTURUM_KOLONLARI = ["Oturum", "Yer", "Uygulayıcı"]
-METIN_DEGISKEN_KALIBI = re.compile(r"\((?:Sağ/Sol|Geçti/Kalmadı|E/K)\)")
 TOPLU_GIRIS_DISI = {"Special Wrestling Fitness Test (SWFT)"}   # özel giriş ekranı olan test
 
 
@@ -9414,7 +9297,6 @@ def test_gorseli_penceresi(test_adi, protokol):
 # ════════════════════════════════════════════════════════════
 import json as _json
 
-AYAR_DOSYA = "ayarlar.json"          # yerel tercih dosyası (ör. "bir daha gösterme")
 # Batarya sayılan dallar: tamamı uygulanınca anlamlı olan bataryalar. Laboratuvar/branş koleksiyonları sayılmaz.
 YON_BATARYA_KATEGORILERI = ("Türkiye Sportif Yetenek Modeli (TSYT)", "Çocuk ve Genç Fiziksel Uygunluk Bataryaları")
 YON_BATARYA_DISI = ("Flaman Spor Pusulası (FSC) — Ek Testler",)
@@ -9440,26 +9322,6 @@ YON_LISTE_SINIRI = 5                 # ekranda adıyla gösterilen satır; fazla
 YON_YARIM_ORAN = 0.5
 YON_YARIM_GUN = 42
 YON_SUSTUR_ANAHTAR = "yarim_susturulan"   # ayarlar.json: [[sporcu, batarya], …] — "Bu bataryayı bitirmeyeceğim"
-
-
-def ayar_oku():
-    """Yerel tercihler (ayarlar.json). Dosya yoksa ya da bozuksa boş sözlük — ekran yine açılır."""
-    try:
-        with open(AYAR_DOSYA, encoding="utf-8") as f:
-            veri = _json.load(f)
-        return veri if isinstance(veri, dict) else {}
-    except (OSError, ValueError):
-        return {}
-
-
-def ayar_yaz(anahtar, deger):
-    veri = ayar_oku()
-    veri[anahtar] = deger
-    try:
-        with open(AYAR_DOSYA, "w", encoding="utf-8") as f:
-            _json.dump(veri, f, ensure_ascii=False, indent=1)
-    except OSError:
-        pass
 
 
 def katalog_testleri(katalog=None):
@@ -9516,27 +9378,6 @@ def test_kisa(test, bat):
     """Cümlede test adı: bataryanın kısa adı parantezde/tireyle tekrar ediyorsa atılır ('20m Sürat (TSYT)' → '20m Sürat')."""
     k = re.escape(batarya_kisa(bat))
     return re.sub(rf"\s*(\({k}\)|— {k})$", "", test).strip() or test
-
-
-def _tablo_guvenli(df, kolonlar):
-    """Dosya yoksa (None), boşsa ya da sütun eksikse: hata yerine boş/eksiksiz tablo."""
-    if df is None or not isinstance(df, pd.DataFrame):
-        df = pd.DataFrame()
-    df = df.copy()
-    for k in kolonlar:
-        if k not in df.columns:
-            df[k] = ""
-    return df
-
-
-def tablo_oku(yol):
-    """xlsx'i okur; dosya yoksa ya da okunamıyorsa None (yönlendirme ekranı hata vermeden açılsın)."""
-    if not os.path.exists(yol):
-        return None
-    try:
-        return pd.read_excel(yol)
-    except Exception:
-        return None
 
 
 def batarya_yas_araligi(kategori, batarya, katalog=None):
@@ -10048,11 +9889,6 @@ def calisma_kaydet(c, eski_ad=None):
                               "dokunuldu": _dt_simdi().isoformat(timespec="seconds")}
     ayar_yaz(CALISMA_ANAHTAR, hepsi)
     return []
-
-
-def _dt_simdi():
-    from datetime import datetime as _dt
-    return _dt.now()
 
 
 def calisma_dokun(ad):
@@ -10676,7 +10512,6 @@ def yonlendirme_ekrani():
 OT_ADIMLAR = ("Testler", "Sporcular", "Oturum bilgisi", "Değerler")
 OT_KIPLER = ("Sıradaki", "Tablo")
 TASLAK_DOSYA = "oturum_taslagi.json"
-NOT_CIPLERI = ("Yorgun", "Sakatlık şüphesi", "Zemin kaygan", "Tekrar edildi")
 NOT_DEGISKENI = "Not"                 # tablo kipinde test başına not sütunu: "Test › Not" (xlsx'te "Notlar" alanı)
 OT_AYKIRI_SORU = "Bu değer olağan aralığın dışında, doğru mu?"
 OT_TASLAK_NOTU = "✓ Taslak otomatik kaydedildi"
@@ -10792,20 +10627,6 @@ def sayi_girdisi(metin):
     if f != f or f in (float("inf"), float("-inf")):
         return m, False
     return deger_metni(f), True
-
-
-def not_metni(n):
-    """{"etiketler": [...], "metin": "..."} → "Yorgun; Zemin kaygan; serbest not" (xlsx "Notlar")."""
-    n = n or {}
-    return "; ".join([str(e) for e in n.get("etiketler", []) if str(e).strip()]
-                     + ([str(n["metin"]).strip()] if str(n.get("metin", "") or "").strip() else []))
-
-
-def not_coz(metin):
-    """not_metni'nin tersi: hazır not adları etiket, kalan serbest metin."""
-    parca = [p.strip() for p in str(metin or "").split(";") if p.strip()]
-    return {"etiketler": [p for p in parca if p in NOT_CIPLERI],
-            "metin": "; ".join(p for p in parca if p not in NOT_CIPLERI)}
 
 
 def taslak_tablosu(t, testler, notlu=False):
