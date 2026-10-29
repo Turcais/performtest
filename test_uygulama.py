@@ -943,7 +943,7 @@ def test_18b_her_performans_testi_bir_basliga_ya_da_disariya(app):
 
 
 def _veli_ornek(app):
-    satirlar = []
+    satirlar, z_sozlugu = [], {}
     for test, deg, deger in [("20m Sürat (TSYT)", "Süre (sn)", 6.5), ("El Kavrama Kuvveti (TSYT)", "Sağ El (kg)", 19),
                              ("El Kavrama Kuvveti (TSYT)", "Sol El (kg)", 14.5),
                              ("Dikey Sıçrama (TSYT, kollar serbest)", "Deneme 1 (cm)", 27),
@@ -956,8 +956,10 @@ def _veli_ornek(app):
                          "Performans persentili": zs["persentil_performans"], "Kategori": zs["kategori"],
                          "Z": zs["z_performans"], "Tür": "Tanımlayıcı (antropometrik)" if zs["notr"] else "Performans",
                          "Not": app["z_durum_notu"](zs) or ""})
-    zp = {"satirlar": satirlar, "z_sozlugu": {}, "hata": None, "eski_yas": False}
-    v = {"sporcu": "Deneme Çocuk", "bilgi": {"Ad": "Deneme", "Soyad": "Çocuk", "Yaş": 10}, "zp": zp,
+        # Paket 38c: veli kutusu P10–P90 aralığını z_sozlugu'ndaki bantlardan alır (sporcu_z_profili gibi)
+        z_sozlugu[(test, deg)] = {"z_performans": zs["z_performans"], "bantlar": zs["bantlar"]}
+    zp = {"satirlar": satirlar, "z_sozlugu": z_sozlugu, "hata": None, "eski_yas": False}
+    v = {"sporcu": "Deneme Çocuk", "bilgi": {"Ad": "Deneme", "Soyad": "Çocuk", "Yaş": 10, "Cinsiyet": "Erkek"}, "zp": zp,
          "esl": {"uygun": False, "kullanilan": [], "siralama": []}, "pen": None, "puan": {}, "ilgi": None,
          "hacim": "Bilinmiyor", "fiziksel_uc": [], "tarih_araligi": ("01.10.2026", "01.10.2026"),
          "rapor_tarihi": "15.10.2026"}
@@ -966,27 +968,32 @@ def _veli_ornek(app):
 
 def test_18c_veli_raporunda_teknik_bilgi_yok_yapi_dogru(app):
     """
-    Veli raporu: dört başlık, her kartın yanında şablondan bir cümle, son paragraf sabit.
+    Veli raporu (Paket 38c): dört başlık; her test TEK kutuda, son ölçümüyle, aralık diliyle ("aralığın içinde/
+    üstünde/altında"); sınıf etiketi ve şablon yargı cümlesi yok; son paragraf sabit.
     Z, persentil, norm kaynağı, tablo numarası ve sınır notları geçmez (bunlar antrenör raporunda).
     """
     v, zp = _veli_ornek(app)
     h = app["veli_raporu_html"](v)
     metin = re.sub(r"<style.*?</style>|<[^>]+>", " ", h, flags=re.S)
+    assert "Henüz bu dört başlığa giren bir test sonucu yok" not in metin   # denetim dolu rapor üzerinde
     teknik = [t for t in app_teknik_kaliplari() if re.search(t, metin)]
     assert not teknik, f"Veli raporunda teknik ifade: {teknik}"
     for g in app["VELI_GRUPLARI"]:
         assert f"<span>{g}</span></h3>" in h, g
-    sablonlar = set(app["VELI_YORUMLARI"].values())
-    yorumlar = re.findall(r'<p class="veli-yorum">(.*?)</p>', h)
-    kartlar = h.count('class="veli-satir"')
-    assert kartlar == len(yorumlar) == 4, (kartlar, len(yorumlar))   # sürat, el kavrama (tek kart), sıçrama, esneklik
+    kutular = re.findall(r'<div class="veli-aralik"><h4>(.*?)</h4>', h)
+    assert len(kutular) == len(set(kutular)) == 4, kutular   # sürat, el kavrama (tek kutu), sıçrama, esneklik
+    assert 'class="veli-satir"' not in h and 'class="veli-yorum"' not in h   # eski kart + şablon cümlesi düzeni
+    etiketler = [k for k, _, _, _ in app["palet"]("acik")["norm"]]
+    assert not [k for k in etiketler if re.search(r"\b" + re.escape(k) + r"\b", metin)], "Veli raporunda sınıf etiketi"
+    yer_sozcukleri = [kelime for _, kelime in app["VELI_YER_ISARETI"].values()]
+    for kutu in re.findall(r'<div class="veli-aralik">.*?</svg>', h, flags=re.S):   # her kutuda tek yer sözcüğü
+        assert sum(y in kutu for y in yer_sozcukleri) == 1, kutu[:120]
     import html as _h
-    assert all(_h.unescape(y) in sablonlar for y in yorumlar), yorumlar
     son = re.findall(r'<div class="veli-son">(.*?)</div>', h)
     assert son and _h.unescape(son[0]) == app["VELI_SON_PARAGRAF"]
     assert h.rstrip().endswith(f'{son[0]}</div></div></body></html>'), "Sabit paragraf raporun sonunda değil"
     assert app["VELI_DISARIDA_NOTU"] in _h.unescape(h)   # dayanıklılık testi vardı
-    assert "141" not in metin   # vücut ölçüsü (nötr) veli kartlarına girmez
+    assert "141" not in metin   # vücut ölçüsü (nötr) veli kutularına girmez
 
 
 def app_teknik_kaliplari():
@@ -1673,6 +1680,27 @@ def _apptest(tmp_path, monkeypatch, hazirla):
     return at
 
 
+def _acilirlar(at):
+    """
+    Sayfadaki açılır paneller, belge sırasıyla. Streamlit 1.58 AppTest'i icon= verilmiş st.expander'ı
+    'Status' olarak sınıflar (at.expander'da görünmez); ikisi birlikte toplanır.
+    """
+    bulunan = []
+
+    def yuru(d):
+        for c in (d.children.values() if isinstance(getattr(d, "children", None), dict) else ()):
+            if type(c).__name__ in ("Expander", "Status"):
+                bulunan.append(c)
+            yuru(c)
+    yuru(at._tree)
+    return bulunan
+
+
+def _durum_anahtarlari(at):
+    """Oturum durumu anahtarları. Streamlit 1.58'de SafeSessionState'te __iter__ yok; doğrudan döngü KeyError verir."""
+    return list(at.session_state.filtered_state)
+
+
 def test_23f_yonlendirme_ekrani_bos_dosyayla_acilir(tmp_path, monkeypatch):
     """Sporcu/sonuç dosyası yok ya da boş: ekran hata vermeden açılır, tek büyük eylem 'İlk sporcuyu ekle'."""
     import pandas as _pd
@@ -1700,7 +1728,7 @@ def test_23g_yonlendirme_dugmeleri_secimi_doldurur(tmp_path, monkeypatch, app):
 
     def veri(d):
         _pd.DataFrame({"Ad": ["Deniz", "Ece"], "Soyad": ["Aydın", "Su"], "Yaş": [9, 10], "Cinsiyet": ["Erkek", "Kadın"],
-                       "Grup": ["5-A", "5-A"]}).to_excel(d / "sporcular.xlsx", index=False)
+                       "Grup/Sınıf": ["5-A", "5-A"]}).to_excel(d / "sporcular.xlsx", index=False)
         _pd.DataFrame({"Sporcu": ["Deniz Aydın"] * 9 + ["Ece Su"] * len(tsyt), "Test": tsyt[:9] + tsyt,
                        "Tarih": [yakin] * (9 + len(tsyt))}).to_excel(d / "test_sonuclari.xlsx", index=False)
     at = _apptest(tmp_path, monkeypatch, veri)
@@ -1712,6 +1740,9 @@ def test_23g_yonlendirme_dugmeleri_secimi_doldurur(tmp_path, monkeypatch, app):
     assert at.session_state["sayfa"] == "Test Oturumu"
     secili = {m.label: m.value for m in at.multiselect}
     assert secili["Bu oturumda uygulanan testler"] == tsyt[9:]
+    at.button(key="ot_ana").click().run()                       # Paket 38b: sporcular Adım 2'de
+    secili = {m.label: m.value for m in at.multiselect}
+    assert secili["Grup / Sınıf"] == ["5-A"]
     assert secili["Sporcular (gruptakilerin tümü seçili gelir)"] == ["Deniz Aydın"]
 
 
@@ -3005,22 +3036,24 @@ def test_34e_test_oturumu_calisma_akisi(tmp_path, monkeypatch, app):
     at.text_input(key="ot_ara").input("sürat").run()
     assert not list(at.session_state["ot::sira"] if "ot::sira" in at.session_state else [])   # gezinmek eklemez
     sonuc = [t["ad"] for t in app_ara("sürat")]
-    agac_once = {k: list(at.session_state[k]) for k in at.session_state if str(k).startswith("ot_testler_")}
+    agac_once = {k: list(at.session_state[k]) for k in _durum_anahtarlari(at) if str(k).startswith("ot_testler_")}
     for ad in ("20m Sprint", "10m Sprint"):                         # arama panelindeki "Ekle" düğmeleri
         at.button(key=f"ot::ara::ekle::{sonuc.index(ad)}").click().run()
     assert list(at.session_state["ot::sira"]) == ["20m Sprint", "10m Sprint"]
     assert at.button(key=f"ot::ara::ekle::{sonuc.index('10m Sprint')}").disabled                # eklendi
-    assert {k: list(at.session_state[k]) for k in at.session_state if str(k).startswith("ot_testler_")} == agac_once
+    assert {k: list(at.session_state[k]) for k in _durum_anahtarlari(at) if str(k).startswith("ot_testler_")} == agac_once
     assert not [m for m in at.multiselect if m.label == "Aramadan ekle"]       # ayrı çoklu seçim kutusu yok
     at.button(key="ot::sira::asagi::0").click().run()
     assert list(at.session_state["ot::sira"]) == ["10m Sprint", "20m Sprint"]
     at.radio(key="ot_kaynak").set_value("Çalışma").run()
     assert not at.exception, [e.value for e in at.exception]
     assert at.selectbox(key="ot_zaman::NHE").value == "Ön test"
-    sec = [m for m in at.multiselect if m.label.startswith("Sporcular")][0]
-    assert sec.value == ["Ali A", "Can B"]
     assert any("NHE · Ön test" in c.value for c in at.caption)
     assert any("Sıra uyarısı" in w.value and "10m Sprint" in w.value for w in at.warning)
+    at.button(key="ot_ana").click().run()                       # Paket 38b: sporcular Adım 2'de
+    sec = [m for m in at.multiselect if m.label.startswith("Sporcular")][0]
+    assert sec.value == ["Ali A", "Can B"]
+    at.button(key="ot_geri").click().run()                      # çalışma düzenleyicisi Adım 1'de
     at.text_input(key="cl::➕ Yeni çalışma::ad").input("Tez").run()
     at.text_input(key="cl::➕ Yeni çalışma::ara").input("çeviklik").run()
     at.multiselect(key="cl::➕ Yeni çalışma::testler").select("T-Testi (Çeviklik)").run()
@@ -3081,18 +3114,28 @@ def test_34h_gorselsiz_neden_yazilir(app, tmp_path, monkeypatch):
 def test_34i_laboratuvar_uc_alt_baslik(app):
     """
     Laboratuvar ve Fizyolojik Testler: Paket 34'teki 3 alt başlık ve 20 test duruyor; Paket 35 dördüncü alt başlığı
-    (Maksimal Kuvvet ve Kas Dayanıklılığı, 6 test) ekledi. Katalog 189 → 195.
+    (Maksimal Kuvvet ve Kas Dayanıklılığı, 6 test) ekledi. Katalog 189 → 195; Paket 35c Sargent'i
+    (Anaerobik, Güç ve Nöromüsküler) ekledi: 196.
     """
     L = app["TEST_KATALOGU"]["Laboratuvar ve Fizyolojik Testler"]
     assert list(L) == ["Aerobik (Saha ve Laboratuvar)", "Anaerobik, Güç ve Nöromüsküler", "Antropometri ve Vücut Kompozisyonu",
                        "Maksimal Kuvvet ve Kas Dayanıklılığı"]
-    assert [len([t for t in v if not t.startswith("_")]) for v in L.values()] == [8, 9, 3, 6]   # _kunye test değil
-    assert len(app["katalog_testleri"]()) == 195
+    assert [len([t for t in v if not t.startswith("_")]) for v in L.values()] == [8, 10, 3, 6]   # _kunye test değil
+    assert len(app["katalog_testleri"]()) == 196
+
+
+def _test_oturumu_kaynagi(kaynak):
+    """
+    Test Oturumu sayfasının kaynağı. Paket 38b gövdeyi 'elif sayfa == "Test Oturumu":' bloğundan
+    test_oturumu_sayfasi() ve _ot_* adım fonksiyonlarına taşıdı; bunlar dosyadaki sırayla birleştirilir.
+    """
+    return "\n".join(ast.get_source_segment(kaynak, d) for d in ast.parse(kaynak).body
+                     if isinstance(d, ast.FunctionDef) and (d.name == "test_oturumu_sayfasi" or d.name.startswith("_ot_")))
 
 
 def test_34j_oturum_kaydi_kimlik_fonksiyonundan(kaynak):
     """Test Oturumu kaydı "Oturum" alanını oturum_kimligi ile yazar (çalışmayla: "çalışma · ölçüm zamanı")."""
-    sayfa = kaynak[kaynak.index('elif sayfa == "Test Oturumu":'):kaynak.index('elif sayfa == "Sonuçları Görüntüle":')]
+    sayfa = _test_oturumu_kaynagi(kaynak)
     assert re.search(r"kimlik = oturum_kimligi\(ot_calisma_ad if ot_calisma is not None else None, ot_zaman,", sayfa)
     assert 'k["Oturum"] = kimlik' in sayfa
 
@@ -3232,7 +3275,7 @@ def test_37c_brans_varyantlari_takma_ad(app):
     wing = [a for a, g in T.items() if g == "Wingate 30sn Bisiklet Testi"]
     assert len(yoyo) == 15 and len(wing) == 3
     tum = {t["ad"] for t in app["katalog_testleri"]()}
-    assert len(app["katalog_testleri"]()) == 195 and set(yoyo + wing) <= tum
+    assert len(app["katalog_testleri"]()) == 196   # Paket 35c: + Sargent and set(yoyo + wing) <= tum
     for a, g in T.items():
         if a in tum:
             assert set(app["test_bilgisi"](a)["degiskenler"]) <= set(app["test_bilgisi"](g)["degiskenler"]), a
@@ -3252,7 +3295,7 @@ def test_37c_brans_varyantlari_takma_ad(app):
 
 def test_37d_arama_paneli_agacin_ustunde(kaynak):
     """Test Oturumu: arama paneli kategori ağacının ÜSTÜNDE; sonuç satırında "Ekle"; ayrı "Aramadan ekle" kutusu yok."""
-    sayfa = kaynak[kaynak.index('elif sayfa == "Test Oturumu":'):kaynak.index('elif sayfa == "Sonuçları Görüntüle":')]
+    sayfa = _test_oturumu_kaynagi(kaynak)
     assert sayfa.index('key="ot_ara"') < sayfa.index('key="ot_kategori"')
     assert 'key=f"ot::ara::ekle::{i}"' in sayfa and "Aramadan ekle" not in sayfa
     assert "format_func=test_etiketli" in sayfa
@@ -3269,11 +3312,11 @@ def test_38a_ir2_takma_ad_ve_yoyo_aramasi(app):
     assert T["Yo-Yo IR2 (Futbol)"] == "Yo-Yo IR2 (Genel)"
     assert set(app["test_bilgisi"]("Yo-Yo IR2 (Futbol)")["degiskenler"]) <= set(app["test_bilgisi"]("Yo-Yo IR2 (Genel)")["degiskenler"])
     tum = app["katalog_testleri"]()
-    assert len(tum) == 195
+    assert len(tum) == 196   # Paket 35c: + Sargent
     ara = lambda q: [t["ad"] for t in app["test_ara"](q)]
     assert ara("yo-yo") == ["Yo-Yo IR1 (Genel)", "Yo-Yo IR2 (Genel)"]
     asil = [t["ad"] for t in tum if t["ad"] not in T]
-    assert len(asil) == 175                    # 195 − 20 takma adlı raf kaydı ("Modified Pull-Up Testi" iki rafta)
+    assert len(asil) == 176                    # 196 − 20 takma adlı raf kaydı ("Modified Pull-Up Testi" iki rafta)
     for a in asil:
         assert ara(a)[0] == a, a
     assert _norm_kapsami(app) == 84
@@ -3406,10 +3449,10 @@ def test_39e_paket32_degismeyenler(app):
     """Katalog 189, 160 görselli + 28 görselsiz, 169 asıl test tam adıyla 1. sırada, norm kapsamı değişmez.
     Paket 35: +6 test, hepsi görselli → 195, 166 + 28, 175 asıl; norm kapsamı yine 84 (Kademe 2 örneklem norm sayılmaz)."""
     tum = app["katalog_testleri"]()
-    assert len(tum) == 195
-    assert len(app["TEST_GORSELLERI"]) == 166 and len(app["TEST_GORSELSIZ"]) == 28
+    assert len(tum) == 196   # Paket 35c: + Sargent
+    assert len(app["TEST_GORSELLERI"]) == 167 and len(app["TEST_GORSELSIZ"]) == 28
     asil = [t["ad"] for t in tum if t["ad"] not in app["TEST_TAKMA_AD"]]
-    assert len(asil) == 175 and all(app["test_ara"](a)[0]["ad"] == a for a in asil)
+    assert len(asil) == 176 and all(app["test_ara"](a)[0]["ad"] == a for a in asil)
     assert _norm_kapsami(app) == 84
 
 
@@ -3553,7 +3596,7 @@ def test_40e_ana_sayfa_tek_oneri(tmp_path, monkeypatch, app):
     assert not at.exception, [e.value for e in at.exception]
     assert not at.multiselect                                          # katalog listesi ana sayfada yok
     assert [t.key for t in at.text_input] == ["yon_ara"]               # Paket 34: yalnız katlanmış aramada
-    assert [e.label for e in at.expander] == ["Test ara"] and not at.expander[0].proto.expanded
+    assert [e.label for e in _acilirlar(at)] == ["Test ara"] and not _acilirlar(at)[0].proto.expanded
     assert any(m.value == f"**{_NHE} · Ön test — 6 sporcunun 2'si ölçüldü, sıradaki: Ali Yılmaz (Deney)**"
                for m in at.markdown)
     assert [x.value for x in at.caption if x.value.startswith("Neden: ")] == ["Neden: başlanmış çalışma, 4 sporcu kaldı"]
@@ -3566,6 +3609,7 @@ def test_40e_ana_sayfa_tek_oneri(tmp_path, monkeypatch, app):
     assert at.radio(key="ot_kaynak").value == "Çalışma"
     assert at.selectbox(key="ot_calisma").value == _NHE
     assert at.selectbox(key=f"ot_zaman::{_NHE}").value == "Ön test"
+    at.button(key="ot_ana").click().run()                       # Paket 38b: sporcular Adım 2'de
     assert at.multiselect(key=f"ot_c_sporcular::{_NHE}::Deney").value == ["Ali Yılmaz"]
 
 
@@ -3653,7 +3697,7 @@ def test_41d_gorseller_css_degiskeni_yedekli(app):
     """166 sahnenin (Paket 35: 160 + 6) hareketli ve durağan kopyasında hiçbir fill/stroke "#" ile başlamaz; her renk altı
     --tg-* değişkeninden biri ve açık yedeği var (tanımsız bağlamda figür görünür)."""
     G = app["TEST_GORSELLERI"]
-    assert len(G) == 166
+    assert len(G) == 167   # Paket 35c: + Sargent görseli
     acik = app["palet"]("acik")["renk"]
     izinli = {f"var(--tg-{a}, {acik[a]})" for a in app["TG_DEGISKENLERI"]}     # yedek = açık paletin rengi
     assert {app["tg_renk"](a) for a in app["TG_DEGISKENLERI"]} == izinli and len(izinli) == 6
@@ -3694,16 +3738,22 @@ def test_41f_plotly_tema_yuvalari(app, agac):
     """Plotly renkleri Streamlit'in tema yuvaları (#000001…): tarayıcı o anki temanın rengini koyar; Python'da yazı
     rengi verilmez."""
     gr = app["grafik_renk"]
-    assert gr("ana") == "#000001" and gr("ikincil") == "#000002" and gr("ana", 0.15) == "#00000126"
+    assert gr("ana") == "#000001" and gr("ikincil") == "#000002"
+    # Paket 35d: saydamlık parametresi kaldırıldı (8 haneli #RRGGBBAA eski Plotly'de reddediliyor); hep 6 hane
+    assert all(re.fullmatch(r"#\d{6}", gr(y)) for y in app["GRAFIK_YUVALARI"])
+    with pytest.raises(TypeError):
+        gr("ana", 0.15)
     assert app["grafik_norm_renk"]("Üstün") == "#000016" and app["grafik_norm_renk"]("Çok Düşük") == "#000011"
     d = app["grafik_duzeni"]()
-    assert "color" not in d["font"] and d["paper_bgcolor"] == "rgba(0,0,0,0)"
+    # Paket 38b: zemin rengi verilmez (rgba yok); Streamlit teması grafiğin zeminini sayfayla eşler
+    assert "color" not in d["font"] and "paper_bgcolor" not in d and "plot_bgcolor" not in d
+    assert "rgba" not in repr(d)
     cagri = [n for n in ast.walk(agac) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
              and n.func.attr in ("update_layout", "add_trace", "add_shape", "add_annotation", "add_vline")]
     sorun = [ast.unparse(n)[:80] for n in cagri if re.search(r'font=dict\(color=|\bRENK\b', ast.unparse(n))
              and "add_annotation" not in ast.unparse(n)]
     assert not sorun, sorun
-    assert sum("grafik_duzeni" in ast.unparse(n) for n in cagri) == 5
+    assert sum("grafik_duzeni" in ast.unparse(n) for n in cagri) == 6   # Paket 38d: + oturumlar arası fark
 
 
 def test_41g_ana_sayfa_katlanmis_arama(tmp_path, monkeypatch, app):
@@ -3715,7 +3765,7 @@ def test_41g_ana_sayfa_katlanmis_arama(tmp_path, monkeypatch, app):
             d / "sporcular.xlsx", index=False)
     at = _apptest(tmp_path, monkeypatch, veri)
     assert not at.exception, [e.value for e in at.exception]
-    assert [e.label for e in at.expander] == ["Test ara"] and not at.expander[0].proto.expanded
+    assert [e.label for e in _acilirlar(at)] == ["Test ara"] and not _acilirlar(at)[0].proto.expanded
     assert not [b for b in at.button if b.label == "Uygula"]            # sorgu yokken liste yok
     at.text_input(key="yon_ara").input("yo-yo").run()
     assert [b.label for b in at.button].count("Uygula") == 2
@@ -3782,7 +3832,8 @@ def test_42a_kuvvet_rafi_alti_test(app):
     """
     Yeni alt raf altı testi birebir adlarla taşır; nitelik/bileşen taksonomiden (1-3 maksimal kuvvet → kuvvet; 4-6
     kuvvette devamlılık → kas dayanıklılığı). "(Genel)" eki yalnız 4-6'da. Testler hem serbest seçimde (raf) hem
-    Çalışma'da (aramayla) seçilebilir. Benzersiz ad 188 → 194, kayıt 189 → 195.
+    Çalışma'da (aramayla) seçilebilir. Benzersiz ad 188 → 194, kayıt 189 → 195. Paket 35c
+    (Sargent): benzersiz ad 195, kayıt 196.
     """
     raf = app["TEST_KATALOGU"][_P35_RAF[0]][_P35_RAF[1]]
     assert [t for t in raf if not t.startswith("_")] == list(_P35_TESTLER)
@@ -3796,7 +3847,7 @@ def test_42a_kuvvet_rafi_alti_test(app):
         assert ad not in app["TOPLU_GIRIS_DISI"]                         # Test Oturumu: serbest seçimde listelenir
         assert ad not in app["TEST_TAKMA_AD"]
     tum = app["katalog_testleri"]()
-    assert len(tum) == 195 and len({t["ad"] for t in tum}) == 194
+    assert len(tum) == 196 and len({t["ad"] for t in tum}) == 195
     assert app["sira_uyarilari"](["1RM Squat (Arka Çömelme)", "Barfiks (Pull-Up) — Maksimum Tekrar (Genel)"]) == []
     assert app["sira_uyarilari"](["Mekik (Sit-Up) — 1 Dakika (Genel)", "1RM Bench Press"])     # dayanıklılık önce: uyarır
 
@@ -3808,7 +3859,7 @@ def test_42b_benzer_adlar_birbirini_bastirmaz(app):
                "Mekik (Sit-Up) Testi - 30sn", *_P35_TESTLER):
         assert ara(ad)[0] == ad, (ad, ara(ad)[:3])
     asil = [t["ad"] for t in app["katalog_testleri"]() if t["ad"] not in app["TEST_TAKMA_AD"]]
-    assert len(asil) == 175 and all(ara(a)[0] == a for a in asil)
+    assert len(asil) == 176 and all(ara(a)[0] == a for a in asil)
 
 
 def test_42c_alti_testin_gorseli_var(app):
@@ -3883,7 +3934,8 @@ def test_42e_aydos_orneklemi_kademe2(app):
     birebir; künye kayıtları (yüzdelik değil, protokol notu, kulüp örneklemi) kayıtta. v90 anahtarlarının hiçbiri kaybolmadı.
     """
     N = app["NORMATIF"]
-    assert _P34_NORMATIF <= set(N) and set(N) - _P34_NORMATIF == {"Rölatif Squat (kg/kg)", "Rölatif Bench Press (kg/kg)"}
+    assert _P34_NORMATIF <= set(N) and set(N) - _P34_NORMATIF == {"Rölatif Squat (kg/kg)", "Rölatif Bench Press (kg/kg)",
+                                                                 "Sıçrama Yüksekliği — En İyi (cm)"}   # Paket 36: Sargent örneklemi
     for deg, sutun in (("Rölatif Squat (kg/kg)", 1), ("Rölatif Bench Press (kg/kg)", 3)):
         n = N[deg]
         assert n["tur"] == "orneklem" and n["yas_alt"] == 18 and "Erkek" not in n and "Kadın" not in n
@@ -3979,8 +4031,8 @@ def test_42h_test_uygula_ornekleme_karsilastirma(tmp_path, monkeypatch):
     assert len(kart) == 1 and "Güreş örneklemi (n=11): 1,915 ± 0,360 kg/kg" in kart[0]
     assert "örneklem karşılaştırması" in kart[0] and "sp-kart-alt" not in kart[0]        # rozet/kategori satırı yok
     assert not any(k in kart[0] for k in ("Mükemmel", "İyi", "Orta", "Zayıf", "Üstün", "Düşük"))
-    assert any(e.label.startswith("Örneklem değerleri") for e in at.expander)
-    etiket = [e.label for e in at.expander]
+    assert any(e.label.startswith("Örneklem değerleri") for e in _acilirlar(at))
+    etiket = [e.label for e in _acilirlar(at)]
     assert "Örneklem kaynağı (Kademe 2 — yüzdelik norm değil)" in etiket and "Kategorik norm kaynakları" not in etiket
 
 
@@ -3992,7 +4044,7 @@ def test_42i_kadinda_ve_18_altinda_referans_yok(tmp_path, monkeypatch):
         metin = " ".join([m.value for m in at.markdown] + [i.value for i in at.info] + [c.value for c in at.caption])
         aydos = [f"{v:.3f}".replace(".", ",") for r in _P35_AYDOS.values() for v in r[1:]]
         assert not any(s in metin for s in aydos + ["örneklemi (n="]), (test, cins, yas)
-        assert not any(e.label.startswith("Örneklem değerleri") for e in at.expander)
+        assert not any(e.label.startswith("Örneklem değerleri") for e in _acilirlar(at))
         assert any("kadın ve 18 yaş altı sporcu için referans gösterilmez" in i.value for i in at.info), (test, cins, yas)
 
 
