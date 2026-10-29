@@ -114,9 +114,16 @@ def modul_tutarliligi(ns):
     aynı nesne mi (ham/son hâl tuzağı: ör. HFZ eklenmemiş TEST_KATALOGU)? Modülde tanımsız ad = NameError riski.
     Döner: (denetlenen ad sayısı, sorun listesi).
     """
-    import builtins, dis
+    import builtins, dis, importlib, pkgutil
     sorun, sayi, gorulen = [], 0, set()
-    for ad, nesne in ns.items():
+    # yalnız uygulama ad alanındakiler değil: BÜTÜN olcut modüllerinin fonksiyon ve sınıfları (yükleyici SAYFALAR'dan
+    # sonraki içe aktarmaları çalıştırmaz; sarılan sayfa fonksiyonları ancak böyle görülür)
+    adaylar = list(ns.items())
+    if "olcut" in sys.modules:
+        for bilgi in pkgutil.walk_packages(sys.modules["olcut"].__path__, "olcut."):
+            m = importlib.import_module(bilgi.name)
+            adaylar += [(a, v) for a, v in vars(m).items() if getattr(v, "__module__", None) == bilgi.name]
+    for ad, nesne in adaylar:
         mod = getattr(nesne, "__module__", "") or ""
         if not (isinstance(nesne, (types.FunctionType, type)) and mod.startswith("olcut.")) or id(nesne) in gorulen:
             continue
