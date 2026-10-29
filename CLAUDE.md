@@ -1,6 +1,6 @@
 # Ölçüt — devralma notu
 
-Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38g** (etiket `v106-38g`).
+Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38h** (etiket `v107-38h`).
 Kullanıcı: Ertuğrul (spor bilimleri doktora öğrencisi, Gazi Üniversitesi). **Türkçe yazın, adım adım açıklayın.**
 Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `sporcular.xlsx`, `test_sonuclari.xlsx`, `ilgi_anketi.xlsx`, `ayarlar.json`, `oturum_taslagi.json`; uygulamanın ürettiği `.streamlit/config.toml` da girmez.
 
@@ -19,11 +19,12 @@ Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `s
 - Derin eşitlik: `python araclar/esitlik.py <git sürümü> [--akis]` · Sayfa görüntüsü: `python araclar/sayfa_goruntusu.py uygulama.py cikti.json`.
 
 ## Etiketler
-`v100-testler-yesil` (17 kırmızı → yeşil, Paket 38e) · `v101-38f` (veli raporu: en iyi deneme, yetişkin dili, sapma derecesi; regresyon tabanı) · `v102-temel`, `v103-gorseller`, `v104-cekirdek`, `v105-sayfalar` (Bölme Aşama 2 grupları) · `v106-38g` (karşılaştırma ekranı, dil, normsuz olağandışı değer).
+`v100-testler-yesil` (17 kırmızı → yeşil, Paket 38e) · `v101-38f` (veli raporu: en iyi deneme, yetişkin dili, sapma derecesi; regresyon tabanı) · `v102-temel`, `v103-gorseller`, `v104-cekirdek`, `v105-sayfalar` (Bölme Aşama 2 grupları) · `v106-38g` (karşılaştırma ekranı, dil, normsuz olağandışı değer) · `v107-38h` (grafik renkleri Streamlit sürümüne göre; açılış uyarısı yok).
 
 ## Çalışma kuralları
 - Her değişiklikten önce git commit, sonra değişiklik. Sonra: söz dizimi, testler, regresyon (yalnız paketin dokunduğu yer değişmeli; fark varsa açıkla). Paket adlandırması sürüyor (38g'den sonra 38h…); her paket tek commit.
 - Renkler yalnızca `olcut/tema.py`'de; grafik rengi `grafik_renk()` ile (Streamlit tema yuvaları `#00000N`); 8 haneli hex veya rgba grafik rengine verilmez (kaynak-tarama testi 17d/41f).
+- Grafik tema yuvaları (38h): Streamlit 1.58 `chartCategoricalColors`/`chartSequentialColors`'ı yalnız `[theme]`'de tanır; `tema_toml()` kurulu sürüme bakıp ya tema başına ya `[theme]`'e iki temanın karışımını yazar. Yazı/çizgi Streamlit'in kendi tema grileri (`#000037`, `#000035`). Streamlit betik klasöründeki `.streamlit/config.toml`'u da okur; kod değişince açık eski sunucu dosyayı eski içerikle yeniden yazar → sunucuyu yeniden başlatın.
 - Norm kaynağı: yalnızca açık yayımlanmış/resmî kaynaklar; kaynağı kayda yaz. Yeniden kullanım izni belirsiz üçüncü taraf materyali kullanıcı karar vermeden ekleme.
 - 11 yaş altında grup içi sıralama ve "daha iyi/kötü" etiketi yok. Hiçbir raporda başka çocuğun adı geçmez. Grupta n < 20 ise yüzdelik yok.
 - Veli dili: aralık dili ("çoğu A–B arasında, aralığın içinde / biraz / belirgin şekilde / çok üstünde-altında"; çok uzaksa "Değer doğru mu?"), sınıf etiketi yok, yargılayıcı cümle yok. Yetişkinde "Çocuğunuz…" yerine "Sporcu…", çocuk/büyüme dili yok.

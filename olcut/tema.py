@@ -203,9 +203,37 @@ def tema_degiskenleri_css():
 
 
 # ── Grafik renk yuvaları (Paket 34): Streamlit, Plotly şekline gömülü "#000001"… yer tutucularını tarayıcıda o
-# anki temanın chartCategoricalColors / chartSequentialColors değeriyle değiştirir. Yuvaların dolduğu yer
-# config.toml'un [theme.light] / [theme.dark] bölümleridir (tema_toml); Python tarafı temayı bilmez.
+# anki temanın chartCategoricalColors / chartSequentialColors değeriyle değiştirir; Python tarafı temayı bilmez.
+# Paket 38h: Streamlit 1.58 bu iki seçeneği YALNIZ [theme] altında tanır ([theme.light]/[theme.dark] altında
+# "not a valid config option" deyip yok sayar → grafikler Streamlit'in varsayılan paletiyle çizilirdi). Yuvaların
+# nereye yazılacağı kurulu sürüme bakılarak seçilir (tema_toml). Yazı ve çizgi rengi ise Streamlit'in kendi tema
+# yuvalarından gelir (#000037 güçlü yazı grisi, #000035 ızgara grisi): tek paletli sürümde de iki temada doğru.
 GRAFIK_YUVALARI = ("ana", "ikincil", "murekkep", "cizgi", "seri0", "seri1", "seri2")
+_TEMA_GRI_YUVASI = {"murekkep": 37, "cizgi": 35}
+
+
+def _parlaklik(h):
+    """WCAG göreli parlaklık (#RRGGBB)."""
+    k = [int(h.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    k = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in k]
+    return 0.2126 * k[0] + 0.7152 * k[1] + 0.0722 * k[2]
+
+
+def _kontrast(a, c):
+    x, y = sorted((_parlaklik(a), _parlaklik(c)), reverse=True)
+    return (x + 0.05) / (y + 0.05)
+
+
+def _ortak_renk(acik, koyu):
+    """
+    Tek paletli Streamlit için iki temaya da uyan renk: açık ve koyu temadaki karşılığın 20 adımlık karışımlarından,
+    iki zemine karşı en düşük kontrastı en yüksek olanı (yeni renk uydurulmaz, iki simgenin arasından seçilir).
+    """
+    zeminler = (palet("acik")["renk"]["zemin"], palet("koyu")["renk"]["zemin"])
+    a = [int(acik.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)]
+    k = [int(koyu.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)]
+    adaylar = ["#" + "".join(f"{round(x + (y - x) * t / 20):02X}" for x, y in zip(a, k)) for t in range(21)]
+    return max(adaylar, key=lambda r: min(_kontrast(r, z) for z in zeminler))
 
 
 def _grafik_yuvasi_renkleri(tema):
@@ -226,8 +254,10 @@ def grafik_renk(ad):
     Plotly rengi: temanın kategorik yuvası (ör. "ana" → "#000001"), HER ZAMAN 6 haneli. Paket 35d: 8 haneli
     (#RRGGBBAA) çıktı kaldırıldı — eski Plotly doğrulayıcısı reddediyor (ValueError, fillcolor). Saydamlık iz
     düzeyinde opacity ile verilir; rgba() kullanılmaz (Streamlit yalnız "#00000N" yer tutucusunu temaya çevirir).
+    Paket 38h: "murekkep" ve "cizgi" Streamlit'in kendi tema grilerine gider (#000037, #000035).
     """
-    return f"#{GRAFIK_YUVALARI.index(ad) + 1:06d}"
+    sira = GRAFIK_YUVALARI.index(ad) + 1
+    return f"#{_TEMA_GRI_YUVASI.get(ad, sira):06d}"
 
 
 def grafik_norm_renk(kategori):
@@ -507,12 +537,42 @@ hr {{ border-color:{renk_css("cizgi")} !important; margin:{b(2)} 0 !important; }
 """
 
 
-def tema_toml():
+def _grafik_secenek_yeri():
+    """
+    Paket 38h: kurulu Streamlit grafik renk seçeneklerini nerede tanıyor? "tema" ([theme.light]/[theme.dark]
+    altında), "ortak" (yalnız [theme] — 1.58 böyle) ya da None (hiç tanımıyor; yazılırsa açılışta uyarı verir).
+    """
+    try:
+        from streamlit import config as _cfg
+        secenekler = _cfg.get_config_options()
+    except Exception:
+        return "ortak"
+    if "theme.light.chartCategoricalColors" in secenekler:
+        return "tema"
+    return "ortak" if "theme.chartCategoricalColors" in secenekler else None
+
+
+def _grafik_satirlari(kategorik, sirali):
+    return ["chartCategoricalColors = [" + ", ".join(f'"{c}"' for c in kategorik) + "]",
+            "chartSequentialColors = [" + ", ".join(f'"{c}"' for c in sirali) + "]"]
+
+
+def tema_toml(grafik_yeri="kurulu"):
     """
     .streamlit/config.toml içeriği — yalnızca simgelerden üretilir (denetim eşitliği kontrol eder). Paket 34:
     [theme] ortak (yazı, köşe, kenarlık; base, baseFontSize, showSidebarBorder yalnız burada geçerli),
     [theme.light] ve [theme.dark] renkler. Kullanıcı Streamlit menüsünden ya da sistem ayarından seçer.
+    Paket 38h: grafik renkleri kurulu sürümün tanıdığı yere yazılır (_grafik_secenek_yeri): "tema" ise her temaya
+    kendi paleti, "ortak" ise [theme]'e iki temanın karışımı (_ortak_renk), None ise hiç yazılmaz.
     """
+    if grafik_yeri == "kurulu":
+        grafik_yeri = _grafik_secenek_yeri()
+    ortak_grafik = []
+    if grafik_yeri == "ortak":
+        ortak_grafik = _grafik_satirlari(
+            [_ortak_renk(a, k) for a, k in zip(_grafik_yuvasi_renkleri("acik"), _grafik_yuvasi_renkleri("koyu"))],
+            [_ortak_renk(a, k) for a, k in zip(_grafik_sira_renkleri("acik"), _grafik_sira_renkleri("koyu"))])
+
     def renkler(tema):
         r = palet(tema)["renk"]
         return [
@@ -523,9 +583,8 @@ def tema_toml():
             f'linkColor = "{r["ana"]}"',
             f'borderColor = "{r["cizgi"]}"',
             f'dataframeBorderColor = "{r["cizgi"]}"',
-            "chartCategoricalColors = [" + ", ".join(f'"{c}"' for c in _grafik_yuvasi_renkleri(tema)) + "]",
-            "chartSequentialColors = [" + ", ".join(f'"{c}"' for c in _grafik_sira_renkleri(tema)) + "]",
-        ]
+        ] + (_grafik_satirlari(_grafik_yuvasi_renkleri(tema), _grafik_sira_renkleri(tema))
+             if grafik_yeri == "tema" else [])
     return "\n".join([
         "# Bu dosya uygulamanın GÖRSEL SİSTEM simgelerinden üretildi (Paket 11, 34). Elle değiştirmeyin;",
         "# renk/yazı değişikliği uygulama dosyasının başındaki RENK / RENK_KOYU / YAZI simgelerinde yapılır.",
@@ -539,6 +598,7 @@ def tema_toml():
         f'"{YAZI["govde"][0]}", "{YAZI["govde"][0]}", "{YAZI["govde"][0]}"]',
         f'headingFontWeights = [{YAZI["baslik"][1]}, {YAZI["baslik"][1]}, {YAZI["altbaslik"][1]}, '
         f'{YAZI["altbaslik"][1]}, {YAZI["altbaslik"][1]}, {YAZI["altbaslik"][1]}]',
+        *ortak_grafik,
         "",
         "[theme.light]",
         *renkler("acik"),

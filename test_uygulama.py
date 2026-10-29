@@ -3734,7 +3734,6 @@ def test_41c_config_toml_iki_bolum_ve_yedek(app, tmp_path):
     for b, tema in (("light", "acik"), ("dark", "koyu")):
         assert not (set(t[b]) & yalniz_ust), (b, set(t[b]) & yalniz_ust)
         assert t[b]["backgroundColor"] == app["palet"](tema)["renk"]["zemin"]
-        assert len(t[b]["chartCategoricalColors"]) == 10 and len(t[b]["chartSequentialColors"]) == 10
     yaz = app["config_toml_yaz"]
     d = tmp_path / ".streamlit"
     assert yaz(str(d)) == "yazildi" and not (d / "config.toml.yedek").exists()
@@ -3743,6 +3742,39 @@ def test_41c_config_toml_iki_bolum_ve_yedek(app, tmp_path):
     assert yaz(str(d)) == "yazildi"
     assert (d / "config.toml.yedek").read_text(encoding="utf-8") == '[theme]\nbase = "light"\n'
     assert (d / "config.toml").read_text(encoding="utf-8") == app["tema_toml"]()
+
+
+def test_41c2_grafik_renkleri_surume_gore(app):
+    """Paket 38h: grafik renkleri kurulu Streamlit'in tanıdığı bölüme yazılır (1.58: yalnız [theme]; light/dark
+    altında yazılırsa açılışta 'not a valid config option' uyarısı ve varsayılan palet). Kurulu sürümün tanımadığı
+    hiçbir theme anahtarı üretilmez."""
+    import tomllib
+    from streamlit import config as cfg
+    gecerli = set(cfg.get_config_options())
+
+    def anahtarlar(d, on="theme"):
+        for k, v in d.items():
+            yield from (anahtarlar(v, f"{on}.{k}") if isinstance(v, dict) else [f"{on}.{k}"])
+    kurulu = tomllib.loads(app["tema_toml"]())["theme"]
+    assert set(anahtarlar(kurulu)) <= gecerli, set(anahtarlar(kurulu)) - gecerli
+
+    ortak = tomllib.loads(app["tema_toml"]("ortak"))["theme"]
+    assert len(ortak["chartCategoricalColors"]) == 10 and len(ortak["chartSequentialColors"]) == 10
+    assert all("chartCategoricalColors" not in ortak[b] for b in ("light", "dark"))
+    zeminler = [app["palet"](t)["renk"]["zemin"] for t in ("acik", "koyu")]
+    # marka yuvaları (ana, ikincil, seriler) iki zeminde de ≥ 3:1 (grafik ögesi)
+    for i in (0, 1, 4, 5, 6):
+        r = ortak["chartCategoricalColors"][i]
+        assert all(_kontrast(r, z) >= 3 for z in zeminler), (i, r)
+
+    tema = tomllib.loads(app["tema_toml"]("tema"))["theme"]
+    assert "chartCategoricalColors" not in tema
+    for b, t in (("light", "acik"), ("dark", "koyu")):
+        assert tema[b]["chartCategoricalColors"] == app["_grafik_yuvasi_renkleri"](t)
+        assert len(tema[b]["chartSequentialColors"]) == 10
+
+    yok = app["tema_toml"](None)
+    assert "chart" not in yok
 
 
 def test_41d_gorseller_css_degiskeni_yedekli(app):
@@ -3791,6 +3823,10 @@ def test_41f_plotly_tema_yuvalari(app, agac):
     rengi verilmez."""
     gr = app["grafik_renk"]
     assert gr("ana") == "#000001" and gr("ikincil") == "#000002"
+    # Paket 38h: yazı ve çizgi Streamlit'in kendi tema grileri (tek paletli sürümde de iki temada doğru)
+    assert gr("murekkep") == "#000037" and gr("cizgi") == "#000035"
+    with pytest.raises(ValueError):
+        gr("yok")
     # Paket 35d: saydamlık parametresi kaldırıldı (8 haneli #RRGGBBAA eski Plotly'de reddediliyor); hep 6 hane
     assert all(re.fullmatch(r"#\d{6}", gr(y)) for y in app["GRAFIK_YUVALARI"])
     with pytest.raises(TypeError):
