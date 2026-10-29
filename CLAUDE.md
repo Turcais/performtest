@@ -13,7 +13,7 @@ Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `s
 - `araclar/` — `reg.py` (regresyon, 5 örnek sporcu), `yukle.py` (yükleyici), `esitlik.py` (sürüm ↔ çalışma kopyası derin eşitlik + modül tutarlılığı + akış sonrası yerinde değişiklik), `sayfa_goruntusu.py` (her sayfanın ekran öğelerini döker; sürümler arası karşılaştırma).
 
 ## Komutlar
-- Çalıştırma: `streamlit run uygulama.py` (veri dosyalarının olduğu klasörden; başka klasörden tam yolla da çalışır).
+- Çalıştırma: `python -m streamlit run uygulama.py` (veri dosyalarının olduğu klasörden; başka klasörden tam yolla da çalışır). Kısa `streamlit` komutu bu bilgisayarda PATH'te değil.
 - Testler: `python -m pytest test_uygulama.py -q` (~6–8 dk; 184 test). Windows'ta Türkçe çıktı için `PYTHONUTF8=1`.
 - Regresyon: `python araclar/reg.py <TAM YOL>\uygulama.py cikti.json` (araç çalışma klasörünü değiştirdiği için tam yol). Taban: `v101-38f` çıktısı.
 - Derin eşitlik: `python araclar/esitlik.py <git sürümü> [--akis]` · Sayfa görüntüsü: `python araclar/sayfa_goruntusu.py uygulama.py cikti.json`.
@@ -38,7 +38,7 @@ Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma** (`ol
 
 ## Elle deneme: örnek veri
 `Desktop\Olcut_Demo\` — hayali 12 sporcu (soyadı "Demo"; çocuklar Elif, Mert, Zeynep, Kaan, Defne, Emre 9–11 yaş; Barış, Selin, Onur, Ceren, Tolga, Aylin 16–28 yaş), iki oturum: "Demo · Ön Test" (15.09.2026) ve "Demo · Son Test" (25.10.2026), her biri 12 sporcu / 126 kayıt. Gerçek veriye dokunmadan denemek için uygulamayı bu klasörden başlatın:
-`cd ..\Olcut_Demo` → `streamlit run ..\Olcut\uygulama.py`
+`cd ..\Olcut_Demo` → `python -m streamlit run ..\Olcut\uygulama.py`
 
 ## Şimdi yapılacaklar (sırayla)
 1. **Elle deneme** (demo verisiyle): Sonuçlar → Karşılaştırma (iki sekme, pasif/eski durumu, 11 yaş altı ve karışık uyarıları, Wilcoxon), Test Oturumu'nda normsuz testte ×3 uyarısı, yaşıt kartı ve veli raporunda "Değer doğru mu?" (sabit not yok). Telefon genişliğinde iki sütunun alt alta dizildiğine bak.
