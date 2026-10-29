@@ -312,6 +312,22 @@ def _git_sonuclar(sporcu):
     st.session_state["sayfa"] = "Sonuçları Görüntüle"
     st.session_state["sonuc_oturum"] = "Tüm kayıtlar"
     st.session_state["sonuc_sporcu"] = sporcu
+    st.session_state["sonuc_bolum"] = SONUC_BOLUMLERI[0]           # Paket 38g: sporcunun sonuçları açılır
+
+
+# Paket 38g: Sonuçlar sayfasının üst düzey bölümü — karşılaştırma "Ayrıntılı analiz" arkasında gizli kalmasın.
+SONUC_BOLUMLERI = ("Sonuçlar", "Karşılaştırma")
+
+
+def sonuc_bolumu_secici():
+    """Sonuçlar sayfasının üstünde segment: Sonuçlar / Karşılaştırma. Seçim kaldırılırsa Sonuçlar."""
+    sec = st.segmented_control("Bölüm", SONUC_BOLUMLERI, key="sonuc_bolum", label_visibility="collapsed",
+                               **({} if "sonuc_bolum" in st.session_state else {"default": SONUC_BOLUMLERI[0]}))
+    return sec or SONUC_BOLUMLERI[0]
+
+
+def _karsilastirmaya_git():
+    st.session_state["sonuc_bolum"] = SONUC_BOLUMLERI[1]
 
 
 @st.dialog("Grup içi konum ve gelişim", width="large")

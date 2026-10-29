@@ -6,11 +6,13 @@ Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """
 import os
 import pandas as pd
+import re
 import streamlit as st
 from datetime import date
+from veri.metinler import DUNYA_REKORU
 from olcut.katalog_islemleri import CALISMA_ANAHTAR, kanonik_test, katalog_testleri
 from olcut.norm import (
-    NORMATIF_YAS, OTURUM_ADI_KOLON, TEST_DOSYA, _STANDART_NORMAL, degisken_yonu, sifir_gecerli,
+    META_KOLONLAR, NORMATIF_YAS, OTURUM_ADI_KOLON, TEST_DOSYA, _STANDART_NORMAL, degisken_yonu, sifir_gecerli,
     turetilmis_degerler, yas_persentil_bul)
 from olcut.ortak import DOGUM_KOLON, _dt_simdi, _girildi, ayar_oku, ayar_yaz, guvenli_float, tam_yas
 
@@ -139,8 +141,86 @@ def _sayi_kisa(x):
     return f"{x:.1f}".rstrip("0").rstrip(".") if abs(x) < 1000 else f"{x:.0f}"
 
 
-def makullukte_uyarilar(test_adi, degerler, yas, cinsiyet, dogum=None, tarih=None, etiket=""):
-    """Norm aralığı (≈P1-P99) dışındaki değerler için uyarı metinleri. Normu olmayanlar atlanır."""
+ONCEKI_KAT = 3          # Paket 38g: normsuz değişkende önceki ölçümün ×3'ü üstü ya da ÷3'ü altı → uyarı
+
+
+def _degisken_birimi(degisken):
+    """'Süre (sn)' → 'sn'; parantez yoksa boş."""
+    m = re.search(r"\(([^()]*)\)\s*$", str(degisken))
+    return m.group(1) if m else ""
+
+
+def normsuz_uyarilar(test_adi, degisken, x, cinsiyet, onceki=None, on=""):
+    """
+    Paket 38g: normu OLMAYAN değişken için olağandışı değer uyarıları (kayıt engellenmez).
+    (1) Mutlak sınır: DUNYA_REKORU'nda bu değişkenin rekoru varsa, testin yönüne göre rekoru aşan değer
+        (süre testinde rekordan kısa, sıçramada rekordan uzun) fiziksel olarak olası değil.
+    (2) Sporcunun kendi önceki ölçümü: onceki = (değer, tarih); yeni değer önceki × 3'ten büyük ya da ÷ 3'ten küçük.
+    """
+    birim = _degisken_birimi(degisken)
+    b = f" {birim}" if birim else ""
+    uyarilar = []
+    rekor = (DUNYA_REKORU.get(degisken) or {}).get(cinsiyet)
+    yon = degisken_yonu(test_adi, degisken)
+    if rekor and yon is not None:
+        r = float(rekor["deger"])
+        if (x < r) if yon else (x > r):
+            uyarilar.append(f"{on}{test_adi} — {degisken} = {_sayi_kisa(x)}{b}: {cinsiyet.lower()} dünya rekorunun "
+                            f"({_sayi_kisa(r)}{b}, {rekor.get('sahibi', '')}) ötesinde; fiziksel olarak olası değil. "
+                            f"Doğru mu?")
+    if onceki is not None:
+        p, ptarih = onceki
+        if p and p > 0 and x > 0 and (x > p * ONCEKI_KAT or x < p / ONCEKI_KAT):
+            yonu = "üç katından fazla" if x > p else "üçte birinden az"
+            uyarilar.append(f"{on}{test_adi} — {degisken} = {_sayi_kisa(x)}{b}: sporcunun önceki ölçümünün "
+                            f"({_sayi_kisa(p)}{b}{', ' + str(ptarih) if ptarih else ''}) {yonu}. Doğru mu?")
+    return uyarilar
+
+
+_GECMIS_ONBELLEK = {}
+
+
+def onceki_olcumler(sporcu, test_adi, tarih=None):
+    """
+    Paket 38g: sporcunun bu testteki kayıtlı son ölçümleri {değişken: (değer, 'gg.aa.yyyy')} — test_sonuclari.xlsx.
+    tarih verilirse o günden SONRAKİ kayıtlar sayılmaz. Dosya yoksa boş. Okuma dosyanın değişme zamanıyla önbellekli.
+    """
+    if not sporcu or not os.path.exists(TEST_DOSYA):
+        return {}
+    try:
+        anahtar = (os.path.abspath(TEST_DOSYA), os.path.getmtime(TEST_DOSYA))
+        if anahtar not in _GECMIS_ONBELLEK:
+            _GECMIS_ONBELLEK.clear()
+            df = pd.read_excel(TEST_DOSYA)
+            df["_t"] = pd.to_datetime(df.get("Tarih"), format="%d.%m.%Y", errors="coerce")
+            _GECMIS_ONBELLEK[anahtar] = df
+        df = _GECMIS_ONBELLEK[anahtar]
+    except Exception:
+        return {}
+    d = df[(df["Sporcu"].astype(str) == str(sporcu)) & (df["Test"].map(kanonik_test) == kanonik_test(test_adi))]
+    if tarih is not None and not d.empty:
+        try:
+            d = d[~(d["_t"] > pd.Timestamp(tarih))]
+        except (TypeError, ValueError):
+            pass
+    out = {}
+    for _, r in d.sort_values("_t", na_position="first").iterrows():
+        for k, v in r.items():
+            if k in META_KOLONLAR or k in ("_t", "Test Yaşı") or not _girildi(v):
+                continue
+            try:
+                out[k] = (float(str(v).replace(",", ".")), str(r.get("Tarih", "") or ""))
+            except (TypeError, ValueError):
+                pass
+    return out
+
+
+def makullukte_uyarilar(test_adi, degerler, yas, cinsiyet, dogum=None, tarih=None, etiket="", onceki=None):
+    """
+    Norm aralığı (≈P1-P99) dışındaki değerler için uyarı metinleri. Paket 38g: normu OLMAYAN değişkende de
+    uyarı (normsuz_uyarilar: dünya rekoru, önceki ölçümün ×3 / ÷3'ü). onceki: {değişken: (değer, tarih)}.
+    Norm varsa eski yol aynen çalışır.
+    """
     uyarilar = []
     for degisken, v in degerler.items():
         if not _girildi(v):
@@ -152,9 +232,12 @@ def makullukte_uyarilar(test_adi, degerler, yas, cinsiyet, dogum=None, tarih=Non
         if x == 0 and not sifir_gecerli(test_adi, degisken):
             continue
         ar = makul_aralik(test_adi, degisken, yas, cinsiyet, dogum, tarih)
-        if not ar or ar["alt"] <= x <= ar["ust"]:
-            continue
         on = f"{etiket}: " if etiket else ""
+        if not ar:
+            uyarilar += normsuz_uyarilar(test_adi, degisken, x, cinsiyet, (onceki or {}).get(degisken), on)
+            continue
+        if ar["alt"] <= x <= ar["ust"]:
+            continue
         uyarilar.append(f"{on}{test_adi} — {degisken} = {_sayi_kisa(x)} {ar['birim']}: {ar['hucre']} için olağandışı "
                         f"(beklenen ≈ {_sayi_kisa(ar['alt'])}–{_sayi_kisa(ar['ust'])} {ar['birim']}, P1–P99). "
                         f"Emin misiniz?")
@@ -240,7 +323,8 @@ def oturum_kayitlari(tablo, sporcu_bilgileri, testler, kategori, batarya, brans,
             hesaplanan, h_uyari = turetilmis_degerler(test_adi, degerler, bilgi, kilo)
             uyarilar += [f"{sporcu}: {test_adi} — {u}" for u in h_uyari]
             tum = {**degerler, **{k: v for k, v in hesaplanan.items() if isinstance(v, (int, float))}}
-            uyarilar += makullukte_uyarilar(test_adi, tum, yas, cins, bilgi.get(DOGUM_KOLON), tarih, sporcu)
+            uyarilar += makullukte_uyarilar(test_adi, tum, yas, cins, bilgi.get(DOGUM_KOLON), tarih, sporcu,
+                                            onceki_olcumler(sporcu, test_adi, tarih))   # Paket 38g
             kat_, bat_, br_ = (yollar or {}).get(test_adi, (kategori, batarya, brans))
             kayitlar.append(test_kaydi_olustur(sporcu, bilgi, kat_, bat_, br_, test_adi, tarih,
                                                degerler, hesaplanan, "", oturum))
@@ -258,28 +342,31 @@ def oturum_secenekleri(df):
     return dict(reversed(list(et.items())))
 
 
-# Paket 38d: Sporcu Karşılaştırma kapsamı. Bireysel = her sporcunun son ölçümü (eski davranış); Tek oturum = yalnız
-# o oturumun ölçümleri; Oturumlar arası = iki oturumda da ölçülen sporcunun iki değeri ve farkı (yön tanımından
-# "daha iyi / daha kötü"; yön yoksa yalnız fark). Hesap yok: kayıttaki değerler, oturum içinde son ölçüm.
-KARSILASTIRMA_KAPSAMLARI = ("Bireysel", "Tek oturum", "Oturumlar arası")
+# Karşılaştırma (Paket 38d → 38g): kayıttaki değerler, sporcu başına (seçilen oturum[lar] içinde) son ölçüm; hesap yok.
+# Paket 38g: "Kapsam" seçimi kalktı; Sporcular arası / Oturumlar arası ekranı (olcut/karsilastirma.py) bunları kullanır.
+# oturum: None = bütün kayıtlar (eski "Bireysel"), tek kimlik (eski "Tek oturum") ya da kimlik listesi.
 
 
-def oturum_degerleri(df, test, degisken, oturum=None):
-    """{sporcu: değer} — testin değişkeni; oturum verilirse yalnız o oturum; sporcu başına son ölçüm."""
+def oturum_degerleri(df, test, degisken, oturum=None, tarihli=False):
+    """{sporcu: değer} — tarihli=True: {sporcu: (değer, 'gg.aa.yyyy')}. Sporcu başına son ölçüm."""
     d = df[df["Test"].map(kanonik_test) == kanonik_test(test)].copy()
     if oturum is not None:
-        d = d[d["Oturum"].astype(str) == str(oturum)] if "Oturum" in d.columns else d.iloc[0:0]
+        kimlikler = [str(o) for o in oturum] if isinstance(oturum, (list, tuple, set, frozenset)) else [str(oturum)]
+        d = d[d["Oturum"].astype(str).isin(kimlikler)] if "Oturum" in d.columns else d.iloc[0:0]
     if degisken not in d.columns or d.empty:
         return {}
     d["_v"] = pd.to_numeric(d[degisken], errors="coerce")
     if "Tarih_dt" not in d.columns:
         d["Tarih_dt"] = pd.to_datetime(d["Tarih"], format="%d.%m.%Y", errors="coerce")
     d = d.dropna(subset=["_v"]).sort_values("Tarih_dt", na_position="first")
-    return {s: float(v) for s, v in d.groupby("Sporcu")["_v"].last().items()}
+    son = d.groupby("Sporcu", sort=True).tail(1).set_index("Sporcu").sort_index()   # değer ve tarih aynı satırdan
+    if tarihli:
+        return {s: (float(r["_v"]), str(r.get("Tarih", "") or "")) for s, r in son.iterrows()}
+    return {s: float(v) for s, v in son["_v"].items()}
 
 
 def oturumlar_arasi_fark(df, test, degisken, once, sonra):
-    """İki oturumda da ölçülen sporcular: [{Sporcu, Önceki, Sonraki, Fark, Yorum}] — yorum sözcükle."""
+    """İki oturumda (ya da oturum listesinde) da ölçülen sporcular: [{Sporcu, Önceki, Sonraki, Fark, Yorum}]."""
     a = oturum_degerleri(df, test, degisken, once)
     b_ = oturum_degerleri(df, test, degisken, sonra)
     yon = degisken_yonu(test, degisken)

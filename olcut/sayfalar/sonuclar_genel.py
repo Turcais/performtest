@@ -1,5 +1,5 @@
 """
-Sonuçları Görüntüle — ayrıntılı genel görünüm: tablo, grafikler, sporcu karşılaştırma (Kapsam), radar, Excel.
+Sonuçları Görüntüle — ayrıntılı genel görünüm: tablo, grafikler, radar, Excel (karşılaştırma: Paket 38g ayrı bölüm).
 
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """
@@ -16,9 +16,9 @@ from olcut.analiz import (
     ilgi_etiketi, ilgi_fiziksel_pencereler, ilgi_grup_puanlari, ilgi_son_anket, sporcu_antrenman,
     sporcu_antrenman_kaydet, sporcu_fsc_profili, sporcu_profil_bilgisi, z_satiri_karti)
 from olcut.bilesenler import (
-    _gecerli_secim, baslik_ac, bolum_terimleri, coklu_secim, grup_konum_penceresi, sekme_hatasi, sutun_yardimi)
+    _gecerli_secim, _karsilastirmaya_git, baslik_ac, bolum_terimleri, coklu_secim, grup_konum_penceresi, sekme_hatasi, sutun_yardimi)
 from olcut.katalog_islemleri import test_tablosu_duzelt
-from olcut.kayit import KARSILASTIRMA_KAPSAMLARI, oturum_degerleri, oturum_secenekleri, oturumlar_arasi_fark
+from olcut.kayit import oturum_secenekleri
 from olcut.norm import (
     BILESIK_MAKS_GUN, META_KOLONLAR, NORMATIF, SPORCU_DOSYA, TEST_DOSYA, bilesik_z_hesapla,
     normatif_degerlendir, orneklem_disi_metni, orneklem_notlari, orneklem_tablosu, sporcu_z_profili)
@@ -218,100 +218,14 @@ def sonuclari_goruntule_sayfasi():
             except Exception as _sekme_h:          # Paket 38a: bir sekmenin hatası öbürlerini durdurmaz
                 sekme_hatasi(_sekme_h)
 
-        # ══ SEKME 3: SPORCU KARŞILAŞTIRMA ══
+        # ══ SEKME 3: SPORCU KARŞILAŞTIRMA — Paket 38g: sayfanın üstündeki "Karşılaştırma" bölümüne taşındı ══
         with sekme3:
             try:
-                st.subheader("Sporcular Arası Karşılaştırma")
-                import plotly.graph_objects as go
-                df_kars_tum = test_tablosu_duzelt(pd.read_excel(TEST_DOSYA))      # oturumlar arası: süzgeçsiz
-                df_kars_tum["Tarih_dt"] = pd.to_datetime(df_kars_tum["Tarih"], format="%d.%m.%Y", errors="coerce")
-                kars_oturumlar = oturum_secenekleri(df_kars_tum)
-                kapsam = st.radio("Kapsam", KARSILASTIRMA_KAPSAMLARI, horizontal=True, key="kars_kapsam",
-                                  help="Bireysel: her sporcunun son ölçümü. Tek oturum: yalnız seçilen oturum. "
-                                       "Oturumlar arası: iki oturumda da ölçülen sporcuların farkı.")
-                if kapsam != "Bireysel" and not kars_oturumlar:
-                    st.info("Kayıtlarda oturum yok; oturum kapsamı için Test Oturumu sayfasından giriş yapın.")
-                    kapsam = "Bireysel"
-                kars_kaynak = df_test if kapsam == "Bireysel" else df_kars_tum
-                k1, k2 = st.columns(2)
-                with k1:
-                    kars_test = st.selectbox("Test", sorted(kars_kaynak["Test"].unique().tolist()), key="kars_test")
-                sayisal_kars = [k for k in kars_kaynak.columns if k not in META_KOLONLAR
-                                and pd.to_numeric(kars_kaynak.loc[kars_kaynak["Test"] == kars_test, k],
-                                                  errors="coerce").notna().any()]
-                with k2:
-                    kars_kolon = st.selectbox("Değişken", sayisal_kars if sayisal_kars else ["—"], key="kars_kolon")
-                oturum_listesi = list(kars_oturumlar)
-                if kapsam == "Tek oturum":
-                    _gecerli_secim("kars_oturum", oturum_listesi)
-                    on = st.session_state.get("sonuc_oturum")                  # Sonuçlar süzgeciyle aynı oturum
-                    kars_oturum = st.selectbox("Oturum", oturum_listesi, format_func=kars_oturumlar.get,
-                                               key="kars_oturum", **({} if "kars_oturum" in st.session_state else
-                                                                     {"index": oturum_listesi.index(on) if on in oturum_listesi else 0}))
-                elif kapsam == "Oturumlar arası":
-                    o1, o2 = st.columns(2)
-                    _gecerli_secim("kars_once", oturum_listesi)
-                    _gecerli_secim("kars_sonra", oturum_listesi)
-                    kars_sonra = o2.selectbox("Sonraki oturum", oturum_listesi, format_func=kars_oturumlar.get,
-                                              key="kars_sonra")
-                    kars_once = o1.selectbox("Önceki oturum", oturum_listesi, format_func=kars_oturumlar.get,
-                                             key="kars_once", **({} if "kars_once" in st.session_state else
-                                                                 {"index": min(1, len(oturum_listesi) - 1)}))
-
-                if not sayisal_kars or kars_kolon == "—":
-                    st.info("Bu test için sayısal değişken bulunamadı.")
-                elif kapsam == "Oturumlar arası":
-                    satirlar = oturumlar_arasi_fark(df_kars_tum, kars_test, kars_kolon, kars_once, kars_sonra)
-                    if kars_once == kars_sonra:
-                        st.info("Farklı iki oturum seçin.")
-                    elif not satirlar:
-                        st.info("İki oturumda da bu testi yapan sporcu yok.")
-                    else:
-                        tablo = pd.DataFrame(satirlar)
-                        tablo["Sporcu"] = tablo["Sporcu"].map(ad_bicimi)
-                        st.dataframe(tablo, hide_index=True, width="stretch",
-                                     column_config={"Fark": st.column_config.NumberColumn("Fark", format="%+.2f")})
-                        isaret = {"daha iyi": "✓", "daha kötü": "!", "değişmedi": "=", "arttı": "▲", "azaldı": "▼"}
-                        fig2 = go.Figure(go.Bar(
-                            y=tablo["Sporcu"], x=tablo["Fark"], orientation="h",
-                            text=[f"{isaret[y]} {f:+.2f} {y}".replace(".", ",") for f, y in zip(tablo["Fark"], tablo["Yorum"])],
-                            textposition="outside", cliponaxis=False,
-                            marker_color=[grafik_renk("ana") if y == "daha iyi" else grafik_renk("ikincil")
-                                          for y in tablo["Yorum"]]))
-                        _m = max(0.01, float(tablo["Fark"].abs().max()))
-                        fig2.update_layout(title=f"{kars_test} — {kars_kolon}: oturumlar arası fark",
-                                           xaxis=dict(title="Fark (sonraki − önceki)", range=[-2.2 * _m, 2.2 * _m],
-                                                      zeroline=True),
-                                           height=max(260, 46 * len(tablo) + 120), **grafik_duzeni())
-                        st.plotly_chart(fig2, width="stretch")
-                        st.caption("Fark = sonraki − önceki. Yön sözcükle yazılır (✓ daha iyi, ! daha kötü); "
-                                   "yön tanımsız ölçüde yalnız ▲ arttı / ▼ azaldı.")
-                else:
-                    degerler = oturum_degerleri(kars_kaynak, kars_test, kars_kolon,
-                                                kars_oturum if kapsam == "Tek oturum" else None)
-                    if not degerler:
-                        st.info("Bu test için karşılaştırılacak veri yok.")
-                    else:
-                        df_kars_son = pd.DataFrame(sorted(degerler.items(), key=lambda x: -x[1]),
-                                                   columns=["Sporcu", kars_kolon])
-                        renkler = [grafik_renk("ikincil") if s != filtre else grafik_renk("ana")
-                                   for s in df_kars_son["Sporcu"]]
-                        fig2 = go.Figure(go.Bar(
-                            x=df_kars_son["Sporcu"].map(ad_bicimi),
-                            y=df_kars_son[kars_kolon],
-                            text=df_kars_son[kars_kolon].round(2),
-                            textposition="outside",
-                            marker_color=renkler,
-                        ))
-                        fig2.update_layout(
-                            title=f"{kars_test} — {kars_kolon} Karşılaştırması"
-                                  + (f" · {kars_oturumlar.get(kars_oturum, '')}" if kapsam == "Tek oturum" else ""),
-                            xaxis_title="Sporcu",
-                            yaxis_title=kars_kolon,
-                            **grafik_duzeni(),
-                        )
-                        st.plotly_chart(fig2, width="stretch")
-                        st.caption("Mavi: seçili sporcu · gri: diğer sporcular")
+                st.subheader("Sporcular ve oturumlar arası karşılaştırma")
+                st.markdown("Karşılaştırma artık bu sayfanın üstündeki **Karşılaştırma** bölümünde: iki sporcu grubu "
+                            "(Sporcular arası) ya da önce / sonra oturumları (Oturumlar arası).")
+                st.button("Karşılaştırmayı aç", key="kars_ac", icon=":material/compare_arrows:", type="primary",
+                          on_click=_karsilastirmaya_git)
             except Exception as _sekme_h:          # Paket 38a: bir sekmenin hatası öbürlerini durdurmaz
                 sekme_hatasi(_sekme_h)
 

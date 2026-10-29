@@ -11,7 +11,7 @@ import streamlit as st
 from datetime import date
 from io import BytesIO
 from olcut.analiz import (
-    GRUP_KONUM_YUZDELIK_N, VELI_ARALIK_YERI, VELI_KONUM_EN_AZ_YAS, _konum_sayi, brans_grubu_eslestir,
+    GRUP_KONUM_YUZDELIK_N, VELI_ARALIK_YERI, VELI_DOGRU_MU_BASLIK, VELI_KONUM_EN_AZ_YAS, _konum_sayi, brans_grubu_eslestir,
     gelisim_ozeti, grup_ici_konum, rapor_konum_degiskenleri, sporcu_fsc_profili, sporcu_profil_bilgisi)
 from olcut.bilesenler import _gecerli_secim, _git_rapor, _nitelik_kartina_git, grup_konum_penceresi
 from olcut.katalog_islemleri import NITELIK_DIGER, NITELIK_KARTLARI, nitelik_karti, test_niteligi, test_tablosu_duzelt
@@ -21,7 +21,7 @@ from olcut.oneri import ozet_kartlari_html
 from olcut.ortak import _girildi, _tarih_gunu, ad_bicimi
 from olcut.raporlar import (
     _aralik_sayi, _gelisim_grafik_svg, _veli_duzeyi, gelisim_bolumu_html, gelisim_metni, konum_seridi_veli_svg,
-    test_degisken_etiketi, veli_aralik_yeri, veli_konum_uygun)
+    test_degisken_etiketi, veli_aralik_konumu, veli_konum_uygun)
 from olcut.tema import kategori_bilgisi, palet, renk_css
 
 
@@ -97,10 +97,17 @@ def sonuc_karti_cumlesi(o):
     return m.replace(" — bir önceki ölçümden düşük", " — daha kötü")
 
 
+# Paket 38g: yaşıt kartını antrenör okur — veli metnindeki "antrenörle birlikte" yerine doğrudan çağrı.
+SONUC_DOGRU_MU = "Bu sonuç aralıktan çok uzak; ölçüm ya da kayıt hatası olabilir. Ölçümü ve kaydı kontrol edin."
+
+
 def yasit_karti_metni(k, ad):
+    """Paket 38g: veli raporuyla aynı derece dili — biraz / belirgin şekilde / çok (+ "Değer doğru mu?")."""
+    yer = veli_aralik_konumu(k)
     return (SONUC_YASIT_METNI.format(n=k["n"], a=_aralik_sayi(k["p10"], k["birim"]), b=_aralik_sayi(k["p90"], k["birim"]),
                                      birim=k["birim"]).replace("  ", " ")
-            + " " + VELI_ARALIK_YERI[veli_aralik_yeri(k)].format(ad=ad))
+            + " " + VELI_ARALIK_YERI[yer].format(ad=ad)
+            + (f" {VELI_DOGRU_MU_BASLIK} {SONUC_DOGRU_MU}" if yer.endswith("_cok") else ""))
 
 
 def yasit_yetersiz_nedeni(k):

@@ -418,6 +418,10 @@ BILESEN_CSS = f"""
 .sp-acilis h1 {{ margin:0 !important; padding:0 !important; }}
 .sp-acilis p {{ margin:{b(0.5)} 0 0; color:{renk_css("ikincil")}; font-size:{YAZI["govde"][0]}; max-width:560px; }}
 .sp-lejant {{ display:flex; flex-wrap:wrap; gap:{b(0.75)}; align-items:center; margin:{b(0.5)} 0 {b(1.5)}; }}
+[class*="st-key-kars-sutun"] [data-testid="stCheckbox"] label {{ min-height:44px; align-items:center; }}
+[class*="st-key-kars-sutun"] button {{ min-height:44px; }}
+.kars-pasif {{ border:2px dashed {renk_css("cizgi")}; border-radius:{b(1)}; padding:{b(3)} {b(2)}; text-align:center;
+              color:{renk_css("ikincil")}; font-size:{YAZI["govde"][0]}; }}
 """
 
 

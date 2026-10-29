@@ -182,7 +182,9 @@ def veli_sonuc_kutusu_html(t, ad, cinsiyet, yetiskin, renk):
             f' · <span>{isaret} {_e(kelime)}</span></p>'
             f'<p>{_e(veli_aralik_cumlesi(cinsiyet, yetiskin, t["p10"], t["p90"], t["birim"], t["kesin"]))} '
             f'{_e(VELI_ARALIK_YERI[yer].format(ad=ad))}{(" " + _e(ipucu)) if ipucu else ""}</p>{dogru_mu}'
-            f'{konum_seridi_veli_svg(k, renk)}<p class="kucuk">{_e(VELI_ARALIK_NOTU)}</p></div>')
+            f'{konum_seridi_veli_svg(k, renk)}'
+            + ("" if dogru_mu else f'<p class="kucuk">{_e(VELI_ARALIK_NOTU)}</p>')   # Paket 38g: uyarı varken not yok
+            + '</div>')
 
 
 def veli_grup_aralik_durumu(yerler):

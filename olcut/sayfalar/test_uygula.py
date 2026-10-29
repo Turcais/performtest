@@ -17,7 +17,7 @@ from olcut.gorseller.sahneler import TEST_GORSELLERI, test_gorseli_html, test_go
 from olcut.katalog_islemleri import (
     TEST_KATALOGU, TEST_TAKMA_AD, kanonik_test, protokol_formatla, protokol_ozet_cikar, test_ara, test_bilgisi,
     test_etiketli, test_izi)
-from olcut.kayit import kayitlari_yaz, makullukte_uyarilar, test_kaydi_olustur
+from olcut.kayit import kayitlari_yaz, makullukte_uyarilar, onceki_olcumler, test_kaydi_olustur
 from olcut.norm import (
     NORMATIF, NORMATIF_KAPSAM, NORMATIF_YAS, NORMSUZ_TESTLER, NORM_YOK_METNI, ROLATIF_KUVVET, SPORCU_DOSYA,
     TURETILEN_DEGISKENLER, bant_metni, normatif_degerlendir, normatif_test_degerlendir, orneklem_disi_metni,
@@ -348,7 +348,8 @@ def test_uygula_sayfasi():
             # Makullük kontrolü: norm P1-P99 dışı değer → uyar, onaylanırsa kaydet
             tekli_uyari = makullukte_uyarilar(
                 test_adi, {**degerler, **{k: v for k, v in hesaplanan.items() if isinstance(v, (int, float))}},
-                tekli_test_yasi, sporcu_cinsiyet, sporcu_satir.get(DOGUM_KOLON), test_tarihi)
+                tekli_test_yasi, sporcu_cinsiyet, sporcu_satir.get(DOGUM_KOLON), test_tarihi,
+                onceki=onceki_olcumler(secili_sporcu, test_adi, test_tarihi))      # Paket 38g: normsuzda da uyarı
             tekli_onay = True
             if tekli_uyari:
                 for u in tekli_uyari:

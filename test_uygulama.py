@@ -1724,13 +1724,33 @@ def _acilirlar(at):
             if type(c).__name__ in ("Expander", "Status"):
                 bulunan.append(c)
             yuru(c)
-    yuru(at._tree)
+    yuru(getattr(at, "_tree", None) or at.main)               # Paket 38g: iç ağaç yoksa ana gövde
     return bulunan
 
 
 def _durum_anahtarlari(at):
-    """Oturum durumu anahtarları. Streamlit 1.58'de SafeSessionState'te __iter__ yok; doğrudan döngü KeyError verir."""
-    return list(at.session_state.filtered_state)
+    """
+    Oturum durumu anahtarları — Streamlit sürümünden bağımsız (Paket 38g). 1.58'de SafeSessionState'te __iter__ yok
+    (doğrudan döngü KeyError verir), filtered_state özellik; başka sürümlerde yöntem ya da iç nesnede olabilir.
+    Sırayla denenir; hiçbiri yoksa doğrudan döngü.
+    """
+    ss = at.session_state
+    for nesne in (ss, getattr(ss, "_state", None), getattr(getattr(ss, "_state", None), "_state", None)):
+        fs = getattr(nesne, "filtered_state", None) if nesne is not None else None
+        if fs is None:
+            continue
+        try:
+            return list(fs() if callable(fs) else fs)
+        except Exception:
+            continue
+    for ad in ("keys", "_keys"):
+        f = getattr(ss, ad, None)
+        if callable(f):
+            try:
+                return list(f())
+            except Exception:
+                pass
+    return [k for k in ss]
 
 
 def test_23f_yonlendirme_ekrani_bos_dosyayla_acilir(tmp_path, monkeypatch):
@@ -4223,7 +4243,7 @@ def test_44a_veri_modulleri_yalniz_sabit(agac):
 # 45. Bölme Aşama 2: olcut/ paketinin katman sırası (döngüsel bağımlılık yok)
 # ════════════════════════════════════════════════════════════
 _OLCUT_KATMAN = ["ortak", "tema", "esik", "katalog_islemleri", "gorseller.cizim", "gorseller.hareketler",
-                 "gorseller.sahneler", "norm", "analiz", "kayit", "raporlar", "oneri", "bilesenler", "sayfalar"]
+                 "gorseller.sahneler", "norm", "analiz", "kayit", "raporlar", "oneri", "karsilastirma", "bilesenler", "sayfalar"]
 
 
 def _olcut_katmani(modul):
@@ -4258,3 +4278,153 @@ def test_45a_olcut_katman_sirasi():
                     if o is None or o >= ben:
                         sorun.append(f"{modul} → {h}: katman sırasına aykırı")
     assert not sorun, sorun
+
+
+
+# ════════════════════════════════════════════════════════════
+# 46. Paket 38g: karşılaştırma ekranı, olağandışı değer (normsuz), yaşıt kartı dili
+# ════════════════════════════════════════════════════════════
+def _modul(ad):
+    import importlib
+    return importlib.import_module(ad)
+
+
+def _p38g_veri(d):
+    """Üç sporcu (10 yaş kız, 24 ve 26 yaş erkek), iki oturum; atlama (yüksek iyi) ve mekik koşusu (düşük iyi)."""
+    import pandas as _pd
+    _pd.DataFrame({"Ad": ["Elif", "Onur", "Tolga"], "Soyad": ["Demo"] * 3, "Yaş": [10, 24, 26],
+                   "Cinsiyet": ["Kadın", "Erkek", "Erkek"]}).to_excel(d / "sporcular.xlsx", index=False)
+    satir = []
+    for oturum, tarih, ek in (("S1", "15.09.2026", 0), ("S2", "25.10.2026", 1)):
+        for s, atl, kos in (("Elif Demo", 120, 21.0), ("Onur Demo", 230, 17.0), ("Tolga Demo", 220, 18.0)):
+            satir.append({"Sporcu": s, "Test": "Durarak Uzun Atlama", "Tarih": tarih, "Oturum": oturum,
+                          "Deneme 1 (cm)": atl + 5 * ek})
+            satir.append({"Sporcu": s, "Test": "10x5m Mekik Koşusu (Shuttle Run)", "Tarih": tarih, "Oturum": oturum,
+                          "Süre (sn)": kos - 0.5 * ek})
+    _pd.DataFrame(satir).to_excel(d / "test_sonuclari.xlsx", index=False)
+
+
+def test_46a_karsilastirma_ekrani_sekmeler_ve_pasif(tmp_path, monkeypatch):
+    """
+    Sonuçlar → 'Karşılaştırma' bölümü (üst düzey segment): iki sekme, 'Kapsam' radio'su yok; Karşılaştır'a basılmadan
+    sonuç bölümü pasif (ipucu); basınca tablo + grup özetleri; karışık yaş/cinsiyet uyarısı ve 11 yaş altı notu;
+    seçim değişince 'eski' notu.
+    """
+    at = _apptest(tmp_path, monkeypatch, _p38g_veri)
+    at.session_state["sayfa"] = "Sonuçları Görüntüle"
+    at.run()
+    assert [b.label for b in at.get("button_group")] == ["Bölüm"]
+    at.session_state["sonuc_bolum"] = "Karşılaştırma"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert [t.label for t in at.tabs] == ["Sporcular arası", "Oturumlar arası"]
+    assert not [r for r in at.radio if r.label == "Kapsam"]
+    assert any("Önce sporcuları seçip Karşılaştır'a basın." in m.value for m in at.markdown)
+    assert not at.dataframe
+    for s in ("Elif Demo", "Onur Demo"):
+        at.checkbox(key=f"ksa_a::k::{s}").check()
+    at.checkbox(key="ksa_b::k::Tolga Demo").check()
+    at.run()
+    at.selectbox(key="ksa_test").select("Durarak Uzun Atlama").run()
+    at.button(key="ksa_karsilastir").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert not any("Önce sporcuları seçip" in m.value for m in at.markdown)
+    tablo = at.dataframe[0].value
+    assert list(tablo["Grup"]) == ["A", "A", "B"] and set(tablo["Değer"]) == {125.0, 235.0, 225.0}   # son oturum
+    assert any(w.value.startswith("Yaş ve cinsiyet karışık; ham değerler karşılaştırılıyor.") for w in at.warning)
+    assert any("11 yaş altı sporcu var" in i.value for i in at.info)
+    ozet = [m.value for m in at.markdown if m.value.startswith("**Grup")]
+    assert len(ozet) == 2 and all("ortalama" in o and "aralık" in o and "P25" not in o for o in ozet)   # n < 20
+    at.checkbox(key="ksa_a::k::Elif Demo").uncheck().run()
+    assert any("sonuç eski" in i.value for i in at.info)
+
+
+def test_46b_kars_kurallari_yuzdelik_siralama_karisik(tmp_path, monkeypatch):
+    """n < 20: yüzdelik yok, n ≥ 20: çeyrekler; 11 yaş altı varsa sıralama yok (ada göre), yoksa yöne göre; karışık."""
+    K = _modul("olcut.karsilastirma")
+    assert K.grup_ozeti([1, 2, 3])["p25"] is None and K.grup_ozeti([])["n"] == 0
+    oz = K.grup_ozeti(list(range(1, 21)))
+    assert oz["n"] == 20 and oz["p25"] == 5.75 and oz["p75"] == 15.25
+    monkeypatch.chdir(tmp_path)
+    _p38g_veri(tmp_path)
+    import pandas as _pd
+    df = _pd.read_excel(tmp_path / "test_sonuclari.xlsx")
+    r = K.sporcular_arasi(df, "Durarak Uzun Atlama", "Deneme 1 (cm)", ["Tolga Demo", "Onur Demo", "Elif Demo"])
+    assert r["kucuk"] and r["karisik"] and [x["Sporcu"] for x in r["satirlar"]] == ["Elif Demo", "Onur Demo", "Tolga Demo"]
+    r2 = K.sporcular_arasi(df, "Durarak Uzun Atlama", "Deneme 1 (cm)", ["Tolga Demo", "Onur Demo"], oturumlar=["S1"])
+    assert not r2["kucuk"] and [x["Değer"] for x in r2["satirlar"]] == [230.0, 220.0]             # en iyi önce
+    r3 = K.sporcular_arasi(df, "10x5m Mekik Koşusu (Shuttle Run)", "Süre (sn)", ["Tolga Demo", "Onur Demo"])
+    assert [x["Sporcu"] for x in r3["satirlar"]] == ["Onur Demo", "Tolga Demo"]                    # süre: kısa iyi
+    assert K.karisik_mi({"a": {"yas": 24, "cinsiyet": "Erkek"}, "b": {"yas": 24, "cinsiyet": "Erkek"}}) is False
+
+
+def test_46c_oturumlar_arasi_yon_ve_cocuk(tmp_path, monkeypatch):
+    """Önce/Sonra/Fark: sürede düşüş 'daha iyi', atlamada artış 'daha iyi'; 11 yaş altında yalnız arttı/azaldı."""
+    K = _modul("olcut.karsilastirma")
+    monkeypatch.chdir(tmp_path)
+    _p38g_veri(tmp_path)
+    import pandas as _pd
+    df = _pd.read_excel(tmp_path / "test_sonuclari.xlsx")
+    kos = {x["Sporcu"]: x for x in K.oturumlar_arasi(df, "10x5m Mekik Koşusu (Shuttle Run)", "Süre (sn)",
+                                                       ["S1"], ["S2"])["satirlar"]}
+    assert kos["Onur Demo"]["Fark"] == -0.5 and kos["Onur Demo"]["Yön"] == "✓ daha iyi"
+    assert kos["Elif Demo"]["Yön"] == "▼ azaldı"                                     # 10 yaş: etiket yok
+    atl = {x["Sporcu"]: x for x in K.oturumlar_arasi(df, "Durarak Uzun Atlama", "Deneme 1 (cm)",
+                                                       ["S1"], ["S2"])["satirlar"]}
+    assert atl["Tolga Demo"]["Yön"] == "✓ daha iyi" and atl["Elif Demo"]["Yön"] == "▲ arttı"
+    assert set(K.oturum_etiketleri(df).values()) == {"S2 (25.10.2026) · 3 sporcu", "S1 (15.09.2026) · 3 sporcu"}
+
+
+def test_46d_wilcoxon_ve_etki():
+    """Kesin dağılım (SciPy ile aynı), sıfır fark atılır, n < 6 test yok, eşitlikte normal yaklaşım."""
+    W = _modul("olcut.karsilastirma").wilcoxon_isaretli_sira
+    a = W([1, 2, 3, 4, 5, 6])
+    assert a["p"] == 0.03125 and a["r"] == 1.0 and a["yontem"] == "kesin"
+    assert W([1, -2, 3, 4, 5, 6, 7, 8])["p"] == 0.0234375
+    assert W([1, 2, 0, 0, 3, 4, 5]) == {"n": 5, "yetersiz": True}
+    e = W([1, 1, 2, 2, 3, -3, 4, 5])
+    assert e["yontem"] == "normal yaklaşım" and abs(e["p"] - 0.09169) < 1e-4
+
+
+def test_46e_normsuz_testte_olagandisi_uyari_engel_yok(tmp_path, monkeypatch, app):
+    """
+    Normu olmayan değişkende: önceki ölçümün ×3'ü / ÷3'ü ve dünya rekorunun ötesi uyarılır; norm varsa eski yol aynen;
+    uyarı kaydı engellemez (oturum_kayitlari kaydı yine üretir).
+    """
+    t = app["makullukte_uyarilar"]
+    test, deg = "Koordinasyon Parkuru (TSYT)", "Süre (sn)"
+    assert t(test, {deg: "999"}, 10, "Erkek") == []                                # önceki yok: sınır yok
+    u = t(test, {deg: "90"}, 10, "Erkek", onceki={deg: (25.0, "01.09.2026")})
+    assert len(u) == 1 and "üç katından fazla" in u[0] and "01.09.2026" in u[0]
+    assert "üçte birinden az" in t(test, {deg: "7"}, 10, "Erkek", onceki={deg: (25.0, "")})[0]
+    assert t(test, {deg: "30"}, 10, "Erkek", onceki={deg: (25.0, "")}) == []
+    r = t("100m Sprint", {"100m Sprint (sn)": "9.1"}, 24, "Erkek")
+    assert len(r) == 1 and "dünya rekorunun" in r[0] and "Usain Bolt" in r[0]       # sürede rekordan kısa
+    assert t("100m Sprint", {"100m Sprint (sn)": "10.5"}, 24, "Erkek") == []
+    assert t("10x5m Mekik Koşusu (Shuttle Run)", {"Süre (sn)": "21.7"}, 10, "Erkek",
+             onceki={"Süre (sn)": (5.0, "")}) == []                                  # norm var: eski yol
+    import pandas as _pd
+    monkeypatch.chdir(tmp_path)
+    _pd.DataFrame({"Sporcu": ["Ali A"], "Test": [test], "Tarih": ["01.09.2026"], deg: [25.0]}).to_excel(
+        tmp_path / "test_sonuclari.xlsx", index=False)
+    tablo = _pd.DataFrame({"Sporcu": ["Ali A"], f"{test} › {deg}": ["90"]})
+    kay, uy = app["oturum_kayitlari"](tablo, {"Ali A": {"Yaş": 10, "Cinsiyet": "Erkek"}}, {test: [deg]}, "-", "-",
+                                      None, __import__("datetime").date(2026, 10, 1), {})
+    assert len(kay) == 1 and kay[0][deg] == "90" and any("üç katından fazla" in x for x in uy)
+
+
+def test_46f_yasit_karti_ve_veli_notu(app):
+    """Yaşıt kartı: biraz / belirgin şekilde / çok + doğru mu (antrenör dili). Veli kutusu: uyarı varken sabit not yok."""
+    yk = _modul("olcut.sayfalar.sonuclar").yasit_karti_metni
+    k = lambda d: {"n": 25, "p10": 10.0, "p90": 20.0, "birim": "cm", "deger": d}
+    assert "biraz üstünde" in yk(k(21), "Ali") and "Değer doğru mu?" not in yk(k(21), "Ali")
+    assert "belirgin şekilde üstünde" in yk(k(25), "Ali")
+    m = yk(k(30), "Ali")
+    assert "çok üstünde" in m and "Değer doğru mu?" in m and "antrenörle" not in m and "sorun" not in m
+    renk = app["palet"]("acik")["renk"]
+    t = lambda d: {"ad": "Atlama", "deger": d, "p10": 10.0, "p90": 20.0, "birim": "cm", "kesin": True,
+                   "tarih": "29.07.2026", "dusuk_iyi": False}
+    not_ = app["VELI_ARALIK_NOTU"]
+    assert not_ in app["veli_sonuc_kutusu_html"](t(21), "Ali", "Erkek", False, renk)
+    cok = app["veli_sonuc_kutusu_html"](t(30), "Ali", "Erkek", False, renk)
+    assert "Değer doğru mu?" in cok and not_ not in cok

@@ -331,7 +331,7 @@ from olcut.kayit import (   # Bölme Aşama 2: olcut/kayit.py
     GRUP_KOLON, OTURUM_KOLONLARI, TOPLU_GIRIS_DISI, deger_metni, test_kaydi_olustur, kayitlari_yaz,
     makul_aralik_bantlardan, makul_aralik, _sayi_kisa, makullukte_uyarilar, PROFIL_MAKULLUK,
     SPORCU_FORM_ALT_SINIR, SPORCU_FORM_ALANLARI, sporcu_form_hatalari, _sporcu_formunu_temizle,
-    profil_uyarilari, oturum_sutunu, oturum_kayitlari, oturum_secenekleri, KARSILASTIRMA_KAPSAMLARI,
+    profil_uyarilari, oturum_sutunu, oturum_kayitlari, oturum_secenekleri,
     oturum_degerleri, oturumlar_arasi_fark, oturum_etiketi, calisma_bos, calismalar_oku, calisma_dogrula,
     calisma_kaydet, calisma_dokun, calisma_sil, calisma_oturum_adi, oturum_kimligi, calisma_sporculari)
 
@@ -506,6 +506,9 @@ from olcut.sayfalar.test_uygula import test_uygula_sayfasi   # Bölme Aşama 2: 
 
 
 from olcut.sayfalar.sonuclar_genel import sonuclari_goruntule_sayfasi   # Bölme Aşama 2: olcut/sayfalar/sonuclar_genel.py
+from olcut.sayfalar.karsilastirma import karsilastirma_sayfasi   # Paket 38g: olcut/sayfalar/karsilastirma.py
+from olcut.bilesenler import SONUC_BOLUMLERI, _karsilastirmaya_git, sonuc_bolumu_secici   # Paket 38g
+from olcut.kayit import ONCEKI_KAT, normsuz_uyarilar, onceki_olcumler   # Paket 38g: normsuz olağandışı değer
 
 
 from olcut.sayfalar.raporlar import raporlar_sayfasi, kaynakca_sayfasi   # Bölme Aşama 2: olcut/sayfalar/raporlar.py
@@ -532,11 +535,13 @@ elif sayfa == "Test Oturumu":
     test_oturumu_sayfasi()                       # Paket 38b: Testler → Sporcular → Oturum bilgisi → Değerler
 
 # ── SAYFA 3: SONUÇLARI GÖRÜNTÜLE ──
-elif sayfa == "Sonuçları Görüntüle" and sonuc_kart_gorunumu():
-    sonuclar_sporcu_sayfasi()                    # Paket 38b: tek sporcu → dört soru kartı
-
 elif sayfa == "Sonuçları Görüntüle":
-    sonuclari_goruntule_sayfasi()
+    if sonuc_bolumu_secici() == "Karşılaştırma":     # Paket 38g: üst düzey bölüm (Sporcular / Oturumlar arası)
+        karsilastirma_sayfasi()
+    elif sonuc_kart_gorunumu():
+        sonuclar_sporcu_sayfasi()                    # Paket 38b: tek sporcu → dört soru kartı
+    else:
+        sonuclari_goruntule_sayfasi()
 
 
 # ── SAYFA: RAPORLAR (Paket 7) ──
