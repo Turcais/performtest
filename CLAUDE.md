@@ -1,6 +1,6 @@
 # Ölçüt — devralma notu
 
-Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38i** (son etiket `v107-38h`).
+Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38j** (son etiket `v107-38h`).
 Kullanıcı: Ertuğrul (spor bilimleri doktora öğrencisi, Gazi Üniversitesi). **Türkçe yazın, adım adım açıklayın.**
 Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `sporcular.xlsx`, `test_sonuclari.xlsx`, `ilgi_anketi.xlsx`, `ayarlar.json`, `oturum_taslagi.json`; uygulamanın ürettiği `.streamlit/config.toml` da girmez.
 
@@ -38,11 +38,15 @@ Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma** (`ol
 - Eski "Kapsam" radio'su kalktı; mantığı (`kayit.oturum_degerleri`, `oturumlar_arasi_fark`) yeni ekranın altında kullanılır.
 
 ## PDF ve dışa aktarma (Paket 38i)
-- Raporlar: "PDF olarak indir" (`olcut/sayfalar/raporlar.py` `rapor_indirme`). Ekrandaki rapor HTML'i aynen çevrilir (`disa_aktarma.pdf_cevir`); sıra: kurulu Edge/Chrome başsız yazdırma → WeasyPrint → xhtml2pdf; hiçbiri yoksa yazdırmaya hazır HTML + talimat. A4 ve kart bölünmemesi `RAPOR_CSS`'teki `@page` / `@media print`'te. Dosya adı `Veli_raporu_<Ad_Soyad>_<GGAAYYYY>.pdf` (`guvenli_dosya_adi`).
-- Karşılaştırma: "Tabloyu Excel olarak indir" + "CSV olarak indir" (UTF-8 BOM, `;`, ondalık virgül). Tablolar `karsilastirma.sporcular_arasi_disa` / `oturumlar_arasi_disa` / `grup_ozeti_disa` / `istatistik_disa`: ekrandaki sonuçtan yazılır, hesap yok; sıra/yüzdelik sütunu yok, çeyrekler yalnız her grupta n ≥ 20.
+- Raporlar: "PDF olarak indir" (`olcut/sayfalar/raporlar.py` `rapor_indirme`). Ekrandaki rapor HTML'i aynen çevrilir (`disa_aktarma.pdf_cevir`); sıra: kurulu Edge/Chrome başsız yazdırma → WeasyPrint → xhtml2pdf; hiçbiri yoksa yazdırmaya hazır HTML + talimat. Tarayıcı yolunda süreç + dosya bekleme toplamı en çok `PDF_SURE_SN` = 20 sn. A4 ve kart bölünmemesi `RAPOR_CSS`'teki `@page` / `@media print`'te. Dosya adı `Veli_raporu_<Ad_Soyad>_<GGAAYYYY>.pdf` (`guvenli_dosya_adi`).
+- Karşılaştırma: "Tabloyu Excel olarak indir" + "CSV olarak indir" (UTF-8 BOM, `;`, ondalık virgül; 38j: metin hücresi `= + - @` ya da sekmeyle başlarsa başına `'`). Oturum sütunlarında oturumun adı (etiket değil). Tablolar `karsilastirma.sporcular_arasi_disa` / `oturumlar_arasi_disa` / `grup_ozeti_disa` / `istatistik_disa`: ekrandaki sonuçtan yazılır, hesap yok; sıra/yüzdelik sütunu yok, çeyrekler yalnız her grupta n ≥ 20.
 
 ## Elle deneme: örnek veri
-`Desktop\Olcut_Demo\` — hayali 12 sporcu (soyadı "Demo"; çocuklar Elif, Mert, Zeynep, Kaan, Defne, Emre 9–11 yaş; Barış, Selin, Onur, Ceren, Tolga, Aylin 16–28 yaş), iki oturum: "Demo · Ön Test" (15.09.2026) ve "Demo · Son Test" (25.10.2026), her biri 12 sporcu / 126 kayıt. Gerçek veriye dokunmadan denemek için uygulamayı bu klasörden başlatın:
+`Desktop\Olcut_Demo\` — hayali 17 sporcu (soyadı "Demo"). Çocuklar 9–11 yaş: Elif, Mert, Zeynep, Kaan, Defne, Emre ve yeni beş çocuk Ali, Ece, Can, Nisa, Burak; yetişkin/genç 16–28 yaş: Barış, Selin, Onur, Ceren, Tolga, Aylin. İki oturum: "Demo · Ön Test" (15.09.2026) ve "Demo · Son Test" (25.10.2026), her biri 17 sporcu / 201 kayıt (toplam 402; dosyadan sayıldı). İlgi anketi 11 çocukta dolu.
+- Yeni beş çocuğun fiziksel profili ayrı bir branş grubuna yakın (1. sıra, 38j hesabı): Ali → Top sporları, Ece → Raket sporları, Can → Yüzme, Nisa → Jimnastik, Burak → Dövüş sporları. İlgi ile fiziksel profil Ali ve Can'da uyumlu; Ece ve Nisa'da bilerek uyumsuz; Burak'ta ilgi fiziksel sıralamada 3. sırada (kısmi).
+- Eski 12 sporculuk veri: `Olcut_Demo\yedek_12sporcu\`.
+
+Gerçek veriye dokunmadan denemek için uygulamayı bu klasörden başlatın:
 `cd ..\Olcut_Demo` → `python -m streamlit run ..\Olcut\uygulama.py`
 
 ## Şimdi yapılacaklar (sırayla)
@@ -55,3 +59,5 @@ Arayüz taslağı (Adım 1–4, Sıradaki kipi, Sonuçlar, Veli kartı): https:/
 
 ## Bekleyen işler
 Yeni test paketleri (FMS, antropometri, kendi hokey/ragbi protokolleri, kaleci testleri), pozisyon ve amaç alanı, norm genişletme (bacak presi, barfiks, şınav, mekik), kuvvet platformu içe aktarma (RFD/GRF). SQLite'a geçiş yok (xlsx yeterli).
+- (karar bekliyor) Karşılaştırma dışa aktarımında sporcu adı yerine kod seçeneği.
+- (karar bekliyor) Branş grubu eşleştirmesinde gruplar arası uzaklık farkları çok küçük: ayırt edilemezlik kuralı (ör. ilk iki grubun farkı eşiğin altındaysa "ayırt edilemedi").

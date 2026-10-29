@@ -55,8 +55,12 @@ BRANS_GRUBU_PROFILLERI = {
     "degiskenler": {
         "BH":   {"ad": "Boy", "birim": "cm", "tur": "antropometri", "dusuk_iyi": False,
                  "eslesme": {"kaynak": "profil", "alan": "Boy (cm)"}},
+        # Paket 38j: TSYT oturma yüksekliği de bağlı. İkisi de oturma yüzeyinden başın tepesine (vertex) net
+        # yüksekliği, dik oturuşta ve 0,1 cm'lik ölçerle ölçer; Opstoel (2015) yalnız "Harpenden stadiometre, 0,1 cm,
+        # FSC yönergesi" der, duruşu yayımlamaz. Değer aralıkları da örtüşür (TSYT 10 yaş medyanı ≈ 73-75 cm; Opstoel
+        # grup ortalamaları 73,6-75,0 cm). Antropometri olduğu için eşleştirme uzaklığına girmez (yalnız gösterilir).
         "SH":   {"ad": "Oturma yüksekliği", "birim": "cm", "tur": "antropometri", "dusuk_iyi": False,
-                 "eslesme": {"kaynak": "test", "test": "Oturma Yüksekliği",
+                 "eslesme": {"kaynak": "test", "test": "Oturma Yüksekliği", "ek_testler": ["Oturma Yüksekliği (TSYT)"],
                              "degiskenler": ["Oturma Yüksekliği (cm)"], "birlestir": "tek"}},
         "BW":   {"ad": "Vücut ağırlığı", "birim": "kg", "tur": "antropometri", "dusuk_iyi": False,
                  "eslesme": {"kaynak": "profil", "alan": "Kilo (kg)"}},

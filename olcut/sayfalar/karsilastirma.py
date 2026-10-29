@@ -11,9 +11,9 @@ from olcut.bilesenler import coklu_secim
 from olcut.disa_aktarma import guvenli_dosya_adi, tablo_csv, tablo_xlsx, tarih_eki
 from olcut.karsilastirma import (
     KARS_ISTATISTIK_EN_AZ_N, KARS_KARISIK_UYARI, KARS_KUCUK_NOTU, KARS_YUZDELIK_YOK_NOTU, csv_ile_istatistik, etki_metni,
-    grup_ozeti_disa, istatistik_disa, karisik_mi, ortak_testler, oturum_etiketleri, oturum_testleri, oturumlar_arasi,
-    oturumlar_arasi_disa, sayisal_degiskenler, sporcu_ozellikleri, sporcular_arasi, sporcular_arasi_disa,
-    wilcoxon_isaretli_sira)
+    grup_ozeti_disa, istatistik_disa, karisik_mi, ortak_testler, oturum_adlari, oturum_etiketleri, oturum_testleri,
+    oturumlar_arasi, oturumlar_arasi_disa, sayisal_degiskenler, sporcu_ozellikleri, sporcular_arasi,
+    sporcular_arasi_disa, wilcoxon_isaretli_sira)
 from olcut.katalog_islemleri import ara_katla, test_tablosu_duzelt
 from olcut.norm import TEST_DOSYA
 from olcut.ortak import ad_bicimi
@@ -287,9 +287,8 @@ def _oturumlar_arasi_sonuc(df, p):
                         f"{_sayi(w['r'])} ({etki_metni(w['r'])})")
             st.caption("Sıfır farklar testten çıkarılır. r > 0: sonra değerleri büyük; testin iyi yönü için "
                        "tablodaki Yön sütununa bakın.")
-    ot = oturum_etiketleri(df)
-    adlar = lambda kimlikler: ", ".join(ot.get(k, str(k)).split(" · ")[0] for k in kimlikler)
-    disa = oturumlar_arasi_disa(r, p["test"], p["degisken"], adlar(p["sol"]), adlar(p["sag"]))
+    disa = oturumlar_arasi_disa(r, p["test"], p["degisken"], oturum_adlari(df, p["sol"]),
+                                oturum_adlari(df, p["sag"]))
     indirme_dugmeleri({"Sonuçlar": disa, "İstatistik": istatistik_disa(w)}, csv_ile_istatistik(disa, w),
                       "oturumlar", "koa_indir")
 

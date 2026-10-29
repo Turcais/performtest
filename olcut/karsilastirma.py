@@ -78,6 +78,11 @@ def _oturum_adi(g, kim):
     return "Oturum" if str(kim).startswith("OT-") else str(kim)
 
 
+def oturum_adlari(df, kimlikler):
+    """Seçilen oturumların adları (etiket değil; adın kendisi " · " içerebilir), virgülle."""
+    return ", ".join(_oturum_adi(df[df["Oturum"].astype(str) == str(k)], k) for k in kimlikler)
+
+
 def oturum_etiketleri(df):
     """
     {oturum kimliği: "ad (tarih) · n sporcu"} — karşılaştırma seçim sütunu için; sıra oturum_secenekleri ile aynı

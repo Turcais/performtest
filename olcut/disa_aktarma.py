@@ -39,7 +39,8 @@ _TARAYICI_YOLLARI = (
     "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 )
-PDF_BEKLEME_SN = 60
+PDF_SURE_SN = 20          # Paket 38j: tarayıcı süreci + dosya yoklaması birlikte en çok bu kadar (sonra HTML yolu)
+FORMUL_BASLARI = ("=", "+", "-", "@", "\t")   # metin hücresi bunlarla başlarsa başına ' (formül sayılmaz)
 
 
 def guvenli_dosya_adi(*parcalar):
@@ -74,21 +75,32 @@ def _pdf_tamam(yol):
     return veri if veri[:4] == b"%PDF" and b"%%EOF" in veri[-1024:] else None
 
 
-def _tarayici_ile(html, tarayici=None):
+def _tarayici_ile(html, tarayici=None, sure=None):
+    """
+    Başsız tarayıcıyla yazdırma. tarayici: yol ya da komut öneki (liste; testte sahte tarayıcı için). Süreç ve dosya
+    yoklaması tek bir toplam süreyi paylaşır (PDF_SURE_SN); aşılırsa süreç kapatılır ve None döner.
+    """
     tarayici = tarayici or _tarayici_bul()
     if not tarayici:
         return None
+    onek = list(tarayici) if isinstance(tarayici, (list, tuple)) else [tarayici]
+    son = time.monotonic() + (PDF_SURE_SN if sure is None else sure)
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
         giris, cikis = os.path.join(d, "rapor.html"), os.path.join(d, "rapor.pdf")
         with open(giris, "w", encoding="utf-8") as f:
             f.write(html)
-        komut = [tarayici, "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
+        komut = [*onek, "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
                  "--disable-extensions", f"--user-data-dir={os.path.join(d, 'profil')}", "--no-pdf-header-footer",
                  f"--print-to-pdf={cikis}", pathlib.Path(giris).as_uri()]
         ek = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
-        subprocess.run(komut, capture_output=True, timeout=PDF_BEKLEME_SN, **ek)
-        # Edge işi alt sürece bırakıp hemen dönebiliyor: dosya tamamlanana kadar bekle
-        son = time.monotonic() + PDF_BEKLEME_SN
+        surec = subprocess.Popen(komut, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **ek)
+        try:
+            surec.wait(timeout=max(0.0, son - time.monotonic()))
+        except subprocess.TimeoutExpired:
+            surec.kill()
+            surec.wait()
+            return None
+        # Edge işi alt sürece bırakıp hemen dönebiliyor: dosya tamamlanana kadar (kalan süre içinde) bekle
         while time.monotonic() < son:
             veri = _pdf_tamam(cikis)
             if veri:
@@ -140,16 +152,29 @@ def pdf_cevir(html, ceviriciler=None):
 
 
 # ── Tablo ──
+def formul_korumasi(tablo):
+    """
+    Formül enjeksiyonuna karşı (Paket 38j): yalnız METİN hücrelerinde değer = + - @ ya da sekmeyle başlıyorsa başına '
+    eklenir. Sayılar (ör. Fark sütunundaki -0.5) sayı olarak kalır.
+    """
+    t = tablo.copy()
+    for s in t.columns:
+        if t[s].dtype == object or pd.api.types.is_string_dtype(t[s]):
+            t[s] = t[s].map(lambda v: "'" + v if isinstance(v, str) and v.startswith(FORMUL_BASLARI) else v)
+    return t
+
+
 def tablo_csv(tablo):
-    """Excel'de Türkçe düzgün açılan CSV: UTF-8 BOM, ";" ayırıcı, ondalık virgül."""
-    return ("\ufeff" + tablo.to_csv(index=False, sep=";", decimal=",", lineterminator="\r\n")).encode("utf-8")
+    """Excel'de Türkçe düzgün açılan CSV: UTF-8 BOM, ";" ayırıcı, ondalık virgül; formül koruması."""
+    metin = formul_korumasi(tablo).to_csv(index=False, sep=";", decimal=",", lineterminator="\r\n")
+    return ("\ufeff" + metin).encode("utf-8")
 
 
 def tablo_xlsx(sayfalar):
-    """{sayfa adı: DataFrame} → .xlsx baytı (boş sayfa yazılmaz)."""
+    """{sayfa adı: DataFrame} → .xlsx baytı (boş sayfa yazılmaz; formül koruması)."""
     tampon = io.BytesIO()
     with pd.ExcelWriter(tampon, engine="openpyxl") as yazici:
         for ad, tablo in sayfalar.items():
             if tablo is not None and not tablo.empty:
-                tablo.to_excel(yazici, sheet_name=ad[:31], index=False)
+                formul_korumasi(tablo).to_excel(yazici, sheet_name=ad[:31], index=False)
     return tampon.getvalue()

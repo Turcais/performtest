@@ -60,9 +60,12 @@ def sporcu_fsc_profili(df_test, sporcu):
             continue
 
         son = None
-        for _, satir in df_s[df_s["Test"] == e["test"]].iterrows():
+        # Paket 38j: takma adlı kayıt da (kanonik_test) ve protokolü aynı ek testler de (ör. TSYT oturma yüksekliği)
+        testler = {kanonik_test(x) for x in (e["test"], *e.get("ek_testler", ()))}
+        for _, satir in df_s[df_s["Test"].map(kanonik_test).isin(testler)].iterrows():
+            test_adi = kanonik_test(satir["Test"])
             vals = satir.to_dict()
-            for k_t, v_t in ktk3_toplamlari(e["test"], vals).items():
+            for k_t, v_t in ktk3_toplamlari(test_adi, vals).items():
                 if not _girildi(vals.get(k_t)):
                     vals[k_t] = v_t
             sayilar = []
@@ -76,7 +79,7 @@ def sporcu_fsc_profili(df_test, sporcu):
                 continue
             v = sayilar[0] if e["birlestir"] == "tek" else max(sayilar)
             test_yasi = vals.get("Test Yaşı")
-            son = {"deger": v, "tarih": satir.get("Tarih", ""), "kaynak": e["test"],
+            son = {"deger": v, "tarih": satir.get("Tarih", ""), "kaynak": test_adi,
                    "test_yasi": guvenli_float(test_yasi) if _girildi(test_yasi) else None}
         if son is None:
             sonuc["eksik"].append(kod)

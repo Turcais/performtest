@@ -4654,4 +4654,101 @@ def test_47g_kars_ekraninda_indirme_dugmeleri(tmp_path, monkeypatch):
     geri = _pd.read_csv(_io.BytesIO(son["koa_indir_csv"]["veri"]), sep=";", decimal=",", encoding="utf-8-sig")
     ekran = at.dataframe[-1].value
     assert list(geri["Fark"]) == list(ekran["Fark"]) and list(geri["Yön"]) == list(ekran["Yön"])
-    assert list(geri["Önce oturum"].unique()) == ["S1 (15.09.2026)"]
+    assert list(geri["Önce oturum"].unique()) == ["S1"]                    # Paket 38j: oturumun adı, etiket değil
+
+
+
+# ════════════════════════════════════════════════════════════
+# 47 (devam). Paket 38j: 38i denetim düzeltmeleri
+# ════════════════════════════════════════════════════════════
+def _p38j_noktali_oturumlar(d):
+    """_p38g_veri, oturum adları " · " içerir (demo verisindeki gibi)."""
+    import pandas as _pd
+    _p38g_veri(d)
+    t = _pd.read_excel(d / "test_sonuclari.xlsx")
+    t["Oturum"] = t["Oturum"].map({"S1": "Demo · Ön Test", "S2": "Demo · Son Test"})
+    t.to_excel(d / "test_sonuclari.xlsx", index=False)
+
+
+def test_47h_oturum_adi_nokta_isaretiyle_bozulmaz(tmp_path, monkeypatch):
+    """Oturum adında " · " varken dışa aktarmada 'Önce oturum' / 'Sonra oturum' tam ad ve birbirinden farklı."""
+    import io as _io
+    import pandas as _pd
+    kayit = _indirme_kaydi(monkeypatch)
+    at = _apptest(tmp_path, monkeypatch, _p38j_noktali_oturumlar)
+    at.session_state["sayfa"] = "Sonuçları Görüntüle"
+    at.session_state["sonuc_bolum"] = "Karşılaştırma"
+    at.run()
+    at.checkbox(key="koa_once::k::Demo · Ön Test").check()
+    at.checkbox(key="koa_sonra::k::Demo · Son Test").check()
+    at.run()
+    at.selectbox(key="koa_test").select("Durarak Uzun Atlama").run()
+    at.button(key="koa_karsilastir").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    son = {k["anahtar"]: k for k in kayit}
+    geri = _pd.read_csv(_io.BytesIO(son["koa_indir_csv"]["veri"]), sep=";", decimal=",", encoding="utf-8-sig")
+    assert set(geri["Önce oturum"]) == {"Demo · Ön Test"} and set(geri["Sonra oturum"]) == {"Demo · Son Test"}
+    x = _pd.read_excel(_io.BytesIO(son["koa_indir_xlsx"]["veri"]), sheet_name="Sonuçlar")
+    assert set(x["Önce oturum"]) != set(x["Sonra oturum"])
+    K = _modul("olcut.karsilastirma")
+    df = _pd.read_excel(tmp_path / "test_sonuclari.xlsx")
+    assert K.oturum_adlari(df, ["Demo · Ön Test", "Demo · Son Test"]) == "Demo · Ön Test, Demo · Son Test"
+
+
+def test_47i_pdf_cevirici_sure_siniri(monkeypatch):
+    """
+    Tarayıcı süreci + dosya yoklaması tek toplam süre (PDF_SURE_SN = 20). Dosya yazmadan hemen dönen ya da hiç
+    dönmeyen sahte tarayıcıda pdf_cevir sınır + küçük pay içinde (None, None) döner; süreç kapatılır.
+    """
+    import sys as _sys
+    import time as _time
+    D = _modul("olcut.disa_aktarma")
+    assert D.PDF_SURE_SN == 20
+    monkeypatch.setattr(D, "PDF_SURE_SN", 1.5)
+    for sahte in ([_sys.executable, "-c", "pass"], [_sys.executable, "-c", "import time; time.sleep(60)"]):
+        bas = _time.monotonic()
+        sonuc = D.pdf_cevir("<p>x</p>", (("tarayıcı", lambda h: D._tarayici_ile(h, sahte)),))
+        gecen = _time.monotonic() - bas
+        assert sonuc == (None, None) and gecen < 1.5 + 2.5, (sahte[-1], gecen)
+
+
+def test_47j_formul_enjeksiyonu_yalniz_metinde(tmp_path, monkeypatch):
+    """Metin '=1+1' → "'=1+1" (CSV ve Excel); sayısal Fark -0.5 sayı olarak kalır."""
+    import io as _io
+    import openpyxl
+    import pandas as _pd
+    D = _modul("olcut.disa_aktarma")
+    t = _pd.DataFrame({"Sporcu": ["=1+1", "@SUM(A1)", "Ali", "-Ali", "\tx"], "Fark": [-0.5, 1.0, -2.25, 0.0, 3.0],
+                       "Yön": ["✓ daha iyi"] * 5})
+    geri = _pd.read_csv(_io.BytesIO(D.tablo_csv(t)), sep=";", decimal=",", encoding="utf-8-sig")
+    assert list(geri["Sporcu"])[:4] == ["'=1+1", "'@SUM(A1)", "Ali", "'-Ali"]
+    assert list(geri["Fark"]) == [-0.5, 1.0, -2.25, 0.0] + [3.0] and geri["Fark"].dtype.kind == "f"
+    assert "\r\n=1+1" not in D.tablo_csv(t).decode("utf-8-sig") and "-0,5" in D.tablo_csv(t).decode("utf-8-sig")
+    sayfa = openpyxl.load_workbook(_io.BytesIO(D.tablo_xlsx({"Sonuçlar": t})))["Sonuçlar"]
+    assert sayfa["A2"].value == "'=1+1" and sayfa["A2"].data_type == "s"
+    assert sayfa["B2"].value == -0.5 and sayfa["B2"].data_type == "n"
+    assert list(t["Sporcu"])[0] == "=1+1"                       # kaynak tablo değişmez
+
+
+def test_47k_oturma_yuksekligi_tsyt_eslesir_eslestirme_degismez(tmp_path, monkeypatch):
+    """
+    SH (Opstoel 2015) TSYT oturma yüksekliği kaydından da okunur (aynı ölçü: oturma yüzeyinden vertekse net yükseklik).
+    SH antropometri: eşleştirme değişkenlerine girmez, eşleştirme sonucu değişmez.
+    """
+    import pandas as _pd
+    A = _modul("olcut.analiz")
+    monkeypatch.chdir(tmp_path)
+    _pd.DataFrame({"Ad": ["Elif"], "Soyad": ["Demo"], "Yaş": [10], "Cinsiyet": ["Kadın"], "Boy (cm)": [140],
+                   "Kilo (kg)": [33]}).to_excel(tmp_path / "sporcular.xlsx", index=False)
+    df = _pd.DataFrame([{"Sporcu": "Elif Demo", "Test": "Oturma Yüksekliği (TSYT)", "Tarih": "01.09.2026",
+                         "Oturma Yüksekliği (cm)": 73.5, "Test Yaşı": 10}])
+    f = A.sporcu_fsc_profili(df, "Elif Demo")
+    assert f["degerler"]["SH"]["deger"] == 73.5 and f["degerler"]["SH"]["kaynak"] == "Oturma Yüksekliği (TSYT)"
+    assert "SH" not in f["eksik"] and "SH" not in A.ESLESTIRME_DEGISKENLERI
+    eski = A.sporcu_fsc_profili(df.assign(Test="Başka test"), "Elif Demo")
+    assert "SH" in eski["eksik"]
+    # FSC testi de okunur; ikisi varsa en son tarihli kayıt
+    df2 = _pd.concat([df, _pd.DataFrame([{"Sporcu": "Elif Demo", "Test": "Oturma Yüksekliği", "Tarih": "01.10.2026",
+                                          "Oturma Yüksekliği (cm)": 74.0, "Test Yaşı": 10}])])
+    df2["Tarih_dt"] = _pd.to_datetime(df2["Tarih"], format="%d.%m.%Y")
+    assert A.sporcu_fsc_profili(df2, "Elif Demo")["degerler"]["SH"]["deger"] == 74.0
