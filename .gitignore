@@ -1,0 +1,7 @@
+*.xlsx
+ayarlar.json
+oturum_taslagi.json
+__pycache__/
+.pytest_cache/
+*.pdf
+calis_*/
