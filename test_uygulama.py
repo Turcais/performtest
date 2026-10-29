@@ -4126,3 +4126,61 @@ def test_43c_buyuk_sapma_belirgin_ve_dogru_mu(app):
                                                  "aralığın belirgin şekilde üstünde.")
     km = app["veli_konum_metni"]({**k(0), "cinsiyet": "Erkek", "birim": "cm"}, "Ali")
     assert "Ali bu aralığın çok altında." in km and app["VELI_DOGRU_MU"] in km
+
+
+
+# ════════════════════════════════════════════════════════════
+# 44. Bölme Aşama 1: veri/ modülleri yalnız sabit değer
+# ════════════════════════════════════════════════════════════
+_VERI_KLASOR = os.path.join(os.path.dirname(DOSYA), "veri")
+_VERI_SERBEST = (ast.Constant, ast.Dict, ast.List, ast.Tuple, ast.Set, ast.Load)
+
+
+def _veri_modulleri():
+    if not os.path.isdir(_VERI_KLASOR):
+        return []
+    return sorted(os.path.join(_VERI_KLASOR, d) for d in os.listdir(_VERI_KLASOR)
+                  if d.endswith(".py") and d != "__init__.py")
+
+
+def test_44a_veri_modulleri_yalniz_sabit(agac):
+    """
+    veri/*.py: modül düzeyinde yalnız açıklama ve atama; değerlerde yalnız sabit, sözlük, liste, demet, küme,
+    eksi sayı, metin birleştirme (+) ve AYNI modülde daha önce tanımlanmış ad (ör. TSYT_KAYNAK + "…").
+    Çağrı, lambda, içe aktarma, f-string yok. Uygulama her modülü içe aktarır ve hiçbir veri adını yeniden
+    literal olarak tanımlamaz (iki kopya olmasın).
+    """
+    sorun, tum_adlar = [], {}
+    for yol in _veri_modulleri():
+        m = ast.parse(open(yol, encoding="utf-8").read())
+        tanimli = set()
+        for i, d in enumerate(m.body):
+            if i == 0 and isinstance(d, ast.Expr) and isinstance(d.value, ast.Constant):
+                continue
+            if not (isinstance(d, ast.Assign) and len(d.targets) == 1 and isinstance(d.targets[0], ast.Name)):
+                sorun.append(f"{os.path.basename(yol)}:{d.lineno} atama değil ({type(d).__name__})")
+                continue
+            for x in ast.walk(d.value):
+                if isinstance(x, _VERI_SERBEST):
+                    continue
+                if isinstance(x, ast.UnaryOp) and isinstance(x.op, ast.USub) and isinstance(x.operand, ast.Constant):
+                    continue
+                if isinstance(x, ast.USub) or isinstance(x, ast.Add):
+                    continue
+                if isinstance(x, ast.BinOp) and isinstance(x.op, ast.Add):
+                    continue
+                if isinstance(x, ast.Name) and x.id in tanimli:
+                    continue
+                sorun.append(f"{os.path.basename(yol)}:{x.lineno} izin verilmeyen {type(x).__name__}")
+            tanimli.add(d.targets[0].id)
+        tum_adlar[os.path.basename(yol)[:-3]] = tanimli
+    assert not sorun, sorun
+    ice = {(d.module, a.name) for d in agac.body if isinstance(d, ast.ImportFrom) and (d.module or "").startswith("veri.")
+           for a in d.names}
+    for modul, adlar in tum_adlar.items():
+        assert any(m == f"veri.{modul}" for m, _ in ice), f"veri/{modul}.py içe aktarılmıyor"
+    literal = {d.targets[0].id for d in agac.body if isinstance(d, ast.Assign) and len(d.targets) == 1
+               and isinstance(d.targets[0], ast.Name) and isinstance(d.value, (ast.Dict, ast.List, ast.Tuple, ast.Constant))
+               and not any(isinstance(x, (ast.Name, ast.Call)) for x in ast.walk(d.value))}   # {**X, …} literal değil
+    iki_kez = sorted(literal & set().union(*tum_adlar.values())) if tum_adlar else []
+    assert not iki_kez, f"Hem veri/ hem uygulama.py'de literal: {iki_kez}"

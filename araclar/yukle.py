@@ -10,6 +10,10 @@ class K:
 for m in ('streamlit','plotly','plotly.graph_objects','plotly.express','streamlit.components.v1'):
     sys.modules.setdefault(m, K())
 def yukle(dosya):
+    import os
+    kl=os.path.dirname(os.path.abspath(dosya))   # veri/ paketi uygulamanın yanında (Bölme Aşama 1)
+    if kl in sys.path: sys.path.remove(kl)
+    sys.path.insert(0,kl)
     s=io.open(dosya,encoding='utf-8').read()
     tree=ast.parse(s); son=None
     for n in tree.body:
