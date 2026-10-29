@@ -68,19 +68,44 @@ class _StKukla:
         return None
 
 
-@pytest.fixture(scope="module")
-def kaynak():
-    with open(DOSYA, encoding="utf-8") as f:
+def _kaynak_dosyalari(veri=True):
+    """
+    Bölme Aşama 1-2: uygulama.py + olcut/**/*.py (+ veri/*.py). Kaynak taraması (renk kodu, emoji, tekrarlanan
+    anahtar, ağ kitaplığı…) taşınan kodu ve veriyi de görsün. Sıra: uygulama.py, olcut (yol sırasıyla), veri.
+    """
+    kok = os.path.dirname(DOSYA)
+    yollar = [DOSYA]
+    for alt in ("olcut",) + (("veri",) if veri else ()):
+        for d, _, ds in sorted(os.walk(os.path.join(kok, alt))):
+            yollar += [os.path.join(d, x) for x in sorted(ds) if x.endswith(".py")]
+    return yollar
+
+
+def _oku(yol):
+    with open(yol, encoding="utf-8") as f:
         return f.read()
 
 
 @pytest.fixture(scope="module")
-def agac(kaynak):
-    return ast.parse(kaynak)
+def kaynak():
+    return "\n".join(_oku(y) for y in _kaynak_dosyalari())
 
 
 @pytest.fixture(scope="module")
-def app(agac):
+def agac():
+    """Birleşik ağaç: her dosya ayrı ayrıştırılır, gövdeler sırayla birleştirilir."""
+    return ast.Module(body=[d for y in _kaynak_dosyalari() for d in ast.parse(_oku(y)).body], type_ignores=[])
+
+
+@pytest.fixture(scope="module")
+def uyg_agac():
+    """Yalnız uygulama.py — app fikstürü bunu çalıştırır (içe aktarmalar taşınan modülleri getirir)."""
+    return ast.parse(_oku(DOSYA))
+
+
+@pytest.fixture(scope="module")
+def app(uyg_agac):
+    agac = uyg_agac
     """Modül düzeyindeki tanımları Streamlit'siz bir ad alanında çalıştırır."""
     g = {"__name__": "uygulama_denetim", "st": _StKukla()}
     atlanan = []
@@ -811,12 +836,19 @@ def test_17d_renk_kodu_yalniz_gorsel_sistemde(kaynak):
     sayfalar, grafikler ve raporlar RENK / NORM_SKALASI simgelerinden beslenir. (Paket 11 öncesi
     grafikler koyu tema için beyaz yazıyla sabitlenmişti; açık temada görünmez oluyordu.)
     """
-    satirlar = kaynak.split("\n")
-    bas = next(i for i, l in enumerate(satirlar) if "GÖRSEL SİSTEM (Paket 11)" in l)
-    son = next(i for i, l in enumerate(satirlar) if l.startswith("def tasarimi_uygula"))
     kalip = re.compile(r"#[0-9A-Fa-f]{6}\b|[\"']#[0-9A-Fa-f]{3}[\"']")
-    disarida = [f"satır {i + 1}: {l.strip()[:90]}" for i, l in enumerate(satirlar)
-                if not (bas <= i <= son) and kalip.search(l)]
+    tema = os.path.join(os.path.dirname(DOSYA), "olcut", "tema.py")
+    disarida = []
+    for yol in _kaynak_dosyalari():                       # Bölme Aşama 2: görsel sistem = olcut/tema.py
+        if os.path.exists(tema) and os.path.samefile(yol, tema):
+            continue
+        satirlar = _oku(yol).split("\n")
+        bas = son = -1
+        if yol == DOSYA and not os.path.exists(tema):
+            bas = next(i for i, l in enumerate(satirlar) if "GÖRSEL SİSTEM (Paket 11)" in l)
+            son = next(i for i, l in enumerate(satirlar) if l.startswith("def tasarimi_uygula"))
+        disarida += [f"{os.path.basename(yol)} satır {i + 1}: {l.strip()[:80]}" for i, l in enumerate(satirlar)
+                     if not (bas <= i <= son) and kalip.search(l)]
     assert not disarida, "Görsel sistem dışında renk kodu:" + _ozet(disarida)
 
 
@@ -4179,8 +4211,50 @@ def test_44a_veri_modulleri_yalniz_sabit(agac):
            for a in d.names}
     for modul, adlar in tum_adlar.items():
         assert any(m == f"veri.{modul}" for m, _ in ice), f"veri/{modul}.py içe aktarılmıyor"
-    literal = {d.targets[0].id for d in agac.body if isinstance(d, ast.Assign) and len(d.targets) == 1
+    kod = [d for y in _kaynak_dosyalari(veri=False) for d in ast.parse(_oku(y)).body]   # uygulama + olcut
+    literal = {d.targets[0].id for d in kod if isinstance(d, ast.Assign) and len(d.targets) == 1
                and isinstance(d.targets[0], ast.Name) and isinstance(d.value, (ast.Dict, ast.List, ast.Tuple, ast.Constant))
                and not any(isinstance(x, (ast.Name, ast.Call)) for x in ast.walk(d.value))}   # {**X, …} literal değil
     iki_kez = sorted(literal & set().union(*tum_adlar.values())) if tum_adlar else []
     assert not iki_kez, f"Hem veri/ hem uygulama.py'de literal: {iki_kez}"
+
+
+# ════════════════════════════════════════════════════════════
+# 45. Bölme Aşama 2: olcut/ paketinin katman sırası (döngüsel bağımlılık yok)
+# ════════════════════════════════════════════════════════════
+_OLCUT_KATMAN = ["ortak", "tema", "esik", "katalog_islemleri", "gorseller.cizim", "gorseller.hareketler",
+                 "gorseller.sahneler", "norm", "analiz", "kayit", "raporlar", "oneri", "bilesenler", "sayfalar"]
+
+
+def _olcut_katmani(modul):
+    ad = modul[len("olcut."):]
+    return next((i for i, k in enumerate(_OLCUT_KATMAN) if ad == k or ad.startswith(k + ".")), None)
+
+
+def test_45a_olcut_katman_sirasi():
+    """
+    Her olcut modülü yalnız kendinden AŞAĞIDAKİ katmanları içe aktarır (sayfalar birbirini içe aktarmaz);
+    hiçbir modül uygulama.py'yi içe aktarmaz. Yeni bir modül önce _OLCUT_KATMAN'a yazılmalı.
+    """
+    kok = os.path.dirname(DOSYA)
+    sorun = []
+    for yol in _kaynak_dosyalari(veri=False)[1:]:
+        goreli = os.path.relpath(yol, kok)[:-3].replace(os.sep, ".")
+        modul = goreli[:-len(".__init__")] if goreli.endswith(".__init__") else goreli
+        if modul in ("olcut", "olcut.gorseller", "olcut.sayfalar"):
+            continue
+        ben = _olcut_katmani(modul)
+        if ben is None:
+            sorun.append(f"{modul}: _OLCUT_KATMAN'da yok")
+            continue
+        for d in ast.walk(ast.parse(_oku(yol))):
+            hedefler = ([a.name for a in d.names] if isinstance(d, ast.Import)
+                        else [d.module or ""] if isinstance(d, ast.ImportFrom) else [])
+            for h in hedefler:
+                if h.split(".")[0] == "uygulama":
+                    sorun.append(f"{modul}: uygulama'yı içe aktarıyor")
+                elif h.startswith("olcut."):
+                    o = _olcut_katmani(h)
+                    if o is None or o >= ben:
+                        sorun.append(f"{modul} → {h}: katman sırasına aykırı")
+    assert not sorun, sorun

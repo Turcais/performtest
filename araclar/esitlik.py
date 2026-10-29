@@ -89,6 +89,53 @@ def fark(a, b, yol="", sayac=None):
     return None if a == b else f"{yol}: {a!r:.80} ≠ {b!r:.80}"
 
 
+def _kod_nesneleri(nesne):
+    """Fonksiyon/sınıf → içindeki bütün kod nesneleri (iç fonksiyonlar, yöntemler, özellikler dahil)."""
+    kodlar = []
+    if isinstance(nesne, type):
+        for v in vars(nesne).values():
+            v = getattr(v, "__func__", v)
+            for f in ((v.fget, v.fset, v.fdel) if isinstance(v, property) else (v,)):
+                if isinstance(f, types.FunctionType):
+                    kodlar.append((f.__globals__, f.__code__))
+    elif isinstance(nesne, types.FunctionType):
+        kodlar.append((nesne.__globals__, nesne.__code__))
+    sonuc = []
+    while kodlar:
+        g, k = kodlar.pop()
+        sonuc.append((g, k))
+        kodlar += [(g, c) for c in k.co_consts if isinstance(c, types.CodeType)]
+    return sonuc
+
+
+def modul_tutarliligi(ns):
+    """
+    Bölme Aşama 2: olcut/ modüllerindeki her fonksiyonun okuduğu küresel adlar, uygulama ad alanındaki SON değerle
+    aynı nesne mi (ham/son hâl tuzağı: ör. HFZ eklenmemiş TEST_KATALOGU)? Modülde tanımsız ad = NameError riski.
+    Döner: (denetlenen ad sayısı, sorun listesi).
+    """
+    import builtins, dis
+    sorun, sayi, gorulen = [], 0, set()
+    for ad, nesne in ns.items():
+        mod = getattr(nesne, "__module__", "") or ""
+        if not (isinstance(nesne, (types.FunctionType, type)) and mod.startswith("olcut.")) or id(nesne) in gorulen:
+            continue
+        gorulen.add(id(nesne))
+        for g, kod in _kod_nesneleri(nesne):
+            for ins in dis.get_instructions(kod):
+                if ins.opname not in ("LOAD_GLOBAL", "LOAD_NAME"):
+                    continue
+                isim = ins.argval
+                if isim in g:
+                    if isim in ns:
+                        sayi += 1
+                        if g[isim] is not ns[isim] and fark(g[isim], ns[isim]):
+                            sorun.append(f"{mod}.{kod.co_qualname}: '{isim}' modülde uygulamadakinden farklı")
+                elif not hasattr(builtins, isim):
+                    sorun.append(f"{mod}.{kod.co_qualname}: '{isim}' modülde tanımsız (NameError)")
+    return sayi, sorted(set(sorun))
+
+
 def _taze_veri(klasor):
     """veri/*.py dosyalarını sys.modules'a dokunmadan, her biri yeni bir ad alanında çalıştırır."""
     sonuc = {}
@@ -130,6 +177,11 @@ def main(arg):
     yeni_adlar = sorted(k for k in yeni if k not in eski and not k.startswith("__") and _veri_mi(yeni[k]))
     if yeni_adlar:
         print(f"  (yalnız yenide olan veri adları: {', '.join(yeni_adlar)})")
+    sayi, sorunlar = modul_tutarliligi(yeni)
+    print(f"Modül tutarlılığı: olcut/ fonksiyonlarının okuduğu {sayi} küresel ad, {len(sorunlar)} sorun")
+    for s in sorunlar:
+        print("  SORUN", s)
+    hata += len(sorunlar)
     if akis:
         _veri_unut()
         eski_argv, eski_cwd = sys.argv, os.getcwd()
