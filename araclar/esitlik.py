@@ -19,7 +19,7 @@ from yukle import yukle  # noqa: E402
 
 
 def _veri_unut():
-    for ad in [m for m in sys.modules if m == "veri" or m.startswith("veri.")]:
+    for ad in [m for m in sys.modules if m.split(".")[0] in ("veri", "olcut")]:   # iki sürüm karışmasın
         del sys.modules[ad]
 
 
@@ -27,7 +27,7 @@ def _surum_cikar(surum, hedef):
     """git archive: o sürümdeki uygulama.py ve (varsa) veri/ klasörü hedefe."""
     dosyalar = subprocess.run(["git", "ls-tree", "-r", "--name-only", surum], cwd=KOK, capture_output=True,
                               text=True, encoding="utf-8", check=True).stdout.split("\n")
-    for d in [d for d in dosyalar if d == "uygulama.py" or d.startswith("veri/")]:
+    for d in [d for d in dosyalar if d == "uygulama.py" or d.startswith(("veri/", "olcut/"))]:
         icerik = subprocess.run(["git", "show", f"{surum}:{d}"], cwd=KOK, capture_output=True, check=True).stdout
         yol = os.path.join(hedef, *d.split("/"))
         os.makedirs(os.path.dirname(yol), exist_ok=True)
