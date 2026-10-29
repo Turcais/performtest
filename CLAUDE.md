@@ -1,13 +1,13 @@
 # Ölçüt — devralma notu
 
-Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38h** (etiket `v107-38h`).
+Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38i** (son etiket `v107-38h`).
 Kullanıcı: Ertuğrul (spor bilimleri doktora öğrencisi, Gazi Üniversitesi). **Türkçe yazın, adım adım açıklayın.**
 Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `sporcular.xlsx`, `test_sonuclari.xlsx`, `ilgi_anketi.xlsx`, `ayarlar.json`, `oturum_taslagi.json`; uygulamanın ürettiği `.streamlit/config.toml` da girmez.
 
 ## Yapı (Bölme Aşama 1–2 tamam; davranış bölmeden önceki v101-38f ile aynı)
 - `uygulama.py` (~550 satır): sayfa yapılandırması, tema, yan menü, sayfa yönlendirme. Uzun içe aktarma listeleri testlerin `app["ad"]` erişimi içindir.
 - `olcut/` — katmanlı modüller; her modül yalnız kendinden AŞAĞIDAKİLERİ içe aktarır (test_45a, `_OLCUT_KATMAN`). Sıra:
-  `ortak` → `tema` → `esik` (HFZ) → `katalog_islemleri` (son TEST_KATALOGU burada) → `gorseller/cizim` → `gorseller/hareketler` → `gorseller/sahneler` → `norm` (son NORMATIF ve NORMATIF_YAS burada) → `analiz` → `kayit` → `raporlar` → `oneri` → `karsilastirma` → `bilesenler` → `sayfalar/*` (sayfalar birbirini içe aktarmaz).
+  `ortak` → `disa_aktarma` (PDF / CSV / Excel baytı) → `tema` → `esik` (HFZ) → `katalog_islemleri` (son TEST_KATALOGU burada) → `gorseller/cizim` → `gorseller/hareketler` → `gorseller/sahneler` → `norm` (son NORMATIF ve NORMATIF_YAS burada) → `analiz` → `kayit` → `raporlar` → `oneri` → `karsilastirma` → `bilesenler` → `sayfalar/*` (sayfalar birbirini içe aktarmaz).
   Yeni modül önce `_OLCUT_KATMAN`'a yazılır. Hiçbir modül `uygulama`'yı içe aktarmaz.
 - `veri/` — yalnız sabit değer (test_44a): `katalog`, `normlar_yas`, `normlar_tsyt`, `normlar_kategorik` (Kademe 2 örneklemleri + künyeler), `metinler`, `brans_profilleri`. Kaynak/künye sabitleri normlarla aynı dosyada.
 - `araclar/` — `reg.py` (regresyon, 5 örnek sporcu), `yukle.py` (yükleyici), `esitlik.py` (sürüm ↔ çalışma kopyası derin eşitlik + modül tutarlılığı + akış sonrası yerinde değişiklik), `sayfa_goruntusu.py` (her sayfanın ekran öğelerini döker; sürümler arası karşılaştırma).
@@ -37,6 +37,10 @@ Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma** (`ol
 - *Oturumlar arası*: iki "Oturum seç" sütunu (ad + tarih + sporcu sayısı); aynı sporcu için Önce / Sonra / Fark, yön testin yönünden (simge + sözcük); "İstatistik göster": n ≥ 6 Wilcoxon işaretli sıra + eşleştirilmiş sıra-iki serili r, n < 6 yalnız tanımlayıcı.
 - Eski "Kapsam" radio'su kalktı; mantığı (`kayit.oturum_degerleri`, `oturumlar_arasi_fark`) yeni ekranın altında kullanılır.
 
+## PDF ve dışa aktarma (Paket 38i)
+- Raporlar: "PDF olarak indir" (`olcut/sayfalar/raporlar.py` `rapor_indirme`). Ekrandaki rapor HTML'i aynen çevrilir (`disa_aktarma.pdf_cevir`); sıra: kurulu Edge/Chrome başsız yazdırma → WeasyPrint → xhtml2pdf; hiçbiri yoksa yazdırmaya hazır HTML + talimat. A4 ve kart bölünmemesi `RAPOR_CSS`'teki `@page` / `@media print`'te. Dosya adı `Veli_raporu_<Ad_Soyad>_<GGAAYYYY>.pdf` (`guvenli_dosya_adi`).
+- Karşılaştırma: "Tabloyu Excel olarak indir" + "CSV olarak indir" (UTF-8 BOM, `;`, ondalık virgül). Tablolar `karsilastirma.sporcular_arasi_disa` / `oturumlar_arasi_disa` / `grup_ozeti_disa` / `istatistik_disa`: ekrandaki sonuçtan yazılır, hesap yok; sıra/yüzdelik sütunu yok, çeyrekler yalnız her grupta n ≥ 20.
+
 ## Elle deneme: örnek veri
 `Desktop\Olcut_Demo\` — hayali 12 sporcu (soyadı "Demo"; çocuklar Elif, Mert, Zeynep, Kaan, Defne, Emre 9–11 yaş; Barış, Selin, Onur, Ceren, Tolga, Aylin 16–28 yaş), iki oturum: "Demo · Ön Test" (15.09.2026) ve "Demo · Son Test" (25.10.2026), her biri 12 sporcu / 126 kayıt. Gerçek veriye dokunmadan denemek için uygulamayı bu klasörden başlatın:
 `cd ..\Olcut_Demo` → `python -m streamlit run ..\Olcut\uygulama.py`
@@ -50,4 +54,4 @@ Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma** (`ol
 Arayüz taslağı (Adım 1–4, Sıradaki kipi, Sonuçlar, Veli kartı): https://claude.ai/artifact/GX76RBE4t77hFPoFrDYuaZ
 
 ## Bekleyen işler
-Yeni test paketleri (FMS, antropometri, kendi hokey/ragbi protokolleri, kaleci testleri), pozisyon ve amaç alanı, norm genişletme (bacak presi, barfiks, şınav, mekik), tek tıkla PDF indirme, kuvvet platformu içe aktarma (RFD/GRF). SQLite'a geçiş yok (xlsx yeterli).
+Yeni test paketleri (FMS, antropometri, kendi hokey/ragbi protokolleri, kaleci testleri), pozisyon ve amaç alanı, norm genişletme (bacak presi, barfiks, şınav, mekik), kuvvet platformu içe aktarma (RFD/GRF). SQLite'a geçiş yok (xlsx yeterli).

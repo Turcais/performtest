@@ -16,7 +16,7 @@ from olcut.analiz import GRUP_KONUM_YUZDELIK_N, VELI_KONUM_EN_AZ_YAS
 from olcut.katalog_islemleri import kanonik_test
 from olcut.kayit import _degisken_birimi, oturum_degerleri, oturum_secenekleri, oturumlar_arasi_fark
 from olcut.norm import META_KOLONLAR, NORMATIF_YAS, OTURUM_ADI_KOLON, SPORCU_DOSYA, degisken_yonu, yas_z_skoru
-from olcut.ortak import _yas_degeri
+from olcut.ortak import _yas_degeri, ad_bicimi
 
 
 KARS_YUZDELIK_EN_AZ_N = GRUP_KONUM_YUZDELIK_N    # grupta n ≥ 20: çeyrekler (P25–P75) gösterilebilir
@@ -69,6 +69,15 @@ def oturum_testleri(df, sol, sag):
     return sorted(a & b)
 
 
+def _oturum_adi(g, kim):
+    """Oturumun görünen adı: "Oturum Adı" sütunu; yoksa kimlik (OT- kodunda "Oturum")."""
+    if OTURUM_ADI_KOLON in g.columns:
+        adlar = [str(a).strip() for a in g[OTURUM_ADI_KOLON].dropna() if str(a).strip() not in ("", "nan")]
+        if adlar:
+            return adlar[0]
+    return "Oturum" if str(kim).startswith("OT-") else str(kim)
+
+
 def oturum_etiketleri(df):
     """
     {oturum kimliği: "ad (tarih) · n sporcu"} — karşılaştırma seçim sütunu için; sıra oturum_secenekleri ile aynı
@@ -77,12 +86,7 @@ def oturum_etiketleri(df):
     sonuc = {}
     for kim in oturum_secenekleri(df):
         g = df[df["Oturum"].astype(str) == str(kim)]
-        ad = ""
-        if OTURUM_ADI_KOLON in g.columns:
-            adlar = [str(a).strip() for a in g[OTURUM_ADI_KOLON].dropna() if str(a).strip() not in ("", "nan")]
-            ad = adlar[0] if adlar else ""
-        if not ad:
-            ad = "Oturum" if str(kim).startswith("OT-") else str(kim)
+        ad = _oturum_adi(g, kim)
         tarihler = sorted({str(t) for t in g["Tarih"].dropna()},
                           key=lambda t: pd.to_datetime(t, format="%d.%m.%Y", errors="coerce"))
         tarih = tarihler[0] if len(tarihler) == 1 else (f"{tarihler[0]}–{tarihler[-1]}" if tarihler else "tarih yok")
@@ -249,3 +253,84 @@ def etki_metni(r):
     """|r| < 0,1 ihmal edilebilir · < 0,3 küçük · < 0,5 orta · ≥ 0,5 büyük (sıra-iki serili r için yaygın eşikler)."""
     a = abs(r)
     return "ihmal edilebilir" if a < 0.1 else "küçük" if a < 0.3 else "orta" if a < 0.5 else "büyük"
+
+
+# ── Dışa aktarma (Paket 38i): ekrandaki sonuç olduğu gibi; hesap yeniden yapılmaz ──
+def _olcum_oturumu(df, sporcu, test, degisken, tarih, oturumlar=None):
+    """Değerin geldiği satırın oturum adı (aynı sporcu, test, tarih; değişken dolu). Kayıttan bakılır, hesap yok."""
+    if "Oturum" not in df.columns or degisken not in df.columns:
+        return ""
+    d = df[(df["Sporcu"].astype(str) == str(sporcu)) & (df["Test"].map(kanonik_test) == kanonik_test(test))
+           & (df["Tarih"].astype(str) == str(tarih)) & pd.to_numeric(df[degisken], errors="coerce").notna()]
+    if oturumlar:
+        d = d[d["Oturum"].astype(str).isin([str(o) for o in oturumlar])]
+    kimlikler = [k for k in dict.fromkeys(d["Oturum"].dropna().astype(str)) if k not in ("", "nan")]
+    return ", ".join(_oturum_adi(df[df["Oturum"].astype(str) == k], k) for k in kimlikler)
+
+
+def _yas_tam_sayi(tablo):
+    """Yaş ekrandaki gibi tam sayı ("10", "10,0" değil); bilinmeyen yaş boş kalır."""
+    if "Yaş" in tablo.columns:
+        tablo["Yaş"] = pd.to_numeric(tablo["Yaş"], errors="coerce").round().astype("Int64")
+    return tablo
+
+
+def sporcular_arasi_disa(df, r, test, degisken, oturumlar=None):
+    """
+    Sporcular arası sonucun dışa aktarılan tablosu: ekrandaki satırlar, sıra ve değerler (r["satirlar"]); test,
+    değişken ve değerin geldiği oturum eklenir. Sıra/yüzdelik sütunu yazılmaz (11 yaş altı ve n < 20 kuralları).
+    """
+    satirlar = []
+    for x in r["satirlar"]:
+        d = {"Sporcu": ad_bicimi(x["Sporcu"]), "Grup": x["Grup"], "Yaş": x["Yaş"], "Cinsiyet": x["Cinsiyet"],
+             "Test": test, "Değişken": degisken, "Birim": x["Birim"], "Ölçüm tarihi": x["Ölçüm tarihi"],
+             "Oturum": _olcum_oturumu(df, x["Sporcu"], test, degisken, x["Ölçüm tarihi"], oturumlar),
+             "Değer": x["Değer"]}
+        if "Z" in x:
+            d["Z"] = x["Z"]
+        satirlar.append(d)
+    return _yas_tam_sayi(pd.DataFrame(satirlar))
+
+
+def grup_ozeti_disa(r):
+    """Grup özetleri (ekrandaki satırla aynı sayılar). Çeyrek sütunları yalnız her grupta n ≥ 20 ise yazılır."""
+    gruplar = {g: oz for g, oz in r["ozet"].items() if oz.get("n")}
+    ceyrek = bool(gruplar) and all(oz.get("p25") is not None for oz in gruplar.values())
+    satirlar = []
+    for g, oz in gruplar.items():
+        d = {"Grup": g, "n": oz["n"], "Ortalama": oz["ortalama"], "En küçük": oz["en_kucuk"],
+             "En büyük": oz["en_buyuk"], "Birim": r["birim"]}
+        if ceyrek:
+            d["P25"], d["P75"] = oz["p25"], oz["p75"]
+        satirlar.append(d)
+    return pd.DataFrame(satirlar)
+
+
+def oturumlar_arasi_disa(r, test, degisken, once="", sonra=""):
+    """
+    Oturumlar arası sonucun dışa aktarılan tablosu: ekrandaki Sporcu, Yaş, Önce, Sonra, Fark, Yön (11 yaş altında
+    yalnız arttı/azaldı — r["satirlar"]'da zaten öyle); test, değişken, birim ve oturum adları eklenir.
+    """
+    return _yas_tam_sayi(pd.DataFrame([{"Sporcu": ad_bicimi(x["Sporcu"]), "Yaş": x["Yaş"], "Test": test,
+                                        "Değişken": degisken, "Birim": r["birim"], "Önce oturum": once,
+                                        "Sonra oturum": sonra, "Önce": x["Önce"], "Sonra": x["Sonra"],
+                                        "Fark": x["Fark"], "Yön": x["Yön"]} for x in r["satirlar"]]))
+
+
+def istatistik_disa(w):
+    """Wilcoxon sonucu tek satır (ekrandaki sayılar); n küçükse yalnız n ve not."""
+    if not w:
+        return pd.DataFrame()
+    if w.get("yetersiz"):
+        return pd.DataFrame([{"n": w["n"], "Not": f"n < {KARS_ISTATISTIK_EN_AZ_N}: yalnız tanımlayıcı; test yapılmadı"}])
+    return pd.DataFrame([{"Test": "Wilcoxon işaretli sıra", "Yöntem": w["yontem"], "n": w["n"], "W": w["w"],
+                          "p": w["p"], "Etki büyüklüğü r": w["r"], "Etki": etki_metni(w["r"])}])
+
+
+def csv_ile_istatistik(tablo, w):
+    """CSV tek sayfa: istatistik açıksa p ve r her satıra ayrı sütun olarak eklenir."""
+    if not w or w.get("yetersiz"):
+        return tablo
+    t = tablo.copy()
+    t["p (Wilcoxon)"], t["Etki büyüklüğü r"] = w["p"], w["r"]
+    return t

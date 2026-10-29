@@ -1022,7 +1022,10 @@ RAPOR_CSS = f"""
   .veli-son {{ margin: {b(3)} 0 0; padding: {b(2)}; border: 1px solid var(--line); border-radius: {b(1)};
                background: var(--soft); font-weight: 600; }}
   @media (max-width: 640px) {{ .iki {{ grid-template-columns: 1fr; }} .veli-satir {{ grid-template-columns: 1fr; gap: {b(1)}; }} body {{ padding: 14px; }} }}
-  @media print {{ body {{ padding: 0; }} h2 {{ break-after: avoid; }} .kutu, .kesisim, table {{ break-inside: avoid; }} }}
+  @page {{ size: A4; margin: 16mm 14mm; }}
+  @media print {{ body {{ padding: 0; }} h2 {{ break-after: avoid; }}
+    .kutu, .kesisim, table, .sp-kart, .veli-satir, .veli-aralik, .veli-grup, .veli-konum, .gelisim-kart, .bilesik,
+    .uyari, .not, .radar, svg {{ break-inside: avoid; page-break-inside: avoid; }} }}
 {BILESEN_CSS}
 </style>
 """

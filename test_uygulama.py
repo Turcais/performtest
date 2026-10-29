@@ -4278,7 +4278,7 @@ def test_44a_veri_modulleri_yalniz_sabit(agac):
 # ════════════════════════════════════════════════════════════
 # 45. Bölme Aşama 2: olcut/ paketinin katman sırası (döngüsel bağımlılık yok)
 # ════════════════════════════════════════════════════════════
-_OLCUT_KATMAN = ["ortak", "tema", "esik", "katalog_islemleri", "gorseller.cizim", "gorseller.hareketler",
+_OLCUT_KATMAN = ["ortak", "disa_aktarma", "tema", "esik", "katalog_islemleri", "gorseller.cizim", "gorseller.hareketler",
                  "gorseller.sahneler", "norm", "analiz", "kayit", "raporlar", "oneri", "karsilastirma", "bilesenler", "sayfalar"]
 
 
@@ -4464,3 +4464,194 @@ def test_46f_yasit_karti_ve_veli_notu(app):
     assert not_ in app["veli_sonuc_kutusu_html"](t(21), "Ali", "Erkek", False, renk)
     cok = app["veli_sonuc_kutusu_html"](t(30), "Ali", "Erkek", False, renk)
     assert "Değer doğru mu?" in cok and not_ not in cok
+
+
+
+# ════════════════════════════════════════════════════════════
+# 47. Paket 38i: tek tıkla PDF (veli / antrenör raporu), karşılaştırma tablosunu Excel / CSV indirme
+# ════════════════════════════════════════════════════════════
+def _indirme_kaydi(monkeypatch):
+    """st.download_button çağrılarını (etiket, veri, dosya adı, anahtar) kaydeder; düğme yine çizilir."""
+    from streamlit.delta_generator import DeltaGenerator
+    asil, kayit = DeltaGenerator.download_button, []
+
+    def sar(self, label, data, file_name=None, *a, **k):
+        kayit.append({"etiket": label, "veri": data, "ad": file_name, "anahtar": k.get("key")})
+        return asil(self, label, data, file_name, *a, **k)
+    monkeypatch.setattr(DeltaGenerator, "download_button", sar)
+    return kayit
+
+
+def _rapor_sayfasi(tmp_path, monkeypatch, cevir):
+    D = _modul("olcut.disa_aktarma")
+    R = _modul("olcut.sayfalar.raporlar")
+    girdi = []
+
+    def sahte(html, ceviriciler=None):
+        girdi.append(html)
+        return cevir(html)
+    monkeypatch.setattr(R, "pdf_cevir", sahte)
+    R.rapor_pdf.clear()
+    kayit = _indirme_kaydi(monkeypatch)
+    at = _apptest(tmp_path, monkeypatch, _p38g_veri)
+    at.session_state["sayfa"] = "Raporlar"
+    at.session_state["rapor_sporcu"] = "Elif Demo"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    R.rapor_pdf.clear()
+    return at, kayit, girdi, D
+
+
+def test_47a_guvenli_dosya_adi_ve_cevirici_yedegi():
+    """Türkçe harf/boşluk dosya adında güvenli; çevirici yoksa ya da hata verirse (None, None), hata fırlamaz."""
+    D = _modul("olcut.disa_aktarma")
+    import datetime as _dt
+    assert D.tarih_eki(_dt.date(2026, 10, 9)) == "09102026"
+    assert D.guvenli_dosya_adi("Veli_raporu", "Şükrü Çağlar İğdeli", "09102026") == \
+        "Veli_raporu_Sukru_Caglar_Igdeli_09102026"
+    assert D.guvenli_dosya_adi("a/b:c*?", "  ") == "a_b_c"
+
+    def bozuk(_):
+        raise RuntimeError("yok")
+    assert D.pdf_cevir("<p>x</p>", (("bozuk", bozuk), ("bos", lambda h: None), ("html", lambda h: b"<html>"))) \
+        == (None, None)
+    assert D.pdf_cevir("<p>x</p>", (("bozuk", bozuk), ("iyi", lambda h: b"%PDF-1.7 ..."))) == (b"%PDF-1.7 ...", "iyi")
+
+
+def test_47b_gercek_pdf_turkce_ve_svg():
+    """Kurulu çevirici varsa gerçek çıktı %PDF ile başlar ve tamdır (Edge/Chrome/WeasyPrint/xhtml2pdf)."""
+    D = _modul("olcut.disa_aktarma")
+    if not D.pdf_cevirici():
+        pytest.skip("Bu bilgisayarda PDF çevirici yok (yedek yol 47d'de sınanıyor)")
+    html = ('<!doctype html><html lang="tr"><head><meta charset="utf-8"><style>@page{size:A4;margin:16mm}</style>'
+            '</head><body><h1>Çağrı Işık — ğüşiöç İĞÜŞÖÇ</h1><svg width="120" height="40"><rect width="120" '
+            'height="40"/></svg></body></html>')
+    veri, ad = D.pdf_cevir(html)
+    assert veri[:4] == b"%PDF" and b"%%EOF" in veri[-1024:], ad
+
+
+def test_47c_rapor_pdf_dugmesi_ve_icerik_ozdesligi(tmp_path, monkeypatch, app):
+    """
+    Veri varken iki raporda da 'PDF olarak indir'; bayt %PDF, dosya adı güvenli (Veli_raporu_Elif_Demo_GGAAYYYY.pdf).
+    PDF'e giren HTML ekrandaki rapor HTML'inin kendisi (yeni metin/alan yok, başka sporcu adı yok).
+    """
+    at, kayit, girdi, D = _rapor_sayfasi(tmp_path, monkeypatch, lambda h: (b"%PDF-1.7 sahte\n%%EOF", "sahte"))
+    pdf = [k for k in kayit if k["etiket"] == "PDF olarak indir"]
+    assert [k["ad"] for k in pdf] == [f"Veli_raporu_Elif_Demo_{D.tarih_eki()}.pdf",
+                                      f"Antrenor_raporu_Elif_Demo_{D.tarih_eki()}.pdf"]
+    assert all(k["veri"][:4] == b"%PDF" for k in pdf)
+    assert all(re.fullmatch(r"[A-Za-z0-9_.-]+", k["ad"]) for k in kayit)
+    v = app["rapor_verisi"]("Elif Demo")
+    assert girdi[:2] == [app["veli_raporu_html"](v), app["antrenor_raporu_html"](v)]
+    html_indir = {k["anahtar"]: k["veri"].decode("utf-8") for k in kayit if k["ad"].endswith(".html")}
+    assert html_indir == {"veli_indir": girdi[0], "ant_indir": girdi[1]}
+    assert "Onur" not in girdi[0] and "Tolga" not in girdi[0]
+    assert "@page { size: A4;" in girdi[0] and "page-break-inside: avoid" in girdi[0]
+
+
+def test_47d_rapor_pdf_cevirici_yoksa_yazdirma_yolu(tmp_path, monkeypatch):
+    """Çevirici yoksa PDF düğmesi yok; yazdırmaya hazır HTML ve adım adım talimat; uygulama çökmez."""
+    at, kayit, girdi, D = _rapor_sayfasi(tmp_path, monkeypatch, lambda h: (None, None))
+    assert not [k for k in kayit if k["ad"].endswith(".pdf")]
+    assert [k["etiket"] for k in kayit] == ["Yazdırmaya hazır HTML indir"] * 2
+    assert sum("PDF olarak kaydet" in i.value for i in at.info) == 2
+
+
+def _kars_df(tmp_path, monkeypatch):
+    import pandas as _pd
+    monkeypatch.chdir(tmp_path)
+    _p38g_veri(tmp_path)
+    return _pd.read_excel(tmp_path / "test_sonuclari.xlsx")
+
+
+def test_47e_kars_disa_aktarma_ekranla_ayni(tmp_path, monkeypatch):
+    """
+    Sporcular arası / oturumlar arası dışa aktarma: satırlar, sıra ve değerler hesap sonucuyla (ekran tablosu) aynı;
+    oturum adı kayıttan; 11 yaş altında sıra/yüzdelik/iyi-kötü sütunu ve etiketi yok; n < 20'de çeyrek yok.
+    """
+    K = _modul("olcut.karsilastirma")
+    df = _kars_df(tmp_path, monkeypatch)
+    r = K.sporcular_arasi(df, "Durarak Uzun Atlama", "Deneme 1 (cm)", ["Elif Demo", "Onur Demo"], ["Tolga Demo"])
+    t = K.sporcular_arasi_disa(df, r, "Durarak Uzun Atlama", "Deneme 1 (cm)")
+    assert list(t.columns) == ["Sporcu", "Grup", "Yaş", "Cinsiyet", "Test", "Değişken", "Birim", "Ölçüm tarihi",
+                               "Oturum", "Değer"]
+    assert list(t["Değer"]) == [x["Değer"] for x in r["satirlar"]] and list(t["Grup"]) == ["A", "A", "B"]
+    assert set(t["Oturum"]) == {"S2"} and set(t["Ölçüm tarihi"]) == {"25.10.2026"}
+    yasak = {"Sıra", "Yüzdelik", "Persentil", "P25", "P75", "Yorum"}
+    oz = K.grup_ozeti_disa(r)
+    assert not (yasak & set(t.columns)) and not (yasak & set(oz.columns))
+    assert list(oz["Ortalama"]) == [r["ozet"]["A"]["ortalama"], r["ozet"]["B"]["ortalama"]]
+    r1 = K.sporcular_arasi(df, "Durarak Uzun Atlama", "Deneme 1 (cm)", ["Onur Demo"], oturumlar=["S1"])
+    t1 = K.sporcular_arasi_disa(df, r1, "Durarak Uzun Atlama", "Deneme 1 (cm)", ["S1"])
+    assert list(t1["Oturum"]) == ["S1"] and list(t1["Değer"]) == [230.0]
+    ro = K.oturumlar_arasi(df, "Durarak Uzun Atlama", "Deneme 1 (cm)", ["S1"], ["S2"])
+    to = K.oturumlar_arasi_disa(ro, "Durarak Uzun Atlama", "Deneme 1 (cm)", "S1", "S2")
+    assert list(to.columns) == ["Sporcu", "Yaş", "Test", "Değişken", "Birim", "Önce oturum", "Sonra oturum", "Önce",
+                                "Sonra", "Fark", "Yön"]
+    assert list(to["Fark"]) == [x["Fark"] for x in ro["satirlar"]]
+    elif_ = to[to["Sporcu"] == "Elif Demo"].iloc[0]
+    assert elif_["Yön"] == "▲ arttı" and "iyi" not in elif_["Yön"] and "kötü" not in elif_["Yön"]
+    w = K.wilcoxon_isaretli_sira([1, 2, 3, 4, 5, 6])
+    ist = K.istatistik_disa(w)
+    assert ist.iloc[0]["p"] == w["p"] and ist.iloc[0]["Etki büyüklüğü r"] == w["r"]
+    assert list(K.csv_ile_istatistik(to, w).columns)[-2:] == ["p (Wilcoxon)", "Etki büyüklüğü r"]
+    assert list(K.csv_ile_istatistik(to, None).columns) == list(to.columns)
+    assert "Not" in K.istatistik_disa(K.wilcoxon_isaretli_sira([1, 2])).columns
+
+
+def test_47f_csv_ve_excel_geri_okuma(tmp_path, monkeypatch):
+    """CSV: UTF-8 BOM, ';' ayırıcı, ondalık virgül — geri okununca Türkçe başlıklar ve değerler aynı. Excel: sayfalar."""
+    import io as _io
+    import pandas as _pd
+    D, K = _modul("olcut.disa_aktarma"), _modul("olcut.karsilastirma")
+    df = _kars_df(tmp_path, monkeypatch)
+    r = K.sporcular_arasi(df, "10x5m Mekik Koşusu (Shuttle Run)", "Süre (sn)", ["Onur Demo", "Tolga Demo"])
+    t = K.sporcular_arasi_disa(df, r, "10x5m Mekik Koşusu (Shuttle Run)", "Süre (sn)")
+    b = D.tablo_csv(t)
+    assert b[:3] == b"\xef\xbb\xbf" and b"\r\n" in b and ";" in b.decode("utf-8-sig").splitlines()[0]
+    geri = _pd.read_csv(_io.BytesIO(b), sep=";", decimal=",", encoding="utf-8-sig")
+    assert list(geri.columns) == list(t.columns) and "Ölçüm tarihi" in geri.columns and "Değişken" in geri.columns
+    assert list(geri["Değer"]) == list(t["Değer"]) and list(geri["Sporcu"]) == ["Onur Demo", "Tolga Demo"]
+    assert "16,5" in b.decode("utf-8-sig") and ";24;" in b.decode("utf-8-sig")     # yaş tam sayı (ekrandaki gibi)
+    x = _pd.read_excel(_io.BytesIO(D.tablo_xlsx({"Sonuçlar": t, "Grup özeti": K.grup_ozeti_disa(r),
+                                                  "İstatistik": _pd.DataFrame()})), sheet_name=None)
+    assert list(x) == ["Sonuçlar", "Grup özeti"] and list(x["Sonuçlar"]["Değer"]) == list(t["Değer"])
+
+
+def test_47g_kars_ekraninda_indirme_dugmeleri(tmp_path, monkeypatch):
+    """Karşılaştır'dan sonra iki sekmede de Excel + CSV; dosya adı Karsilastirma_<tur>_<GGAAYYYY>; CSV değerleri
+    ekrandaki tablonun değerleri."""
+    import io as _io
+    import pandas as _pd
+    D = _modul("olcut.disa_aktarma")
+    kayit = _indirme_kaydi(monkeypatch)
+    at = _apptest(tmp_path, monkeypatch, _p38g_veri)
+    at.session_state["sayfa"] = "Sonuçları Görüntüle"
+    at.session_state["sonuc_bolum"] = "Karşılaştırma"
+    at.run()
+    assert not kayit                                            # Karşılaştır'a basılmadan indirme yok
+    for s in ("Onur Demo", "Tolga Demo"):
+        at.checkbox(key=f"ksa_a::k::{s}").check()
+    at.run()
+    at.selectbox(key="ksa_test").select("Durarak Uzun Atlama").run()
+    at.button(key="ksa_karsilastir").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    son = {k["anahtar"]: k for k in kayit}
+    assert son["ksa_indir_xlsx"]["ad"] == f"Karsilastirma_sporcular_{D.tarih_eki()}.xlsx"
+    assert son["ksa_indir_csv"]["ad"] == f"Karsilastirma_sporcular_{D.tarih_eki()}.csv"
+    ekran = at.dataframe[0].value
+    geri = _pd.read_csv(_io.BytesIO(son["ksa_indir_csv"]["veri"]), sep=";", decimal=",", encoding="utf-8-sig")
+    assert list(geri["Sporcu"]) == list(ekran["Sporcu"]) and list(geri["Değer"]) == list(ekran["Değer"])
+    at.checkbox(key="koa_once::k::S1").check()
+    at.checkbox(key="koa_sonra::k::S2").check()
+    at.run()
+    at.selectbox(key="koa_test").select("Durarak Uzun Atlama").run()
+    at.checkbox(key="koa_ist").check().run()
+    at.button(key="koa_karsilastir").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    son = {k["anahtar"]: k for k in kayit}
+    assert son["koa_indir_xlsx"]["ad"] == f"Karsilastirma_oturumlar_{D.tarih_eki()}.xlsx"
+    geri = _pd.read_csv(_io.BytesIO(son["koa_indir_csv"]["veri"]), sep=";", decimal=",", encoding="utf-8-sig")
+    ekran = at.dataframe[-1].value
+    assert list(geri["Fark"]) == list(ekran["Fark"]) and list(geri["Yön"]) == list(ekran["Yön"])
+    assert list(geri["Önce oturum"].unique()) == ["S1 (15.09.2026)"]

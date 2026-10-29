@@ -5,14 +5,39 @@ Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """
 import os
 import pandas as pd
-import re
 import streamlit as st
 from veri.metinler import KAYNAKCA
 from olcut.analiz import rapor_verisi
 from olcut.bilesenler import baslik_ac, bolum_terimleri, coklu_secim
+from olcut.disa_aktarma import PDF_YAZDIRMA_ADIMLARI, guvenli_dosya_adi, pdf_cevir, tarih_eki
 from olcut.norm import SPORCU_DOSYA
 from olcut.ortak import ad_bicimi
 from olcut.raporlar import KAYNAKCA_DAYANAK, KAYNAKCA_SINIFLAR, antrenor_raporu_html, veli_raporu_html
+
+
+@st.cache_data(show_spinner=False, max_entries=16)
+def rapor_pdf(html_metin):
+    """Rapor HTML'i aynen PDF'e (Paket 38i); çevrilemezse None. Aynı HTML ikinci kez çevrilmez."""
+    return pdf_cevir(html_metin)[0]
+
+
+def rapor_indirme(html_metin, tur, sporcu, onek):
+    """
+    "PDF olarak indir" (tek tık); çevirici yoksa yazdırmaya hazır HTML + adım adım talimat. HTML her durumda
+    indirilebilir. Dosya adı: <Tur>_raporu_<Ad_Soyad>_<GGAAYYYY>; PDF'e ekranda gösterilen HTML'in kendisi girer.
+    """
+    ad = guvenli_dosya_adi(f"{tur}_raporu", ad_bicimi(sporcu), tarih_eki())
+    with st.spinner("PDF hazırlanıyor…"):
+        pdf = rapor_pdf(html_metin)
+    c1, c2 = st.columns(2)
+    if pdf:
+        c1.download_button("PDF olarak indir", pdf, file_name=f"{ad}.pdf", mime="application/pdf", type="primary",
+                           key=f"{onek}_pdf", icon=":material/picture_as_pdf:", width="stretch")
+    c2.download_button("HTML olarak indir" if pdf else "Yazdırmaya hazır HTML indir", html_metin.encode("utf-8"),
+                       file_name=f"{ad}.html", mime="text/html", key=onek, icon=":material/download:",
+                       type="secondary" if pdf else "primary", width="stretch")
+    if not pdf:
+        st.info(PDF_YAZDIRMA_ADIMLARI, icon=":material/print:")
 
 
 def raporlar_sayfasi():
@@ -27,7 +52,7 @@ def raporlar_sayfasi():
 
     st.header("Raporlar")
     st.caption("Veli raporu sade dille yazılır; Z, persentil ve uzaklık sayısı içermez. Antrenör raporu tekniktir. "
-               "İkisi de indirilebilir HTML'dir: tarayıcıda açıp Yazdır → PDF olarak kaydedilebilir.")
+               "İkisi de PDF olarak tek tıkla indirilebilir (A4).")
     if not os.path.exists(SPORCU_DOSYA):
         st.info("Sistemde kayıtlı sporcu yok.")
     else:
@@ -40,17 +65,14 @@ def raporlar_sayfasi():
                        "\"belirlenemedi\" olarak yazılır. Sporcu Girişi sayfasından eklenebilir.")
         if not r_veri["ilgi"]:
             st.info("İlgi anketi doldurulmamış; raporların ilgi penceresi boş kalır. Anket Sporcu Girişi sayfasında.")
-        dosya_on_ek = re.sub(r"[^\w]+", "_", r_sporcu).strip("_")
         r1, r2 = st.tabs(["Veli raporu", "Antrenör raporu"])
         with r1:
             veli_html = veli_raporu_html(r_veri)
-            st.download_button("⬇️ Veli raporunu indir (HTML)", veli_html.encode("utf-8"),
-                               file_name=f"{dosya_on_ek}_veli_raporu.html", mime="text/html", key="veli_indir")
+            rapor_indirme(veli_html, "Veli", r_sporcu, "veli_indir")
             rapor_goster(veli_html, 1300 + 130 * veli_html.count('class="veli-satir"'))
         with r2:
             ant_html = antrenor_raporu_html(r_veri)
-            st.download_button("⬇️ Antrenör raporunu indir (HTML)", ant_html.encode("utf-8"),
-                               file_name=f"{dosya_on_ek}_antrenor_raporu.html", mime="text/html", key="ant_indir")
+            rapor_indirme(ant_html, "Antrenor", r_sporcu, "ant_indir")
             rapor_goster(ant_html, 1400)
 
 

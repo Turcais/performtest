@@ -8,9 +8,11 @@ import os
 import pandas as pd
 import streamlit as st
 from olcut.bilesenler import coklu_secim
+from olcut.disa_aktarma import guvenli_dosya_adi, tablo_csv, tablo_xlsx, tarih_eki
 from olcut.karsilastirma import (
-    KARS_ISTATISTIK_EN_AZ_N, KARS_KARISIK_UYARI, KARS_KUCUK_NOTU, KARS_YUZDELIK_YOK_NOTU, etki_metni, karisik_mi,
-    ortak_testler, oturum_etiketleri, oturum_testleri, oturumlar_arasi, sayisal_degiskenler, sporcu_ozellikleri, sporcular_arasi,
+    KARS_ISTATISTIK_EN_AZ_N, KARS_KARISIK_UYARI, KARS_KUCUK_NOTU, KARS_YUZDELIK_YOK_NOTU, csv_ile_istatistik, etki_metni,
+    grup_ozeti_disa, istatistik_disa, karisik_mi, ortak_testler, oturum_etiketleri, oturum_testleri, oturumlar_arasi,
+    oturumlar_arasi_disa, sayisal_degiskenler, sporcu_ozellikleri, sporcular_arasi, sporcular_arasi_disa,
     wilcoxon_isaretli_sira)
 from olcut.katalog_islemleri import ara_katla, test_tablosu_duzelt
 from olcut.norm import TEST_DOSYA
@@ -27,6 +29,17 @@ def _sayi(x, basamak=2):
     if x is None or (isinstance(x, float) and pd.isna(x)):
         return "—"
     return f"{x:.{basamak}f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
+def indirme_dugmeleri(sayfalar, csv_tablosu, tur, onek):
+    """Paket 38i: sonuç tablosunu Excel (sayfalar) ve CSV olarak indirme; dosya adı Karsilastirma_<tur>_<GGAAYYYY>."""
+    ad = guvenli_dosya_adi("Karsilastirma", tur, tarih_eki())
+    c1, c2 = st.columns(2)
+    c1.download_button("Tabloyu Excel olarak indir", tablo_xlsx(sayfalar), file_name=f"{ad}.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                       key=f"{onek}_xlsx", icon=":material/table_view:", width="stretch")
+    c2.download_button("CSV olarak indir", tablo_csv(csv_tablosu), file_name=f"{ad}.csv", mime="text/csv",
+                       key=f"{onek}_csv", icon=":material/download:", width="stretch")
 
 
 # ── seçim sütunu ──
@@ -194,6 +207,8 @@ def _sporcular_arasi_sonuc(df, p, etiket):
     st.plotly_chart(fig, width="stretch")
     st.caption("Grup harfi her çubuğun üstünde yazılıdır; kesikli çizgi A, noktalı çizgi B ortalaması."
                + ("" if r["kucuk"] else " Sıra testin yönüne göredir (en iyi önce)."))
+    disa = sporcular_arasi_disa(df, r, p["test"], p["degisken"], p["oturum"])
+    indirme_dugmeleri({"Sonuçlar": disa, "Grup özeti": grup_ozeti_disa(r)}, disa, "sporcular", "ksa_indir")
 
 
 # ── Oturumlar arası ──
@@ -261,8 +276,8 @@ def _oturumlar_arasi_sonuc(df, p):
                "tanımsız ölçüde yalnız ▲ arttı / ▼ azaldı); renk tek başına anlam taşımaz.")
     ort = tablo["Fark"].mean()
     st.markdown(f"Ortalama fark {_sayi(ort)} {r['birim']} · n = {len(tablo)} sporcu")
+    w = wilcoxon_isaretli_sira(tablo["Fark"].tolist()) if p["ist"] else None
     if p["ist"]:
-        w = wilcoxon_isaretli_sira(tablo["Fark"].tolist())
         if w.get("yetersiz"):
             st.caption(f"Örneklem küçük (sıfırdan farklı fark sayısı n = {w['n']} < {KARS_ISTATISTIK_EN_AZ_N}): "
                        "yalnız tanımlayıcı; istatistik testi yapılmadı.")
@@ -272,6 +287,11 @@ def _oturumlar_arasi_sonuc(df, p):
                         f"{_sayi(w['r'])} ({etki_metni(w['r'])})")
             st.caption("Sıfır farklar testten çıkarılır. r > 0: sonra değerleri büyük; testin iyi yönü için "
                        "tablodaki Yön sütununa bakın.")
+    ot = oturum_etiketleri(df)
+    adlar = lambda kimlikler: ", ".join(ot.get(k, str(k)).split(" · ")[0] for k in kimlikler)
+    disa = oturumlar_arasi_disa(r, p["test"], p["degisken"], adlar(p["sol"]), adlar(p["sag"]))
+    indirme_dugmeleri({"Sonuçlar": disa, "İstatistik": istatistik_disa(w)}, csv_ile_istatistik(disa, w),
+                      "oturumlar", "koa_indir")
 
 
 def karsilastirma_sayfasi():
