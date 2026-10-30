@@ -124,3 +124,17 @@ BRANS_GRUBU_PROFILLERI = {
         "Yüzme": {"BH": (141.87, 8.29), "SH": (74.55, 4.45), "BW": (35.56, 7.56), "BF": (19.34, 6.42), "BMI": (17.51, 2.56), "SR": (5.27, 1.88), "SF": (90.2, 15.3), "SAR": (18.9, 7.0), "10x5": (22.6, 2.2), "SBJ": (138.1, 20.5), "CMJ": (20.4, 4.2), "SU": (23.7, 6.2), "KPU": (26.2, 6.9), "JS": (61.7, 11.5), "MS": (41.5, 6.1), "WB": (46.6, 14.4), "BD": (9.02, 2.01)},
     },
 }
+
+
+# Paket 38p: eşleştirme yayılımı (en uzak − en yakın grup uzaklığı) ile doğruluk — araclar/esik_simulasyonu.py çıktısı.
+# Her gruptan 6000 sanal çocuk (Opstoel 2015 grup ortalaması ve SD'si, normal, bağımsız, tohum 1), eşleştirmedeki 11
+# değişken, havuz SD ile RMS-Z (brans_grubu_eslestir ile aynı formül); pencere = ilk 3 + 3. grupla iki ondalıkta eşit
+# uzaklıktakiler (uygulamadaki kural). "dilimler": yayılım dilimine göre doğru grubun pencerede olma yüzdesi; "pay":
+# çocukların o dilimdeki yüzdesi; "sans": pencere büyüklüğü / 6 ortalaması; "esik_alti": yayılımı 0,10 altında olanlar.
+# Değişkenler arası korelasyon bilinmediği için gerçek doğruluk farklı olabilir. Test 53a araçla uyumu denetler.
+ESLESTIRME_YAYILIM_SIMULASYONU = {
+    "cocuk": 6000, "tohum": 1,
+    "dilimler": {'0.00–0.05': 64.4, '0.05–0.10': 65.6, '0.10–0.15': 70.4, '0.15–0.20': 74.2, '0.20–0.30': 76.8, '≥ 0.30': None},
+    "pay": {'0.00–0.05': 2.5, '0.05–0.10': 32.7, '0.10–0.15': 43.9, '0.15–0.20': 17.6, '0.20–0.30': 3.4, '≥ 0.30': 0.0},
+    "sans": 53.8, "esik_alti": 35.2,
+}

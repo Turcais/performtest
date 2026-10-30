@@ -5344,3 +5344,100 @@ def test_52c_raporlar_sayfasinda_kulup_raporu_sekmesi(tmp_path, monkeypatch):
     assert "Ek: Sporcu listesi" in kr2 and "Arslan0 Kulup" in kr2 and "Poyraz" not in kr2
     R.rapor_pdf.clear()
     R.kulup_raporu_onbellekli.clear()
+
+
+
+# ════════════════════════════════════════════════════════════
+# 53. Paket 38p-1: branş eşleştirmesinde "belirgin fark yok" (yayılım eşiği)
+# ════════════════════════════════════════════════════════════
+_DEMO = r"C:\Users\ertug\Desktop\Olcut_Demo"
+
+
+def _sahte_fsc(n=11):
+    A = _modul("olcut.analiz")
+    return {"degerler": {k: {"deger": 1.0, "test_yasi": 10} for k in A.ESLESTIRME_DEGISKENLERI[:n]}}
+
+
+def _uzakliklar(monkeypatch, degerler):
+    """grup_uzakliklari'nı verilen uzaklıklarla değiştirir (eşik ve pencere kuralını yalın sınamak için)."""
+    A = _modul("olcut.analiz")
+    monkeypatch.setattr(A, "grup_uzakliklari", lambda d: {g: (u, {}) for g, u in degerler.items()})
+    return A.brans_grubu_eslestir(_sahte_fsc(), 10)
+
+
+def test_53a_esik_simulasyonu_kayitla_ayni():
+    """araclar/esik_simulasyonu.py çıktısı veri/brans_profilleri.py'deki tabloyla birebir; eşik 0,10."""
+    import importlib.util
+    A, B = _modul("olcut.analiz"), _modul("veri.brans_profilleri")
+    assert A.ESLESTIRME_AYIRT_ESIGI == 0.10
+    yol = os.path.join(os.path.dirname(DOSYA), "araclar", "esik_simulasyonu.py")
+    spec = importlib.util.spec_from_file_location("esik_simulasyonu", yol)
+    E = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(E)
+    tablo, sans, esik_alti = E.simule()
+    kayit = B.ESLESTIRME_YAYILIM_SIMULASYONU
+    assert {k: v[0] for k, v in tablo.items()} == kayit["dilimler"]
+    assert {k: v[1] for k, v in tablo.items()} == kayit["pay"]
+    assert sans == kayit["sans"] and esik_alti == kayit["esik_alti"]
+
+
+def test_53b_esik_tam_degerde_ayirt_edilebilir_ve_pencere(monkeypatch):
+    """yayılım < 0,10 → ayırt edilemez (pencere boş); tam 0,10 → ayırt edilebilir; pencere ilk 3 + 3. ile eşitler."""
+    A = _modul("olcut.analiz")
+    gr = list(_modul("veri.brans_profilleri").BRANS_GRUBU_PROFILLERI["degerler"])
+    e = _uzakliklar(monkeypatch, dict(zip(gr, (1.00, 1.02, 1.04, 1.05, 1.07, 1.099))))
+    assert e["ayirt_edilemez"] and A.fiziksel_pencere(e) == [] and abs(e["yayilim"] - 0.099) < 1e-12
+    e = _uzakliklar(monkeypatch, dict(zip(gr, (0.90, 0.95, 0.97, 0.98, 0.99, 1.00))))   # tam 0,10
+    assert not e["ayirt_edilemez"] and len(A.fiziksel_pencere(e)) == 3
+    e = _uzakliklar(monkeypatch, dict(zip(gr, (0.50, 0.60, 0.701, 0.704, 0.70, 0.90))))  # 3. ile iki ondalıkta eşitler
+    assert sorted(A.fiziksel_pencere(e)) == sorted(gr[:5]) and e["pencere"][:2] == gr[:2]
+    pen = A.ilgi_fiziksel_pencereler(_uzakliklar(monkeypatch, dict(zip(gr, (1, 1.01, 1.02, 1.03, 1.04, 1.05)))),
+                                     {gr[0]: 4.5, gr[1]: 2.0})
+    assert pen["fiziksel"] == [] and pen["kesisim"] == [] and pen["fiziksel_ayirt_edilemez"] is True
+    assert pen["seviyor"] == [gr[0]] and pen["yalniz_fiziksel"] == []
+
+
+def _demo_rapor(ad):
+    if not os.path.exists(os.path.join(_DEMO, "sporcular.xlsx")):
+        pytest.skip("Olcut_Demo yok")
+    import shutil, tempfile
+    d = tempfile.mkdtemp()
+    for f in ("sporcular.xlsx", "test_sonuclari.xlsx", "ilgi_anketi.xlsx"):
+        shutil.copy(os.path.join(_DEMO, f), d)
+    eski = os.getcwd()
+    os.chdir(d)
+    try:
+        return _modul("olcut.analiz").rapor_verisi(ad)
+    finally:
+        os.chdir(eski)
+
+
+def test_53c_demo_cocuklari_yayilim():
+    """Demo: Kaan ayırt edilemez; Ali, Ece, Can, Nisa, Burak ayırt edilebilir (her biri farklı bir gruba yakın)."""
+    assert _demo_rapor("Kaan Demo")["esl"]["ayirt_edilemez"] is True
+    for ad in ("Ali", "Ece", "Can", "Nisa", "Burak"):
+        e = _demo_rapor(f"{ad} Demo")["esl"]
+        assert e["uygun"] and not e["ayirt_edilemez"] and e["yayilim"] >= 0.10, ad
+
+
+def test_53d_ayirt_edilemezde_veli_raporunda_fiziksel_grup_adi_yok(app):
+    """Ayırt edilemez: fiziksel pencerede grup adı yok, verilen metin; raporda geçen her grup adı ilgi anketinden;
+    özet cümle (sevdiği grup var / yok). Antrenör: yayılım satırı, eşik notu, simülasyon tablosu."""
+    R = _modul("olcut.raporlar")
+    gruplar = list(_modul("veri.brans_profilleri").BRANS_GRUBU_PROFILLERI["gruplar"])
+    v = _demo_rapor("Kaan Demo")
+    h = app["veli_raporu_html"](v)
+    fiz = h.split("Fiziksel özellikleri bu gruplara yakın")[1].split("</div>")[0]
+    assert R.VELI_FIZIKSEL_AYIRT_EDILEMEZ in fiz and not [g for g in gruplar if g in fiz]
+    pencereler = h.split("İki pencere")[1].split('class="veli-sonuc')[0].split("<h2>")[0]
+    assert {g for g in gruplar if g in pencereler} <= set(v["pen"]["seviyor"])
+    assert R.VELI_OZET_AYIRT_EDILEMEZ_SEVIYOR.format(grup=", ".join(v["pen"]["seviyor"])) in h
+    v2 = dict(v, pen=dict(v["pen"], seviyor=[], kesisim=[], yalniz_ilgi=[]))
+    assert R.VELI_OZET_AYIRT_EDILEMEZ in app["veli_raporu_html"](v2)
+    a = app["antrenor_raporu_html"](v)
+    assert "Yayılım (en uzak − en yakın grup): 0,05. Eşik 0,10." in a and R.ANTRENOR_AYIRT_EDILEMEZ in a
+    assert "Doğru grup pencerede" in a
+    ali = _demo_rapor("Ali Demo")
+    ah = app["antrenor_raporu_html"](ali)
+    assert "Eşik 0,10." in ah and R.ANTRENOR_AYIRT_EDILEMEZ not in ah
+    assert R.VELI_FIZIKSEL_AYIRT_EDILEMEZ not in app["veli_raporu_html"](ali)

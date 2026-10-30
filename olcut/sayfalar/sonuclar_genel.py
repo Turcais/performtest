@@ -10,8 +10,11 @@ import streamlit as st
 from io import BytesIO
 from veri.brans_profilleri import BILESIK_Z, BRANS_GRUBU_PROFILLERI
 from veri.metinler import ACIKLAMALAR, GUVEN_DUZEYLERI
+from olcut.raporlar import (
+    ANTRENOR_AYIRT_EDILEMEZ, ANTRENOR_YAYILIM_SATIRI, ANTRENOR_YAYILIM_YONTEMI, VELI_FIZIKSEL_AYIRT_EDILEMEZ,
+    VELI_OZET_AYIRT_EDILEMEZ, VELI_OZET_AYIRT_EDILEMEZ_SEVIYOR, yayilim_simulasyon_tablosu)
 from olcut.analiz import (
-    ANTRENMAN_SECENEKLERI, ANTRENMAN_YARDIM, ESLESTIRME_DEGISKENLERI, ESLESTIRME_SIMULASYON, GRUP_KATMANI_NOTU,
+    ESLESTIRME_AYIRT_ESIGI, fiziksel_pencere, ANTRENMAN_SECENEKLERI, ANTRENMAN_YARDIM, ESLESTIRME_DEGISKENLERI, ESLESTIRME_SIMULASYON, GRUP_KATMANI_NOTU,
     ILGI_ANKET_ADI, ILGI_HAKKINDA, ILGI_TERCIHLERI, ILGI_UYARI, brans_grubu_eslestir, grup_radar_katmani,
     ilgi_etiketi, ilgi_fiziksel_pencereler, ilgi_grup_puanlari, ilgi_son_anket, sporcu_antrenman,
     sporcu_antrenman_kaydet, sporcu_fsc_profili, sporcu_profil_bilgisi, z_satiri_karti)
@@ -645,8 +648,10 @@ def sonuclari_goruntule_sayfasi():
                         st.caption("Belirgin bir tercih çıkmadı (hiçbir grupta ortalama \"seviyorum\" düzeyine ulaşmadı).")
                 with p2:
                     st.markdown("**🏃 Fiziksel profili bu gruplara yakın** (eşleştirme)")
-                    if esl["uygun"]:
-                        for g in pen["fiziksel"] if pen else sorted(x for x, _ in esl["siralama"][:3]):
+                    if esl["uygun"] and esl.get("ayirt_edilemez"):        # Paket 38p: grup adı yok
+                        st.markdown(VELI_FIZIKSEL_AYIRT_EDILEMEZ)
+                    elif esl["uygun"]:
+                        for g in pen["fiziksel"] if pen else fiziksel_pencere(esl):
                             isaret = " ★" if pen and g in pen["kesisim"] else ""
                             st.markdown(f"- **{g}**{isaret}")
                         st.caption("Sırasız; bilgilendiricidir, eleyici değildir.")
@@ -657,7 +662,10 @@ def sonuclari_goruntule_sayfasi():
                     if pen["kesisim"]:
                         st.success("★ **Hem seviyor hem fiziksel profili yakın:** " + ", ".join(pen["kesisim"])
                                    + ". Bu, en güçlü işarettir; bu grupların sporlarını denemek iyi bir başlangıçtır.")
-                    if pen["yalniz_ilgi"] and esl["uygun"]:
+                    if esl["uygun"] and esl.get("ayirt_edilemez"):        # Paket 38p: veli raporuyla aynı dil
+                        st.info(VELI_OZET_AYIRT_EDILEMEZ_SEVIYOR.format(grup=", ".join(pen["seviyor"]))
+                                if pen["seviyor"] else VELI_OZET_AYIRT_EDILEMEZ)
+                    elif pen["yalniz_ilgi"] and esl["uygun"]:
                         st.info("**Ayrışma:** " + ", ".join(pen["yalniz_ilgi"]) + " grubunu seviyor; fiziksel profili ise "
                                 + (", ".join(pen["yalniz_fiziksel"]) + " gruplarına" if pen["yalniz_fiziksel"] else "başka gruplara") + " daha yakın. İkisi de bilgidir: "
                                 "sevdiği spor uzun süre devam etmesini kolaylaştırabilir; fiziksel profil ise yalnızca "
@@ -677,7 +685,8 @@ def sonuclari_goruntule_sayfasi():
                                    + ", ".join(pen["bilinmeyen"]) + ". Bu sporları denemek, ilgisini öğrenmenin en iyi yoludur.")
                     ozet = [{"Grup": g, "İlgi (anket)": ilgi_etiketi(ilgi_puan.get(g)),
                              "İlgi ortalaması (1-5)": ilgi_puan.get(g),
-                             "Fiziksel profil yakın üçte": ("Evet" if g in pen["fiziksel"] else
+                             "Fiziksel profil yakın üçte": ("Ayırt edilemiyor" if pen["fiziksel_ayirt_edilemez"] else
+                                                            "Evet" if g in pen["fiziksel"] else
                                                             ("—" if esl["uygun"] else "Bilgi yok"))}
                             for g in BRANS_GRUBU_PROFILLERI["gruplar"]]
                     st.dataframe(pd.DataFrame(ozet), width="stretch", hide_index=True)
@@ -707,9 +716,15 @@ def sonuclari_goruntule_sayfasi():
 
                 if not esl["uygun"]:
                     st.info(esl["neden"])
+                elif esl.get("ayirt_edilemez"):                        # Paket 38p
+                    st.info(ANTRENOR_YAYILIM_SATIRI.format(x=f"{esl['yayilim']:.2f}".replace(".", ","),
+                                                           esik=f"{ESLESTIRME_AYIRT_ESIGI:.2f}".replace(".", ","))
+                            + " " + ANTRENOR_AYIRT_EDILEMEZ)
+                    st.caption(ANTRENOR_YAYILIM_YONTEMI)
+                    st.markdown(yayilim_simulasyon_tablosu(), unsafe_allow_html=True)
                 else:
                     sira = esl["siralama"]
-                    ilk_uc = sorted(g for g, _ in sira[:3])   # bilinçli olarak sırasız (alfabetik)
+                    ilk_uc = fiziksel_pencere(esl)   # bilinçli olarak sırasız (alfabetik); 38p: + eşit uzaklıktakiler
                     baslik_ac("Fiziksel profilin biraz daha yakın olduğu gruplar",
                               ["Ortalama standart uzaklık", "Havuzlanmış standart sapma"], "######")
                     st.markdown(

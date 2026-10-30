@@ -7,10 +7,11 @@ Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 import collections
 import re
 from datetime import date
-from veri.brans_profilleri import BILESIK_Z, BRANS_GRUBU_PROFILLERI
+from veri.brans_profilleri import BILESIK_Z, BRANS_GRUBU_PROFILLERI, ESLESTIRME_YAYILIM_SIMULASYONU
 from veri.metinler import ACIKLAMALAR, GUVEN_DUZEYLERI, VELI_TEST_GRUBU, VELI_YORUMLARI
 from olcut.analiz import (
-    ESLESTIRME_DEGISKENLERI, ESLESTIRME_EN_AZ_DEGISKEN, ESLESTIRME_SIMULASYON, ESLESTIRME_YAS_ARALIGI,
+    ESLESTIRME_AYIRT_ESIGI, ESLESTIRME_DEGISKENLERI, ESLESTIRME_EN_AZ_DEGISKEN, ESLESTIRME_SIMULASYON,
+    ESLESTIRME_YAS_ARALIGI,
     GRUP_KATMANI_NOTU, GRUP_KONUM_YUZDELIK_N, GRUP_RENKLERI, ILGI_ANKET_ADI, ILGI_TERCIHLERI, ILGI_UYARI,
     RAPOR_CSS, SAYIM_BIRIMLERI, VELI_ARALIK_KIM, VELI_ARALIK_METNI, VELI_ARALIK_NOTU, VELI_ARALIK_YERI,
     VELI_DOGRU_MU, VELI_DOGRU_MU_BASLIK, VELI_KONUM_EN_AZ_YAS, VELI_KONUM_METNI, VELI_SAPMA_Z,
@@ -108,6 +109,39 @@ VELI_YER_ISARETI = {"icinde": ("●", "aralığın içinde"), "ustunde": ("▲",
                     "ustunde_belirgin": ("▲", "aralığın belirgin şekilde üstünde"),
                     "altinda_belirgin": ("▼", "aralığın belirgin şekilde altında"),
                     "ustunde_cok": ("▲", "aralığın çok üstünde"), "altinda_cok": ("▼", "aralığın çok altında")}
+
+
+# Paket 38p: fiziksel profil gruplar arasında ayırt edilemezse (yayılım < ESLESTIRME_AYIRT_ESIGI) — metinler Ertuğrul'un
+# verdiği gibi, aynen. veli_hitabi yetişkin dönüşümü bunlara da uygulanır.
+VELI_FIZIKSEL_AYIRT_EDILEMEZ = ("Fiziksel özellikleri spor grupları arasında belirgin bir fark göstermiyor. Bu yüzden "
+                                "burada grup adı yazılmadı.")
+VELI_OZET_AYIRT_EDILEMEZ_SEVIYOR = ("Çocuğunuz {grup} grubundaki etkinlikleri seviyor. Fiziksel özellikleri belirli bir "
+                                    "spor grubunu öne çıkarmıyor; bu durumda sevdiği sporu denemesi iyi bir "
+                                    "başlangıçtır.")
+VELI_OZET_AYIRT_EDILEMEZ = ("Fiziksel özellikleri belirli bir spor grubunu öne çıkarmıyor. Birkaç farklı sporu denemek, "
+                            "hangisini sevdiğini görmenin en iyi yoludur.")
+ANTRENOR_YAYILIM_SATIRI = "Yayılım (en uzak − en yakın grup): {x}. Eşik {esik}."
+ANTRENOR_AYIRT_EDILEMEZ = ("Yayılım eşiğin altında: fiziksel profil gruplar arasında ayırt edilemiyor; veli raporunda "
+                           "grup adı gösterilmedi.")
+ANTRENOR_YAYILIM_YONTEMI = ("Yöntem: her gruptan 6000 sanal çocuk (grup ortalaması ve SD'si, normal, bağımsız), aynı 11 "
+                            "değişken ve aynı uzaklık formülü; doğru grubun ilk üç (+ eşit uzaklıktakiler) içinde olma "
+                            "oranı yayılıma göre aşağıdadır. Değişkenler arası korelasyon bilinmediği için gerçek "
+                            "doğruluk farklı olabilir.")
+
+
+def _virgul(x, ondalik=2):
+    return f"{float(x):.{ondalik}f}".replace(".", ",")
+
+
+def yayilim_simulasyon_tablosu():
+    """Antrenör raporu: simülasyon tablosu (yayılım dilimi → doğru grup pencerede %, çocukların payı %)."""
+    sim = ESLESTIRME_YAYILIM_SIMULASYONU
+    satir = "".join(f"<tr><td>{_e(d.replace('.', ','))}</td><td class=sayi>%{_virgul(o, 1)}</td>"
+                    f"<td class=sayi>%{_virgul(sim['pay'][d], 1)}</td></tr>"
+                    for d, o in sim["dilimler"].items() if o is not None)
+    return ("<table><tr><th>Yayılım</th><th>Doğru grup pencerede</th><th>Çocukların payı</th></tr>" + satir +
+            f"</table><p class=\"kucuk\">Şans düzeyi %{_virgul(sim['sans'], 1)}; çocukların "
+            f"%{_virgul(sim['esik_alti'], 1)}'i eşiğin altında.</p>")
 
 
 VELI_YER_SIRASI = ("icinde", "ustunde", "ustunde_belirgin", "ustunde_cok", "altinda", "altinda_belirgin", "altinda_cok")
@@ -671,11 +705,14 @@ def veli_raporu_html(v):
     p.append("</div>")
     # Pencere 2: fiziksel
     p.append(f'<div class="kutu fiz"><h3 class="veli-grup">{veli_grup_simgesi("fiziksel")}<span>Fiziksel özellikleri bu gruplara yakın</span></h3>')
-    if esl["uygun"]:
+    if esl["uygun"] and esl.get("ayirt_edilemez"):                # Paket 38p: grup adı yazılmaz
+        p.append(f"<p>{_e(VELI_FIZIKSEL_AYIRT_EDILEMEZ)}</p>")
+    elif esl["uygun"]:
         p.append("<ul>" + "".join(
             f'<li><b>{_e(g)}</b>{" <span class=yildiz>★</span>" if pen and g in pen["kesisim"] else ""}'
             f'<br><span class="kucuk">ör. {_e(_brans_ornekleri(g))}</span></li>' for g in v["fiziksel_uc"]) + "</ul>")
-        p.append('<p class="kucuk">Sıra yoktur; üç grup arasında bir öncelik yoktur.</p>')
+        p.append('<p class="kucuk">Sıra yoktur; ' + ("üç grup" if len(v["fiziksel_uc"]) == 3 else "bu gruplar")
+                 + ' arasında bir öncelik yoktur.</p>')
     else:
         try:
             yas_i = int(float(b.get("Yaş")))
@@ -695,7 +732,10 @@ def veli_raporu_html(v):
         p.append(f'<div class="kesisim"><span class="yildiz">★</span> <b>Hem seviyor hem fiziksel özellikleri '
                  f'yakın:</b> {_e(", ".join(pen["kesisim"]))}. Bu, en güçlü işarettir; bu gruplardaki sporları '
                  f'denemek iyi bir başlangıç olabilir.</div>')
-    if pen and esl["uygun"]:
+    if pen and esl["uygun"] and esl.get("ayirt_edilemez"):           # Paket 38p
+        p.append('<div class="not">' + _e(VELI_OZET_AYIRT_EDILEMEZ_SEVIYOR.format(grup=", ".join(pen["seviyor"]))
+                                          if pen["seviyor"] else VELI_OZET_AYIRT_EDILEMEZ) + "</div>")
+    elif pen and esl["uygun"]:
         if pen["yalniz_ilgi"]:
             p.append(f'<div class="not">Çocuğunuz <b>{_e(", ".join(pen["yalniz_ilgi"]))}</b> grubundaki etkinlikleri '
                      f'seviyor; fiziksel özellikleri ise daha çok başka gruplara benziyor. Sevdiği sporu yapması '
@@ -830,7 +870,8 @@ def antrenor_raporu_html(v):
         p.append(f"<p>Radar için normu olan en az 3 performans testi gerekli (şu an {len(perf)}).</p>")
     k = v["katman"]
     if k and k["uygun"]:
-        p.append("<h3>Branş grubu katmanı (fiziksel profilin yakın olduğu üç grup)</h3>")
+        p.append("<h3>Branş grubu katmanı (fiziksel profilin yakın olduğu "
+                 + ("üç grup" if len(v["fiziksel_uc"]) == 3 else "gruplar") + ")</h3>")
         eks = [e["ad"] for e in k["eksenler"]]
         katmanlar = [(v["sporcu"], [e["z"] for e in k["eksenler"]], _RAPOR_RENK["ana"], False)]
         for i, g in enumerate(v["fiziksel_uc"]):
@@ -848,6 +889,9 @@ def antrenor_raporu_html(v):
                  + "; boy, kilo, VKİ, oturma yüksekliği (antropometrik).</p>")
     elif k:
         p.append(f'<p class="kucuk">Grup katmanı çizilmedi: {_e(k["neden"])}</p>')
+    elif esl["uygun"] and esl.get("ayirt_edilemez"):                # Paket 38p
+        p.append('<p class="kucuk">Grup katmanı çizilmedi: fiziksel profil gruplar arasında ayırt edilemiyor '
+                 '(yayılım eşiğin altında; bkz. 5. bölüm).</p>')
 
     # 5. Branşa yönlendirme
     p.append("<h2>5. Branşa yönlendirme</h2>")
@@ -867,11 +911,18 @@ def antrenor_raporu_html(v):
         p.append("<p>Anket yok.</p>")
     p.append('</div><div class="kutu fiz"><h3>Fiziksel profil (sırasız ilk üç)</h3>')
     if esl["uygun"]:
-        p.append("<p>" + " · ".join(f"<b>{_e(g)}</b>" for g in v["fiziksel_uc"]) + "</p>")
+        if not esl.get("ayirt_edilemez"):
+            p.append("<p>" + " · ".join(f"<b>{_e(g)}</b>" for g in v["fiziksel_uc"]) + "</p>")
         p.append("<table><tr><th>Grup</th><th>Ort. standart uzaklık</th></tr>" + "".join(
             f"<tr><td>{_e(g)}</td><td class=sayi>{float(u):.2f}</td></tr>" for g, u in esl["siralama"]) + "</table>")
         p.append('<p class="kucuk">Uzaklık farkları yorumlanmamalı: grup merkezleri arası 0.11-0.20 standart birim. '
                  f'{len(esl["kullanilan"])} değişken kullanıldı.</p>')
+        if esl.get("yayilim") is not None:                          # Paket 38p
+            p.append("<p>" + _e(ANTRENOR_YAYILIM_SATIRI.format(x=_virgul(esl["yayilim"]),
+                                                               esik=_virgul(ESLESTIRME_AYIRT_ESIGI))) + "</p>")
+        if esl.get("ayirt_edilemez"):
+            p.append(f"<p><b>{_e(ANTRENOR_AYIRT_EDILEMEZ)}</b></p>")
+            p.append(f'<p class="kucuk">{_e(ANTRENOR_YAYILIM_YONTEMI)}</p>' + yayilim_simulasyon_tablosu())
     else:
         p.append(f"<p>{_e(esl['neden'])}</p>")
     p.append("</div></div>")

@@ -116,13 +116,52 @@ ESLESTIRME_HAVUZ_SD = {k: round(_havuz_sd(k), 3) for k in ESLESTIRME_DEGISKENLER
 ESLESTIRME_SIMULASYON = {"ilk_sira": 29, "ilk_uc": 67, "sans_ilk": 17, "sans_ilk_uc": 50}
 
 
+# Paket 38p: en uzak − en yakın grup uzaklığı (yayılım) bu eşiğin altındaysa fiziksel profil gruplar arasında ayırt
+# edilemez sayılır (veli raporunda grup adı yazılmaz). Dayanak: araclar/esik_simulasyonu.py,
+# veri/brans_profilleri.py ESLESTIRME_YAYILIM_SIMULASYONU. Tam eşikte (0,10) ayırt edilebilir.
+ESLESTIRME_AYIRT_ESIGI = 0.10
+
+
+def grup_uzakliklari(degerler):
+    """
+    {grup: (uzaklık — yuvarlanmamış RMS-Z, {kod: z})}. Z = (değer − grup ortalaması) / havuz SD, iki ondalık; düşük-iyi
+    değişkende işaret çevrilir (uzaklığı etkilemez). brans_grubu_eslestir ve eşik simülasyonu bu tek formülü kullanır.
+    """
+    sonuc = {}
+    for grup, tablo in BRANS_GRUBU_PROFILLERI["degerler"].items():
+        zler = {}
+        for kod, x in degerler.items():
+            z = (x - tablo[kod][0]) / ESLESTIRME_HAVUZ_SD[kod]
+            if BRANS_GRUBU_PROFILLERI["degiskenler"][kod]["dusuk_iyi"]:
+                z = -z
+            zler[kod] = round(z, 2)
+        sonuc[grup] = ((sum(z * z for z in zler.values()) / len(zler)) ** 0.5, zler)
+    return sonuc
+
+
+def pencere_gruplari(siralama):
+    """İlk 3 grup + 3. grupla iki ondalıkta eşit uzaklıktaki gruplar (siralama: [(grup, uzaklık)] artan)."""
+    if len(siralama) <= 3:
+        return [g for g, _ in siralama]
+    ucuncu = round(siralama[2][1], 2)
+    return [g for i, (g, u) in enumerate(siralama) if i < 3 or round(u, 2) == ucuncu]
+
+
+def fiziksel_pencere(esl):
+    """Fiziksel pencere (alfabetik): eşleştirme uygun ve ayırt edilebilirse pencere grupları; yoksa []."""
+    if not esl or not esl.get("uygun") or esl.get("ayirt_edilemez"):
+        return []
+    return sorted(esl.get("pencere") or pencere_gruplari(esl["siralama"]))
+
+
 def brans_grubu_eslestir(fsc_profil, sporcu_yas):
     """
     Dönen: {"uygun": bool, "neden": str|None, "siralama": [(grup, uzaklik)],
-            "kullanilan": [kod], "dislanan_yas": [kod], "katki": {grup: {kod: z}}}
+            "kullanilan": [kod], "dislanan_yas": [kod], "katki": {grup: {kod: z}},
+            "yayilim": en uzak − en yakın (yuvarlanmamış), "ayirt_edilemez": bool, "pencere": [grup]}
     """
     sonuc = {"uygun": False, "neden": None, "siralama": [], "kullanilan": [],
-             "dislanan_yas": [], "katki": {}}
+             "dislanan_yas": [], "katki": {}, "yayilim": None, "ayirt_edilemez": False, "pencere": []}
     try:
         yas = float(sporcu_yas)
     except (TypeError, ValueError):
@@ -150,19 +189,15 @@ def brans_grubu_eslestir(fsc_profil, sporcu_yas):
                           f"şu an {len(degerler)} test var.")
         return sonuc
 
-    for grup, tablo in BRANS_GRUBU_PROFILLERI["degerler"].items():
-        zler = {}
-        for kod, x in degerler.items():
-            ort = tablo[kod][0]
-            z = (x - ort) / ESLESTIRME_HAVUZ_SD[kod]
-            # Yön: + = gruptan iyi (düşük-iyi değişkenlerde işaret çevrilir); uzaklığı etkilemez
-            if BRANS_GRUBU_PROFILLERI["degiskenler"][kod]["dusuk_iyi"]:
-                z = -z
-            zler[kod] = round(z, 2)
-        uzaklik = (sum(z * z for z in zler.values()) / len(zler)) ** 0.5
+    ham = {}
+    for grup, (uzaklik, zler) in grup_uzakliklari(degerler).items():
         sonuc["siralama"].append((grup, round(uzaklik, 2)))
         sonuc["katki"][grup] = zler
+        ham[grup] = uzaklik
     sonuc["siralama"].sort(key=lambda g: g[1])
+    sonuc["yayilim"] = max(ham.values()) - min(ham.values())
+    sonuc["ayirt_edilemez"] = round(sonuc["yayilim"], 9) < ESLESTIRME_AYIRT_ESIGI   # tam 0,10 ayırt edilebilir
+    sonuc["pencere"] = pencere_gruplari(sonuc["siralama"])
     sonuc["uygun"] = True
     return sonuc
 
@@ -261,10 +296,11 @@ def ilgi_fiziksel_pencereler(esl, ilgi_puanlari):
             "yalniz_ilgi": [grup], "yalniz_fiziksel": [grup], "bilinmeyen": [grup]}
     """
     seviyor = sorted(g for g, p in ilgi_puanlari.items() if p is not None and p >= ILGI_SEVIYOR_ESIGI)
-    fiziksel = sorted(g for g, _ in esl["siralama"][:3]) if esl and esl.get("uygun") else []
+    fiziksel = fiziksel_pencere(esl)                       # Paket 38p: ayırt edilemezse boş
     kesisim = sorted(set(seviyor) & set(fiziksel))
     return {
         "seviyor": seviyor, "fiziksel": fiziksel, "kesisim": kesisim,
+        "fiziksel_ayirt_edilemez": bool(esl and esl.get("uygun") and esl.get("ayirt_edilemez")),
         "yalniz_ilgi": sorted(set(seviyor) - set(fiziksel)),
         "yalniz_fiziksel": sorted(set(fiziksel) - set(seviyor)),
         "bilinmeyen": sorted(g for g, p in ilgi_puanlari.items() if p is None),
@@ -921,7 +957,7 @@ def rapor_verisi(sporcu):
     puan = ilgi_grup_puanlari(ilgi) if ilgi else {}
     pen = ilgi_fiziksel_pencereler(esl, puan) if ilgi else None
     hacim, hacim_tarih = sporcu_antrenman(bilgi)
-    fiziksel_uc = sorted(g for g, _ in esl["siralama"][:3]) if esl["uygun"] else []
+    fiziksel_uc = fiziksel_pencere(esl)                    # Paket 38p: ayırt edilemezse grup katmanı yok
     katman = grup_radar_katmani(df_test, sporcu, fiziksel_uc) if fiziksel_uc else None
     bilesikler = {ad: bilesik_z_hesapla(ad, zp["z_sozlugu"]) for ad in BILESIK_Z} if not zp["hata"] else {}
 

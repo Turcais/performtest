@@ -11,6 +11,7 @@ import streamlit as st
 from datetime import date
 from io import BytesIO
 from olcut.analiz import (
+    ESLESTIRME_AYIRT_ESIGI, fiziksel_pencere,
     GRUP_KONUM_YUZDELIK_N, VELI_ARALIK_YERI, VELI_DOGRU_MU_BASLIK, VELI_KONUM_EN_AZ_YAS, _konum_sayi, brans_grubu_eslestir,
     gelisim_ozeti, grup_ici_konum, rapor_konum_degiskenleri, sporcu_fsc_profili, sporcu_profil_bilgisi)
 from olcut.bilesenler import _gecerli_secim, _git_rapor, _nitelik_kartina_git, grup_konum_penceresi
@@ -20,6 +21,7 @@ from olcut.norm import SPORCU_DOSYA, TEST_DOSYA, sporcu_z_profili
 from olcut.oneri import ozet_kartlari_html
 from olcut.ortak import _girildi, _tarih_gunu, ad_bicimi, veri_yolu
 from olcut.raporlar import (
+    VELI_FIZIKSEL_AYIRT_EDILEMEZ,
     _aralik_sayi, _gelisim_grafik_svg, _veli_duzeyi, gelisim_bolumu_html, gelisim_metni, konum_seridi_veli_svg,
     test_degisken_etiketi, veli_aralik_konumu, veli_konum_uygun)
 from olcut.tema import kategori_bilgisi, palet, renk_css
@@ -306,9 +308,13 @@ def sonuclar_sporcu_sayfasi():
             else:
                 fsc = sporcu_fsc_profili(df_tum, filtre)
                 esl = brans_grubu_eslestir(fsc, kp.get("Yaş"))
-                if esl["uygun"]:
+                if esl["uygun"] and esl.get("ayirt_edilemez"):           # Paket 38p: grup adı yok
+                    st.markdown(VELI_FIZIKSEL_AYIRT_EDILEMEZ)
+                    st.caption(f"Yayılım (en uzak − en yakın grup) {esl['yayilim']:.2f}".replace(".", ",")
+                               + f", eşik {ESLESTIRME_AYIRT_ESIGI:.2f}".replace(".", ",") + ".")
+                elif esl["uygun"]:
                     st.markdown("Fiziksel profili bu gruplara yakın (sıra yok): **"
-                                + ", ".join(sorted(g for g, _ in esl["siralama"][:3])) + "**")
+                                + ", ".join(fiziksel_pencere(esl)) + "**")
                     st.caption("Bilgilendiricidir, eleyici değildir; ilgi ve antrenman süresiyle birlikte okunur.")
                 else:
                     st.info(esl.get("neden") or "Branş eşleştirmesi yapılamadı.")

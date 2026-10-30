@@ -1,6 +1,6 @@
 # Ölçüt — devralma notu
 
-Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38n-2** (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
+Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38p-1** (38p-2: ölçüm yaşı, kulüpler arası yaş, kulüp raporu düzeltmeleri sırada) (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
 Kullanıcı: Ertuğrul (spor bilimleri doktora öğrencisi, Gazi Üniversitesi). **Türkçe yazın, adım adım açıklayın.**
 Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `sporcular.xlsx`, `test_sonuclari.xlsx`, `ilgi_anketi.xlsx`, `ayarlar.json`, `oturum_taslagi.json`; uygulamanın ürettiği `.streamlit/config.toml` da girmez. Kulüpler (38n): `kulupler/<kod>/` altında aynı adlı dosyalar + `kulup.json` (aşağıda).
 
@@ -22,6 +22,7 @@ Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `s
 `v100-testler-yesil` (17 kırmızı → yeşil, Paket 38e) · `v101-38f` (veli raporu: en iyi deneme, yetişkin dili, sapma derecesi; regresyon tabanı) · `v102-temel`, `v103-gorseller`, `v104-cekirdek`, `v105-sayfalar` (Bölme Aşama 2 grupları) · `v106-38g` (karşılaştırma ekranı, dil, normsuz olağandışı değer) · `v107-38h` (grafik renkleri Streamlit sürümüne göre; açılış uyarısı yok).
 
 ## Çalışma kuralları
+- Her paket kullanıcının verdiği istemle başlar; istem dışında yeni paket (ör. 38o) açılmaz, önce kullanıcıya sorulur.
 - Her değişiklikten önce git commit, sonra değişiklik. Sonra: söz dizimi, testler, regresyon (yalnız paketin dokunduğu yer değişmeli; fark varsa açıkla). Paket adlandırması sürüyor (38g'den sonra 38h…); her paket tek commit.
 - Renkler yalnızca `olcut/tema.py`'de; grafik rengi `grafik_renk()` ile (Streamlit tema yuvaları `#00000N`); 8 haneli hex veya rgba grafik rengine verilmez (kaynak-tarama testi 17d/41f).
 - Grafik tema yuvaları (38h): Streamlit 1.58 `chartCategoricalColors`/`chartSequentialColors`'ı yalnız `[theme]`'de tanır; `tema_toml()` kurulu sürüme bakıp ya tema başına ya `[theme]`'e iki temanın karışımını yazar. Yazı/çizgi Streamlit'in kendi tema grileri (`#000037`, `#000035`). Streamlit betik klasöründeki `.streamlit/config.toml`'u da okur; kod değişince açık eski sunucu dosyayı eski içerikle yeniden yazar → sunucuyu yeniden başlatın.
@@ -30,6 +31,12 @@ Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `s
 - Veli dili: aralık dili ("çoğu A–B arasında, aralığın içinde / biraz / belirgin şekilde / çok üstünde-altında"; çok uzaksa "Değer doğru mu?"), sınıf etiketi yok, yargılayıcı cümle yok. Yetişkinde "Çocuğunuz…" yerine "Sporcu…", çocuk/büyüme dili yok.
 - Erişilebilirlik: yazı ≥14 px, dokunma hedefi ≥44 px, kontrast ≥4.5:1, renk tek başına anlam taşımaz (simge + sözcük), varsayılan açık tema.
 - Test Oturumu / Test Uygula: ölçüm sırasında karşılaştırma gösterilmez; aykırı değerde engelleme değil uyarı (normlu: ≈P1–P99; normsuz: dünya rekoru ötesi ya da önceki ölçümün ×3 / ÷3'ü).
+
+## Branş eşleştirmesi: "belirgin fark yok" (Paket 38p)
+- `analiz.brans_grubu_eslestir` sonucunda `yayilim` = en uzak − en yakın grup uzaklığı (yuvarlanmamış; `grup_uzakliklari` tek formül), `ayirt_edilemez` = yayılım < `ESLESTIRME_AYIRT_ESIGI` (0,10; tam 0,10 ayırt edilebilir), `pencere` = ilk 3 + 3. grupla iki ondalıkta eşit uzaklıktakiler. Pencere her yerde `fiziksel_pencere(esl)` (ayırt edilemezse []); `siralama[:3]` yazmayın.
+- Ayırt edilemezse: `ilgi_fiziksel_pencereler` fiziksel = kesisim = [], `fiziksel_ayirt_edilemez` True; veli raporu fiziksel pencerede grup adı yerine `VELI_FIZIKSEL_AYIRT_EDILEMEZ`, özet `VELI_OZET_AYIRT_EDILEMEZ(_SEVIYOR)` (metinler Ertuğrul'un, aynen; `raporlar.py`); antrenör raporu uzaklık tablosu + "Yayılım … Eşik 0,10." (her durumda) + ayırt edilemiyor notu, yöntem ve simülasyon tablosu; grup katmanı çizilmez (not yazılır). Sonuçlar kartı ve "İki pencere" aynı kural ve dille.
+- Dayanak: `araclar/esik_simulasyonu.py` (her gruptan 6000 sanal çocuk, tohum 1, 11 değişken, aynı formül ve pencere kuralı) → `veri/brans_profilleri.py` `ESLESTIRME_YAYILIM_SIMULASYONU`; test 53a uyumu denetler. Doğru grup pencerede: 0–0,05 %64,4 · 0,05–0,10 %65,6 · 0,10–0,15 %70,4 · 0,15–0,20 %74,2 · 0,20–0,30 %76,8; şans %53,8; çocukların %35,2'si eşiğin altında. (Kesin ilk 3 ile %57/%61/%68/%72/%75, şans %50 — Ertuğrul'un çalıştırmasıyla uyumlu; uygulama eşitleri de katar, karar 38p.)
+- Demo: Mert, Zeynep, Kaan, Defne ayırt edilemez; Elif (0,11), Emre (0,15), Ali, Ece, Can, Nisa, Burak ayırt edilebilir.
 
 ## Sonuçlar ve Karşılaştırma (Paket 38g, 38o)
 Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma** (`olcut/sayfalar/karsilastirma.py`, hesap `olcut/karsilastirma.py`). Sekmeler (38o): **Genel · Oturumlar arası · Kulüpler arası**.
@@ -76,5 +83,5 @@ Arayüz taslağı (Adım 1–4, Sıradaki kipi, Sonuçlar, Veli kartı): https:/
 Yeni test paketleri (FMS, antropometri, kendi hokey/ragbi protokolleri, kaleci testleri), pozisyon ve amaç alanı, norm genişletme (bacak presi, barfiks, şınav, mekik), kuvvet platformu içe aktarma (RFD/GRF). SQLite'a geçiş yok (xlsx yeterli).
 - Genel veriyi bir kulübe taşıma. Kulüp silme (önce dışa aktarma).
 - (karar bekliyor) Karşılaştırma dışa aktarımında sporcu adı yerine kod seçeneği.
-- (karar bekliyor) Branş grubu eşleştirmesinde gruplar arası uzaklık farkları çok küçük: ayırt edilemezlik kuralı (ör. ilk iki grubun farkı eşiğin altındaysa "ayırt edilemedi").
 - Yapay zeka katmanı (en son): (A) test önerici: kullanıcı amacını yazar, yapay zeka yalnızca katalogdaki testlerden seçer, ekipman/süre/yaş uygunluğunu gösterir, sporcu verisi servise gitmez; (B) sonuç yorumlayıcı: yalnız hesaplanmış, anonim değerlerle (yaş, cinsiyet, değer; ad ve doğum tarihi yok), sabit kurallarla (sıralama yok, yargılayıcı dil yok, sayı üretmez). API anahtarı ayar dosyasında, çıktıda "yönlendirici bilgi, karar değil" notu. İnternet yoksa düğme pasif, uygulama normal çalışır. Başlamadan önce kullanıcıyla karar ver.
+- Ağ erişimi (en son yapılacak): Varsayılan yalnız bu bilgisayar (--server.address localhost, --browser.gatherUsageStats false). Masaüstüne iki kısayol: 'Ölçüt (yalnız bu bilgisayar)' ve 'Ölçüt (saha – tablet)'. Saha modu için ileride basit şifre. Gerekçe: uygulama aynı Wi-Fi'deki herkese şifresiz açık (38k denetimi).
