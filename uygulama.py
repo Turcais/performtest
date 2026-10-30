@@ -497,14 +497,15 @@ if "sayfa" not in st.session_state and _qp_al("taslak") == "1" and taslak_oku():
 # "Açılışta bu ekranı gösterme" seçiliyse oturumun ilk açılışı doğrudan iş sayfasına (menü aynen kalır)
 if "sayfa" not in st.session_state and ayar_oku().get("yonlendirme_gizle"):
     st.session_state["sayfa"] = "Test Uygula" if os.path.exists(SPORCU_DOSYA) else "Sporcu Girişi"
-from olcut.bilesenler import alt_bilgi, ust_menu, yan_menu_secildi   # Paket 38k: üst menü, alt bilgi
+from olcut.bilesenler import alt_bilgi, bugun_karti, ust_menu, yan_menu   # 38k: üst menü, alt bilgi; 38l: yan
 from olcut.sayfalar.hakkinda import hakkinda_sayfasi                  # Paket 38k: olcut/sayfalar/hakkinda.py
 # Paket 38k: "sayfa" yönlendirme durumu (artık bir seçicinin anahtarı değil); sol menü yalnız iş sayfaları
 if st.session_state.get("sayfa") not in SAYFALAR:
     st.session_state["sayfa"] = "Ana Sayfa"
 sayfa = st.session_state["sayfa"]
-st.session_state["yan_menu"] = sayfa if sayfa in YAN_MENU else None
-st.sidebar.selectbox("Menü", YAN_MENU, key="yan_menu", placeholder="Bölüm seçin", on_change=yan_menu_secildi)
+yan_menu(sayfa, YAN_MENU)                                             # Paket 38l: iş sayfaları alt alta
+_taslak = taslak_oku()
+bugun_karti(sayfa, taslak_deger_sayisi(_taslak) if _taslak else None)  # Paket 38l: kısa durum + taslağa dön
 if sayfa != "Test Oturumu":
     _qp_ayarla("taslak", None)
 ust_menu(sayfa, UST_MENU)

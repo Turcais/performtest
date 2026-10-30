@@ -1763,9 +1763,9 @@ def test_23f_yonlendirme_ekrani_bos_dosyayla_acilir(tmp_path, monkeypatch):
     for hazirla in (lambda d: None, bos):
         at = _apptest(tmp_path, monkeypatch, hazirla)
         assert not at.exception, [e.value for e in at.exception]
-        # Paket 38k: gezinme (üst menü, alt bilgideki "Hakkında") eylem sayılmaz
-        assert [b.label for b in at.button if b.key != "alt_hakkinda" and not (b.key or "").startswith("ust-menu-")]\
-            == ["İlk sporcuyu ekle"]
+        # Paket 38k/38l: gezinme (üst menü, yan menü, alt bilgideki "Hakkında") eylem sayılmaz
+        assert [b.label for b in at.main.button if b.key != "alt_hakkinda"
+                and not (b.key or "").startswith("ust-menu-")] == ["İlk sporcuyu ekle"]
         assert any("Ne yapmak istiyorsunuz?" in m.value for m in at.markdown)
         # Paket 33 B: düğmenin üstünde en fazla üç satır tanıtım (ne yapar + üç adım)
         tanitim = [m.value for m in at.markdown if "Sporcu ekle" in m.value and "Test uygula" in m.value]
@@ -4786,8 +4786,7 @@ def test_48a_hakkinda_sayfasi(tmp_path, monkeypatch):
     at = _apptest(tmp_path, monkeypatch, _p38g_veri)
     # Paket 38k: Ana Sayfa · Raporlar · Kaynakça · Hakkında üst menüde; sol menüde yalnız iş sayfaları
     assert [b.label for b in at.button if (b.key or "").startswith("ust-menu-")] ==         ["⌂ Ana Sayfa", "Raporlar", "Kaynakça", "Hakkında"]
-    assert at.selectbox(key="yan_menu").options == ["Sporcu Girişi", "Niteliğe göre test bul", "Test Uygula",
-                                                     "Test Oturumu", "Sonuçları Görüntüle"]
+    assert [b.label for b in at.sidebar.button if (b.key or "").startswith("yan-menu-")] ==         ["Sporcu Girişi", "Niteliğe göre test bul", "Test Uygula", "Test Oturumu", "Sonuçları Görüntüle"]
     at.button(key="ust-menu-hakkinda").click().run()
     assert at.session_state["sayfa"] == "Hakkında"
     assert not at.exception, [e.value for e in at.exception]
@@ -4811,7 +4810,8 @@ def test_48a_hakkinda_sayfasi(tmp_path, monkeypatch):
 def test_48b_ust_menu_ve_alt_bilgi_her_sayfada(tmp_path, monkeypatch):
     """
     Üst menü (⌂ Ana Sayfa · Raporlar · Kaynakça · Hakkında) her sayfada ana alanın en üstünde; bulunulan sayfa '-aktif'
-    (kalın + altı çizili). Sol menü iş sayfaları; üst menü sayfasındayken boş. Alt bilgi her sayfada tek ve en sonda.
+    (kalın + altı çizili). Sol menü iş sayfaları (38l: alt alta düğmeler); üst menü sayfasındayken hiçbiri etkin
+    değil. Alt bilgi her sayfada tek ve en sonda.
     """
     M = _modul("veri.metinler")
     kod = {"Ana Sayfa": "ana-sayfa", "Raporlar": "raporlar", "Kaynakça": "kaynakca", "Hakkında": "hakkinda"}
@@ -4823,7 +4823,8 @@ def test_48b_ust_menu_ve_alt_bilgi_her_sayfada(tmp_path, monkeypatch):
         ust = [b.key for b in at.button if (b.key or "").startswith("ust-menu-")]
         beklenen = [f"ust-menu-{k}" + ("-aktif" if s_ == sayfa else "") for s_, k in kod.items()]
         assert ust == beklenen, sayfa
-        assert at.selectbox(key="yan_menu").value == (None if sayfa in kod else sayfa), sayfa
+        etkin = [b.label for b in at.sidebar.button if (b.key or "").endswith("-aktif")]
+        assert etkin == ([] if sayfa in kod else [sayfa]), sayfa
         assert _alt_bilgi_sayisi(at, M) == 1, sayfa
         assert len([b for b in at.button if b.key == "alt_hakkinda"]) == (0 if sayfa == "Hakkında" else 1), sayfa
         sira = _duz_agac(at)
@@ -4837,11 +4838,11 @@ def test_48b_ust_menu_ve_alt_bilgi_her_sayfada(tmp_path, monkeypatch):
     assert at.session_state["sayfa"] == "Ana Sayfa"
     at.button(key="ust-menu-raporlar").click().run()
     assert at.session_state["sayfa"] == "Raporlar" and any(h.value == "Raporlar" for h in at.header)
-    at.selectbox(key="yan_menu").select("Test Uygula").run()
-    assert at.session_state["sayfa"] == "Test Uygula" and at.selectbox(key="yan_menu").value == "Test Uygula"
+    at.button(key="yan-menu-test-uygula").click().run()
+    assert at.session_state["sayfa"] == "Test Uygula" and         [b.key for b in at.sidebar.button if (b.key or "").endswith("-aktif")] == ["yan-menu-test-uygula-aktif"]
     at.button(key="alt_hakkinda").click().run()
     assert at.session_state["sayfa"] == "Hakkında" and any(h.value == "Misyon" for h in at.subheader)
-    assert at.selectbox(key="yan_menu").value is None
+    assert not [b for b in at.sidebar.button if (b.key or "").endswith("-aktif")]
 
 
 def test_48c_test_oturumundan_cikista_taslak_kalir(tmp_path, monkeypatch):
@@ -4900,3 +4901,53 @@ def test_48e_raporlara_alt_bilgi_girmez(app):
     v = app["rapor_verisi"]("Yok Sporcu")
     for html in (app["veli_raporu_html"](v), app["antrenor_raporu_html"](v)):
         assert M.ALT_BILGI_METNI not in html and "⌂" not in html and "Tüm hakları saklıdır" not in html
+
+
+# ════════════════════════════════════════════════════════════
+# 49. Paket 38l: sol menü listesi ve "Bugün" kartı
+# ════════════════════════════════════════════════════════════
+def test_49a_yan_menu_liste_simge_ve_tek_tik(tmp_path, monkeypatch):
+    """Sol menü: beş iş sayfası alt alta, her biri simgeli; tek tık sayfayı açar, etkin satır '-aktif'."""
+    B = _modul("olcut.bilesenler")
+    at = _apptest(tmp_path, monkeypatch, _p38g_veri)
+    assert not at.sidebar.selectbox                                  # açılır kutu kalktı
+    yan = [b for b in at.sidebar.button if (b.key or "").startswith("yan-menu-")]
+    assert [b.label for b in yan] == list(B.YAN_MENU_SIMGELERI)
+    assert all(b.proto.icon == B.YAN_MENU_SIMGELERI[b.label] for b in yan)
+    for b in list(B.YAN_MENU_SIMGELERI):
+        anahtar = next(x.key for x in at.sidebar.button if x.label == b)
+        at.button(key=anahtar).click().run()
+        assert not at.exception, (b, [e.value for e in at.exception])
+        assert at.session_state["sayfa"] == b
+        assert [x.label for x in at.sidebar.button if (x.key or "").endswith("-aktif")] == [b]
+
+
+def test_49b_bugun_karti_ozet_ve_taslaga_donus(tmp_path, monkeypatch):
+    """
+    'Bugün' kartı: sporcu sayısı ve son oturum (ad · tarih · sporcu sayısı); sporcu adı yok. Diskte taslak varsa
+    'Yarım kalan oturum: N değer' + 'Devam et' → Test Oturumu taslakla açılır; Test Oturumu'ndayken düğme yok.
+    """
+    T, K = _modul("olcut.sayfalar.test_oturumu"), _modul("olcut.kayit")
+    at = _apptest(tmp_path, monkeypatch, _p38g_veri)
+    kart = " ".join(m.value for m in at.sidebar.markdown if "sp-bugun" in m.value)
+    assert "<b>3</b> sporcu kayıtlı" in kart and "Son oturum: S2 (25.10.2026) · 3 sporcu" in kart
+    assert not any(ad in kart for ad in ("Elif", "Onur", "Tolga")) and "Yarım kalan" not in kart
+    assert not [b for b in at.sidebar.button if b.key == "bugun_taslak"]
+    t = T.taslak_bos(["Durarak Uzun Atlama"], ["Elif Demo", "Onur Demo"], {"tarih": "2026-10-29"})
+    t["degerler"]["Elif Demo"] = {K.oturum_sutunu("Durarak Uzun Atlama", "Deneme 1 (cm)"): "131"}
+    assert T.taslak_yaz(t, str(tmp_path / T.TASLAK_DOSYA))
+    at.run()
+    kart = " ".join(m.value for m in at.sidebar.markdown if "sp-bugun" in m.value)
+    assert "Yarım kalan oturum: <b>1</b> değer girildi" in kart
+    at.button(key="bugun_taslak").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert at.session_state["sayfa"] == "Test Oturumu" and at.session_state["ots::taslak"]["degerler"] == t["degerler"]
+    assert not [b for b in at.sidebar.button if b.key == "bugun_taslak"]
+
+
+def test_49c_bugun_karti_bos_veride_cokmez(tmp_path, monkeypatch):
+    """Sporcu/sonuç dosyası yokken kart: 0 sporcu, 'Henüz kayıtlı ölçüm yok.'; hata yok."""
+    at = _apptest(tmp_path, monkeypatch, lambda d: None)
+    assert not at.exception, [e.value for e in at.exception]
+    kart = " ".join(m.value for m in at.sidebar.markdown if "sp-bugun" in m.value)
+    assert "<b>0</b> sporcu kayıtlı" in kart and "Henüz kayıtlı ölçüm yok." in kart

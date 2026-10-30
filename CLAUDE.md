@@ -1,6 +1,6 @@
 # Ölçüt — devralma notu
 
-Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38k** (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
+Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38l** (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
 Kullanıcı: Ertuğrul (spor bilimleri doktora öğrencisi, Gazi Üniversitesi). **Türkçe yazın, adım adım açıklayın.**
 Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `sporcular.xlsx`, `test_sonuclari.xlsx`, `ilgi_anketi.xlsx`, `ayarlar.json`, `oturum_taslagi.json`; uygulamanın ürettiği `.streamlit/config.toml` da girmez.
 
@@ -15,7 +15,7 @@ Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `s
 ## Komutlar
 - Çalıştırma: `python -m streamlit run uygulama.py` (veri dosyalarının olduğu klasörden; başka klasörden tam yolla da çalışır). Kısa `streamlit` komutu bu bilgisayarda PATH'te değil.
 - Testler: `python -m pytest test_uygulama.py -q` (~6–8 dk; 184 test). Windows'ta Türkçe çıktı için `PYTHONUTF8=1`.
-- Regresyon: `python araclar/reg.py <TAM YOL>\uygulama.py cikti.json` (araç çalışma klasörünü değiştirdiği için tam yol). Taban: `v101-38f` çıktısı.
+- Regresyon: `python araclar/reg.py <TAM YOL>\uygulama.py cikti.json` (araç çalışma klasörünü değiştirdiği için tam yol). Taban: `v101-38f` çıktısı. Raporda "Rapor tarihi" bugünün tarihidir: tabanı karşılaştırmayla AYNI GÜN alın (başka gün alınmış tabanla rapor HTML'i ve sayfa görüntüsündeki tarih alanları yalnız tarih yüzünden farklı çıkar).
 - Derin eşitlik: `python araclar/esitlik.py <git sürümü> [--akis]` · Sayfa görüntüsü: `python araclar/sayfa_goruntusu.py uygulama.py cikti.json`.
 
 ## Etiketler
@@ -38,7 +38,7 @@ Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma** (`ol
 - Eski "Kapsam" radio'su kalktı; mantığı (`kayit.oturum_degerleri`, `oturumlar_arasi_fark`) yeni ekranın altında kullanılır.
 
 ## Gezinme, Hakkında, alt bilgi (Paket 38k)
-- Gezinme: `SAYFALAR` bütün sayfalar (sayfa_goruntusu okur). **Üst menü** (`UST_MENU`: ⌂ Ana Sayfa · Raporlar · Kaynakça · Hakkında) site menüsü gibi ana alanın en üstünde, her sayfada (`bilesenler.ust_menu`; bulunulan sayfa `ust-menu-<kod>-aktif`, kalın + altı çizili); telefonda yan menü kapalıyken de görünür, tek satır. **Sol menü** (`YAN_MENU`, anahtar `yan_menu`) yalnız iş sayfaları; üst menü sayfasındayken boş ("Bölüm seçin"). `st.session_state["sayfa"]` yönlendirme durumudur, artık bir seçicinin anahtarı değil.
+- Gezinme: `SAYFALAR` bütün sayfalar (sayfa_goruntusu okur). **Üst menü** (`UST_MENU`: ⌂ Ana Sayfa · Raporlar · Kaynakça · Hakkında) site menüsü gibi ana alanın en üstünde, her sayfada (`bilesenler.ust_menu`; bulunulan sayfa `ust-menu-<kod>-aktif`, kalın + altı çizili); telefonda yan menü kapalıyken de görünür, tek satır. **Sol menü** (`YAN_MENU`; 38l: `bilesenler.yan_menu`) yalnız iş sayfaları, alt alta simge + sözcük, tek tık (açılır kutu yok); etkin satır `yan-menu-<kod>-aktif` (kalın + sol çizgi); üst menü sayfasındayken hiçbiri etkin değil. Altında **"Bugün" kartı** (`bilesenler.bugun_karti`): kayıtlı sporcu sayısı, son oturum (ad · tarih · sporcu sayısı), diskte taslak varsa "Yarım kalan oturum: N değer" + "Devam et" (→ Test Oturumu, `ots::otomatik`); sporcu adı yok; dosya değişme zamanına göre önbellek. `st.session_state["sayfa"]` yönlendirme durumudur, artık bir seçicinin anahtarı değil.
 - Hakkında: `olcut/sayfalar/hakkinda.py`; metinler `veri/metinler.py` `HAKKINDA_*`, Ertuğrul'un verdiği gibi (değiştirmeden önce sorun). Test Oturumu'ndan üst menüyle çıkışta taslak diskte kalır.
 - Her sayfanın en altında alt bilgi (`bilesenler.alt_bilgi`): "© 2026 Ölçüt · Tüm hakları saklıdır." + "Hakkında" düğmesi (Hakkında sayfasında düğme yok). Raporlara girmez. Test Oturumu Sıradaki kipinde alt çubuğun altında kalır. Sayfa kodunda `st.stop()` kullanmayın (alt bilgi çizilmez); `return`.
 - Veri gizliliği (38k denetimi): uygulama kodunda ağ çağrısı yok (test 48d). Streamlit'in kullanım istatistiği varsayılanı AÇIK idi; `tema_toml()` artık `[browser] gatherUsageStats = false` yazar (sunucu yeniden başlatılınca etkin). Streamlit'in kendisi: başsız (`--server.headless`) çalıştırmada dış IP için checkip.amazonaws.com'a sorar (normal çalıştırmada sormaz); ilk kurulumda isteğe bağlı e-posta sorusu (bu bilgisayarda boş). Sunucu 0.0.0.0'da dinler: aynı ağdaki cihazlar (tablet) uygulamayı açabilir.

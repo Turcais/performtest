@@ -491,6 +491,23 @@ hr {{ border-color:{renk_css("cizgi")} !important; margin:{b(2)} 0 !important; }
 .sp-alt-bilgi {{ margin:0; font-size:{YAZI["etiket"][0]}; color:{renk_css("ikincil")}; }}
 .st-key-alt-bilgi button {{ min-height:44px; color:{renk_css("ana")}; }}
 .st-key-alt-bilgi button p {{ font-size:{YAZI["etiket"][0]}; font-weight:600; text-decoration:underline; }}
+.sp-yan-baslik {{ margin:0 0 {b(0.5)}; font-size:{YAZI["etiket"][0]}; font-weight:700; color:{renk_css("ikincil")};
+    text-transform:uppercase; letter-spacing:0.04em; }}
+.st-key-yan-menu {{ gap:2px; }}
+.st-key-yan-menu [data-testid="stMarkdownContainer"], .st-key-bugun-karti [data-testid="stMarkdownContainer"] {{
+    margin-bottom:0 !important; }}
+.st-key-yan-menu button {{ min-height:44px; justify-content:flex-start; padding:0 {b(1.5)}; border-radius:8px;
+    border-left:3px solid transparent; color:{renk_css("murekkep")}; }}
+.st-key-yan-menu button > div {{ justify-content:flex-start; gap:{b(1)}; }}
+.st-key-yan-menu button p {{ font-size:{YAZI["govde"][0]}; font-weight:500; }}
+.st-key-yan-menu button:hover {{ background:{renk_css("yuzey")}; }}
+.st-key-yan-menu [class*="-aktif"] button {{ border-left-color:{renk_css("ana")}; background:{renk_css("yuzey")};
+    color:{renk_css("ana")}; }}
+.st-key-yan-menu [class*="-aktif"] button p {{ font-weight:700; }}
+.st-key-bugun-karti {{ margin-top:{b(3)}; padding:{b(1.5)} {b(2)}; gap:{b(1)}; border:1px solid {renk_css("cizgi")};
+    border-radius:{b(1.5)}; background:{renk_css("yuzey")}; }}
+.sp-bugun {{ list-style:none; margin:0; padding:0; font-size:{YAZI["etiket"][0]}; color:{renk_css("murekkep")}; }}
+.sp-bugun li {{ margin:0 0 {b(0.5)}; line-height:1.45; }}
 *:focus-visible {{ outline:3px solid {renk_css("ana")} !important; outline-offset:2px; }}
 /* Paket 38d: metin/sayı/tarih kutusu ve açılır listede odak çerçevesi DIŞ kutuda (tek çerçeve); içteki input,
    tarih parçası ya da düğme ikinci çerçeve çizmez. Streamlit'in yeni (react-aria) ve eski (baseweb) yapısı birlikte. */

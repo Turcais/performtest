@@ -418,10 +418,82 @@ def ust_menu(sayfa, sayfalar):
                       on_click=_sayfaya_git, args=(hedef,))
 
 
-def yan_menu_secildi():
-    """Sol menüde (iş sayfaları) seçim → yönlendirme durumu."""
-    if st.session_state.get("yan_menu"):
-        st.session_state["sayfa"] = st.session_state["yan_menu"]
+YAN_MENU_SIMGELERI = {"Sporcu Girişi": ":material/person_add:", "Niteliğe göre test bul": ":material/search:",
+                      "Test Uygula": ":material/timer:", "Test Oturumu": ":material/groups:",
+                      "Sonuçları Görüntüle": ":material/bar_chart:"}
+_YAN_MENU_KODU = {"Sporcu Girişi": "sporcu-girisi", "Niteliğe göre test bul": "nitelik", "Test Uygula": "test-uygula",
+                  "Test Oturumu": "test-oturumu", "Sonuçları Görüntüle": "sonuclar"}
+
+
+def yan_menu(sayfa, sayfalar):
+    """
+    Paket 38l: sol menü — iş sayfaları alt alta, simge + sözcük, tek tıkla (açılır kutu yerine). Bulunulan sayfa
+    '-aktif' (kalın + sol çizgi; renk tek başına değil). Her satır ≥ 44 px.
+    """
+    with st.sidebar.container(key="yan-menu"):
+        st.markdown('<p class="sp-yan-baslik">Menü</p>', unsafe_allow_html=True)
+        for hedef in sayfalar:
+            kod = _YAN_MENU_KODU.get(hedef, re.sub(r"\W+", "-", hedef.lower()))
+            st.button(hedef, type="tertiary", key=f"yan-menu-{kod}" + ("-aktif" if hedef == sayfa else ""),
+                      on_click=_sayfaya_git, args=(hedef,), width="stretch",
+                      **_desteklenen(st.button, icon=YAN_MENU_SIMGELERI.get(hedef)))
+
+
+BUGUN_BASLIK = "Bugün"
+BUGUN_OLCUM_YOK = "Henüz kayıtlı ölçüm yok."
+
+
+@st.cache_data(show_spinner=False, max_entries=8)
+def _bugun_ozeti(zaman):
+    """(sporcu sayısı, son oturum etiketi) — dosyalar değişince (zaman: değişme zamanları) yeniden okunur."""
+    from olcut.karsilastirma import oturum_etiketleri
+    from olcut.norm import TEST_DOSYA
+    n = 0
+    if os.path.exists(SPORCU_DOSYA):
+        try:
+            n = len(pd.read_excel(SPORCU_DOSYA).dropna(how="all"))
+        except Exception:
+            n = 0
+    son = None
+    if os.path.exists(TEST_DOSYA):
+        try:
+            df = pd.read_excel(TEST_DOSYA)
+            if "Oturum" in df.columns and not df.empty:
+                etiketler = oturum_etiketleri(df)
+                son = next(iter(etiketler.values()), None)
+        except Exception:
+            son = None
+    return n, son
+
+
+def _dosya_zamani():
+    from olcut.norm import TEST_DOSYA
+    return tuple((os.path.abspath(y), os.path.getmtime(y) if os.path.exists(y) else 0)
+                 for y in (SPORCU_DOSYA, TEST_DOSYA))
+
+
+def _taslaga_don():
+    st.session_state["sayfa"] = "Test Oturumu"
+    st.session_state["ots::otomatik"] = True          # Test Oturumu taslağı diskten doğrudan açar (Paket 38b yolu)
+
+
+def bugun_karti(sayfa, taslak_deger=None):
+    """
+    Paket 38l: sol menünün altında kısa durum: kayıtlı sporcu sayısı, son oturum (ad · tarih · sporcu sayısı) ve
+    yarım kalan oturum varsa 'Devam et'. Sporcu adı yok; hesap yok, yalnız gösterim. taslak_deger: diskteki taslakta
+    girilmiş değer sayısı (taslak yoksa None).
+    """
+    n, son = _bugun_ozeti(_dosya_zamani())
+    with st.sidebar.container(key="bugun-karti"):
+        st.markdown(f'<p class="sp-yan-baslik">{BUGUN_BASLIK}</p>', unsafe_allow_html=True)
+        satirlar = [f"<li><b>{n}</b> sporcu kayıtlı</li>",
+                    f"<li>Son oturum: {_html.escape(son)}</li>" if son else f"<li>{BUGUN_OLCUM_YOK}</li>"]
+        if taslak_deger is not None:
+            satirlar.append(f"<li>Yarım kalan oturum: <b>{taslak_deger}</b> değer girildi</li>")
+        st.markdown(f'<ul class="sp-bugun">{"".join(satirlar)}</ul>', unsafe_allow_html=True)
+        if taslak_deger is not None and sayfa != "Test Oturumu":
+            st.button("Devam et", key="bugun_taslak", type="secondary", width="stretch", on_click=_taslaga_don,
+                      **_desteklenen(st.button, icon=":material/play_arrow:"))
 
 
 def alt_bilgi(sayfa):
