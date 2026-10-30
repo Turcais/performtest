@@ -16,7 +16,7 @@ from olcut.analiz import GRUP_KONUM_YUZDELIK_N, VELI_KONUM_EN_AZ_YAS
 from olcut.katalog_islemleri import kanonik_test
 from olcut.kayit import _degisken_birimi, oturum_degerleri, oturum_secenekleri, oturumlar_arasi_fark
 from olcut.norm import META_KOLONLAR, NORMATIF_YAS, OTURUM_ADI_KOLON, SPORCU_DOSYA, degisken_yonu, yas_z_skoru
-from olcut.ortak import _yas_degeri, ad_bicimi
+from olcut.ortak import _yas_degeri, ad_bicimi, veri_yolu
 
 
 KARS_YUZDELIK_EN_AZ_N = GRUP_KONUM_YUZDELIK_N    # grupta n ≥ 20: çeyrekler (P25–P75) gösterilebilir
@@ -33,9 +33,9 @@ KARS_YUZDELIK_YOK_NOTU = "Grupta 20'den az sporcu var: yüzdelik gösterilmez; o
 def sporcu_ozellikleri(sporcular):
     """{sporcu: {"yas": int|None, "cinsiyet": str}} — sporcular.xlsx'ten (Ad + ' ' + Soyad), bir kez okunur."""
     sonuc = {s: {"yas": None, "cinsiyet": ""} for s in sporcular}
-    if not sporcular or not os.path.exists(SPORCU_DOSYA):
+    if not sporcular or not os.path.exists(veri_yolu(SPORCU_DOSYA)):
         return sonuc
-    df = pd.read_excel(SPORCU_DOSYA)
+    df = pd.read_excel(veri_yolu(SPORCU_DOSYA))
     if not {"Ad", "Soyad"} <= set(df.columns):
         return sonuc
     df["_ad"] = df["Ad"].astype(str) + " " + df["Soyad"].astype(str)

@@ -24,7 +24,7 @@ from olcut.norm import (
     orneklem_notlari, orneklem_tablosu, orneklem_uygun, sifir_gecerli, turetilmis_degerler, yas_persentil_bul,
     yas_z_skoru, z_durum_notu)
 from olcut.oneri import gorselsiz_metni
-from olcut.ortak import DOGUM_KOLON, ad_bicimi, guvenli_float, tam_yas
+from olcut.ortak import DOGUM_KOLON, ad_bicimi, guvenli_float, tam_yas, veri_yolu
 from olcut.tema import kart_izgarasi_html, sonuc_karti_html
 
 
@@ -34,10 +34,10 @@ def test_uygula_sayfasi():
     # protokol ve kaynak katlanmış; rekor ve teknik ayrıntı en altta.
     st.header("Test Uygula")
 
-    if not os.path.exists(SPORCU_DOSYA):
+    df_sporcu = pd.read_excel(veri_yolu(SPORCU_DOSYA)) if os.path.exists(veri_yolu(SPORCU_DOSYA)) else None
+    if df_sporcu is None or df_sporcu.dropna(how="all").empty:      # Paket 38n: boş dosya (yeni kulüp) da
         st.error("Sistemde sporcu bulunamadı. Lütfen önce 'Sporcu Girişi' yapın.")
     else:
-        df_sporcu = pd.read_excel(SPORCU_DOSYA)
         sporcu_listesi = df_sporcu["Ad"] + " " + df_sporcu["Soyad"]
 
         # ── 1. Seçim: sporcu, test, tarih ──

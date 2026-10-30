@@ -25,6 +25,7 @@ from olcut.norm import (
     NORMATIF, NORMATIF_KAPSAM, NORMATIF_YAS, OTURUM_ADI_KOLON, SPORCU_DOSYA, turetilmis_degerler,
     yas_persentil_bul)
 from olcut.ortak import (
+    veri_yolu,
     DOGUM_KOLON, METIN_DEGISKEN_KALIBI, NOT_CIPLERI, _girildi, ad_bicimi, guvenli_float, not_coz, not_metni,
     tam_yas)
 from olcut.raporlar import _aralik_sayi
@@ -110,8 +111,9 @@ def taslak_birlestir(eski, yeni):
     return yeni
 
 
-def taslak_oku(yol=TASLAK_DOSYA):
-    """Diskteki taslak ya da None (yok, bozuk ya da boş)."""
+def taslak_oku(yol=None):
+    """Diskteki taslak ya da None (yok, bozuk ya da boş). Yol verilmezse aktif çalışma alanındaki (Paket 38n)."""
+    yol = yol or veri_yolu(TASLAK_DOSYA)
     try:
         with open(yol, encoding="utf-8") as f:
             t = _json.load(f)
@@ -125,8 +127,9 @@ def taslak_oku(yol=TASLAK_DOSYA):
     return t
 
 
-def taslak_yaz(t, yol=TASLAK_DOSYA):
+def taslak_yaz(t, yol=None):
     """Taslağı diske yazar (önce geçici dosya, sonra yer değiştirme: yarım yazılmış dosya kalmaz)."""
+    yol = yol or veri_yolu(TASLAK_DOSYA)
     from datetime import datetime as _an
     t["zaman"] = _an.now().strftime("%H:%M:%S")
     gecici = yol + ".yaziliyor"
@@ -139,7 +142,8 @@ def taslak_yaz(t, yol=TASLAK_DOSYA):
         return False
 
 
-def taslak_sil(yol=TASLAK_DOSYA):
+def taslak_sil(yol=None):
+    yol = yol or veri_yolu(TASLAK_DOSYA)
     try:
         os.remove(yol)
     except OSError:
@@ -951,10 +955,10 @@ def test_oturumu_sayfasi():
     st.caption("Testleri seç → sporcuları seç → tarih, yer ve uygulayanı gir → değerleri gir → tek düğmeyle kaydet. "
                "Ölçüm sırasında karşılaştırma gösterilmez; norm özeti kayıttan sonra Sonuçlar sayfasındadır.")
     bolum_terimleri(["Olağandışı değer (P1–P99)", "Norm", "Doğum çeyreği"])
-    if not os.path.exists(SPORCU_DOSYA):
+    if not os.path.exists(veri_yolu(SPORCU_DOSYA)):
         st.info("Önce Sporcu Girişi sayfasından sporcu ekleyin.")
         return
-    df_ot = pd.read_excel(SPORCU_DOSYA)
+    df_ot = pd.read_excel(veri_yolu(SPORCU_DOSYA))
     df_ot["_ad"] = df_ot["Ad"].astype(str) + " " + df_ot["Soyad"].astype(str)
     if GRUP_KOLON not in df_ot.columns:
         df_ot[GRUP_KOLON] = ""

@@ -12,7 +12,7 @@ from olcut.analiz import (
 from olcut.bilesenler import baslik_ac, bolum_terimleri, ilgi_anketi_formu
 from olcut.kayit import GRUP_KOLON, _sporcu_formunu_temizle, profil_uyarilari, sporcu_form_hatalari
 from olcut.norm import SPORCU_DOSYA
-from olcut.ortak import DOGUM_KOLON, ad_bicimi, dogum_ceyregi, tam_yas, tarih_coz
+from olcut.ortak import DOGUM_KOLON, ad_bicimi, dogum_ceyregi, tam_yas, tarih_coz, veri_yolu
 
 
 # ── SAYFA 1: SPORCU GİRİŞİ ──
@@ -91,12 +91,12 @@ def sporcu_girisi_sayfasi():
                     ANTRENMAN_KOLON: antrenman, GRUP_KOLON: grup.strip(),
                     DOGUM_KOLON: dogum_giris.strftime("%d.%m.%Y") if dogum_var else "",
                     ANTRENMAN_TARIH_KOLON: date.today().strftime("%d.%m.%Y") if antrenman != "Bilinmiyor" else ""}
-            if os.path.exists(SPORCU_DOSYA):
-                df = pd.read_excel(SPORCU_DOSYA)
+            if os.path.exists(veri_yolu(SPORCU_DOSYA)):
+                df = pd.read_excel(veri_yolu(SPORCU_DOSYA))
                 df = pd.concat([df, pd.DataFrame([yeni])], ignore_index=True)
             else:
                 df = pd.DataFrame([yeni])
-            df.to_excel(SPORCU_DOSYA, index=False)
+            df.to_excel(veri_yolu(SPORCU_DOSYA), index=False)
             st.session_state["son_kaydedilen_sporcu"] = f"{ad} {soyad}"
             st.success(f"✅ {ad} {soyad} başarıyla kaydedildi! Şimdi aşağıdan ilgi anketini doldurabilirsiniz.")
             st.button("Başka sporcu ekle", icon=":material/person_add:", key="sg_baska",
@@ -105,8 +105,8 @@ def sporcu_girisi_sayfasi():
             st.warning("Lütfen sporcunun adını ve soyadını giriniz.")
 
     # ── İlgi anketi: sporcu girişi akışının parçası, test kaydından bağımsız (Paket 7) ──
-    if os.path.exists(SPORCU_DOSYA):
-        df_ilgi_sp = pd.read_excel(SPORCU_DOSYA)
+    if os.path.exists(veri_yolu(SPORCU_DOSYA)):
+        df_ilgi_sp = pd.read_excel(veri_yolu(SPORCU_DOSYA))
         ilgi_liste = (df_ilgi_sp["Ad"].astype(str) + " " + df_ilgi_sp["Soyad"].astype(str)).tolist()
         if ilgi_liste:
             st.divider()
@@ -121,8 +121,8 @@ def sporcu_girisi_sayfasi():
 
     st.divider()
     baslik_ac("Kayıtlı Sporcular", ["VKİ"])
-    if os.path.exists(SPORCU_DOSYA) and not pd.read_excel(SPORCU_DOSYA).empty:      # Paket 38c: boş dosya
-        df_goster = pd.read_excel(SPORCU_DOSYA)
+    if os.path.exists(veri_yolu(SPORCU_DOSYA)) and not pd.read_excel(veri_yolu(SPORCU_DOSYA)).empty:      # Paket 38c: boş dosya
+        df_goster = pd.read_excel(veri_yolu(SPORCU_DOSYA))
         if "Boy (cm)" in df_goster.columns and "Kilo (kg)" in df_goster.columns:
             df_goster["VKİ (kg/m²)"] = df_goster.apply(
                 lambda satir: round(satir["Kilo (kg)"] / ((satir["Boy (cm)"] / 100) ** 2), 1)
@@ -221,14 +221,14 @@ def sporcu_girisi_sayfasi():
                                                                    if yeni_ant != "Bilinmiyor" else "")
             # VKİ sütununu çıkar, orijinal sütunlarla kaydet
             kayit_df = df_goster.drop(columns=["VKİ (kg/m²)", "Doğum Çeyreği"], errors="ignore")
-            kayit_df.to_excel(SPORCU_DOSYA, index=False)
+            kayit_df.to_excel(veri_yolu(SPORCU_DOSYA), index=False)
             st.success(f"✅ {yeni_ad} {yeni_soyad} bilgileri güncellendi!")
             st.rerun()
 
         if sil_btn:
             df_goster = df_goster.drop(index=secili_idx).reset_index(drop=True)
             kayit_df  = df_goster.drop(columns=["VKİ (kg/m²)", "Doğum Çeyreği"], errors="ignore")
-            kayit_df.to_excel(SPORCU_DOSYA, index=False)
+            kayit_df.to_excel(veri_yolu(SPORCU_DOSYA), index=False)
             st.success(f"🗑️ {secili_duzenle} silindi.")
             st.rerun()
     else:

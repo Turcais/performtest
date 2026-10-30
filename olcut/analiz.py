@@ -17,7 +17,7 @@ from olcut.katalog_islemleri import kanonik_test, test_tablosu_duzelt
 from olcut.norm import (
     META_KOLONLAR, NORMATIF_YAS, SPORCU_DOSYA, TEST_DOSYA, bilesik_z_hesapla, degisken_yonu, ktk3_toplamlari,
     sporcu_z_profili, yas_z_skoru)
-from olcut.ortak import METIN_DEGISKEN_KALIBI, _girildi, _yas_degeri, guvenli_float
+from olcut.ortak import METIN_DEGISKEN_KALIBI, _girildi, _yas_degeri, guvenli_float, veri_yolu
 from olcut.tema import BILESEN_CSS, YAZI_AILESI, b, palet, renk_css, sonuc_karti_html
 
 
@@ -32,8 +32,8 @@ def sporcu_fsc_profili(df_test, sporcu):
     sonuc = {"degerler": {}, "eksik": [], "eslesmeyen": [k for k, t in tanim.items() if not t["eslesme"]]}
 
     bilgi = {}
-    if os.path.exists(SPORCU_DOSYA):
-        df_sp = pd.read_excel(SPORCU_DOSYA)
+    if os.path.exists(veri_yolu(SPORCU_DOSYA)):
+        df_sp = pd.read_excel(veri_yolu(SPORCU_DOSYA))
         esl = df_sp[df_sp["Ad"].astype(str) + " " + df_sp["Soyad"].astype(str) == sporcu]
         if not esl.empty:
             bilgi = esl.iloc[0].to_dict()
@@ -214,9 +214,9 @@ ILGI_HAKKINDA = (
 
 def ilgi_son_anket(sporcu):
     """Sporcunun en son ilgi anketi kaydı (sözlük) ya da None."""
-    if not os.path.exists(ILGI_DOSYA):
+    if not os.path.exists(veri_yolu(ILGI_DOSYA)):
         return None
-    df_i = pd.read_excel(ILGI_DOSYA)
+    df_i = pd.read_excel(veri_yolu(ILGI_DOSYA))
     df_i = df_i[df_i["Sporcu"] == sporcu]
     if df_i.empty:
         return None
@@ -286,9 +286,9 @@ ANTRENMAN_YARDIM = ("Haftalık organize (kulüp/okul takımı) antrenman süresi
 
 def sporcu_profil_bilgisi(sporcu):
     """sporcular.xlsx'teki satır (sözlük) ya da boş sözlük."""
-    if not os.path.exists(SPORCU_DOSYA):
+    if not os.path.exists(veri_yolu(SPORCU_DOSYA)):
         return {}
-    df_sp = pd.read_excel(SPORCU_DOSYA)
+    df_sp = pd.read_excel(veri_yolu(SPORCU_DOSYA))
     esl = df_sp[df_sp["Ad"].astype(str) + " " + df_sp["Soyad"].astype(str) == sporcu]
     return esl.iloc[0].to_dict() if not esl.empty else {}
 
@@ -305,9 +305,9 @@ def sporcu_antrenman(bilgi):
 
 def sporcu_antrenman_kaydet(sporcu, secenek):
     """Profildeki haftalık antrenman süresini ve kayıt tarihini günceller. Başarılıysa True."""
-    if not os.path.exists(SPORCU_DOSYA):
+    if not os.path.exists(veri_yolu(SPORCU_DOSYA)):
         return False
-    df_sp = pd.read_excel(SPORCU_DOSYA)
+    df_sp = pd.read_excel(veri_yolu(SPORCU_DOSYA))
     maske = df_sp["Ad"].astype(str) + " " + df_sp["Soyad"].astype(str) == sporcu
     if not maske.any():
         return False
@@ -317,7 +317,7 @@ def sporcu_antrenman_kaydet(sporcu, secenek):
         df_sp[kolon] = df_sp[kolon].astype(object)
     df_sp.loc[maske, ANTRENMAN_KOLON] = secenek
     df_sp.loc[maske, ANTRENMAN_TARIH_KOLON] = date.today().strftime("%d.%m.%Y")
-    df_sp.to_excel(SPORCU_DOSYA, index=False)
+    df_sp.to_excel(veri_yolu(SPORCU_DOSYA), index=False)
     return True
 
 
@@ -907,8 +907,8 @@ def rapor_konum_degiskenleri(df_test, sporcu):
 def rapor_verisi(sporcu):
     """Veli ve antrenör raporunun ortak verisi. Test kaydı olmayan sporcu için de çalışır."""
     bilgi = sporcu_profil_bilgisi(sporcu)
-    if os.path.exists(TEST_DOSYA):
-        df_test = test_tablosu_duzelt(pd.read_excel(TEST_DOSYA))
+    if os.path.exists(veri_yolu(TEST_DOSYA)):
+        df_test = test_tablosu_duzelt(pd.read_excel(veri_yolu(TEST_DOSYA)))
     else:
         df_test = pd.DataFrame(columns=["Sporcu", "Test", "Tarih"])
     df_test["Tarih_dt"] = pd.to_datetime(df_test["Tarih"], format="%d.%m.%Y", errors="coerce")
@@ -969,7 +969,7 @@ def rapor_verisi(sporcu):
     kaynaklar = sorted({str(z.get("kaynak", "")).split("\n")[0].strip()
                         for z in zp["z_sozlugu"].values() if z.get("kaynak")})
     # Paket 36: kendi gelişimi ve grup içi konum (başka sporcuların adı veride tutulmaz)
-    df_sp_r = pd.read_excel(SPORCU_DOSYA) if os.path.exists(SPORCU_DOSYA) else pd.DataFrame()
+    df_sp_r = pd.read_excel(veri_yolu(SPORCU_DOSYA)) if os.path.exists(veri_yolu(SPORCU_DOSYA)) else pd.DataFrame()
     ciftler = rapor_konum_degiskenleri(df_test, sporcu)
     gelisim = [gelisim_ozeti(df_test, sporcu, t, d_) for t, d_ in ciftler]
     konum = [grup_ici_konum(df_test, df_sp_r, sporcu, t, d_) for t, d_ in ciftler]

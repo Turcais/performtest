@@ -11,12 +11,12 @@ from olcut.analiz import rapor_verisi
 from olcut.bilesenler import baslik_ac, bolum_terimleri, coklu_secim
 from olcut.disa_aktarma import PDF_YAZDIRMA_ADIMLARI, guvenli_dosya_adi, pdf_cevir, tarih_eki
 from olcut.norm import SPORCU_DOSYA
-from olcut.ortak import ad_bicimi
+from olcut.ortak import ad_bicimi, aktif_kulup, veri_yolu
 from olcut.raporlar import KAYNAKCA_DAYANAK, KAYNAKCA_SINIFLAR, antrenor_raporu_html, veli_raporu_html
 
 
 @st.cache_data(show_spinner=False, max_entries=16)
-def rapor_pdf(html_metin):
+def rapor_pdf(html_metin, calisma_alani=""):
     """Rapor HTML'i aynen PDF'e (Paket 38i); çevrilemezse None. Aynı HTML ikinci kez çevrilmez."""
     return pdf_cevir(html_metin)[0]
 
@@ -28,7 +28,7 @@ def rapor_indirme(html_metin, tur, sporcu, onek):
     """
     ad = guvenli_dosya_adi(f"{tur}_raporu", ad_bicimi(sporcu), tarih_eki())
     with st.spinner("PDF hazırlanıyor…"):
-        pdf = rapor_pdf(html_metin)
+        pdf = rapor_pdf(html_metin, aktif_kulup())        # Paket 38n: anahtarda çalışma alanı
     c1, c2 = st.columns(2)
     if pdf:
         c1.download_button("PDF olarak indir", pdf, file_name=f"{ad}.pdf", mime="application/pdf", type="primary",
@@ -53,10 +53,10 @@ def raporlar_sayfasi():
     st.header("Raporlar")
     st.caption("Veli raporu sade dille yazılır; Z, persentil ve uzaklık sayısı içermez. Antrenör raporu tekniktir. "
                "İkisi de PDF olarak tek tıkla indirilebilir (A4).")
-    if not os.path.exists(SPORCU_DOSYA):
+    if not os.path.exists(veri_yolu(SPORCU_DOSYA)):
         st.info("Sistemde kayıtlı sporcu yok.")
     else:
-        df_r = pd.read_excel(SPORCU_DOSYA)
+        df_r = pd.read_excel(veri_yolu(SPORCU_DOSYA))
         r_liste = sorted((df_r["Ad"].astype(str) + " " + df_r["Soyad"].astype(str)).tolist())
         r_sporcu = st.selectbox("Sporcu", r_liste, key="rapor_sporcu", format_func=ad_bicimi)
         r_veri = rapor_verisi(r_sporcu)

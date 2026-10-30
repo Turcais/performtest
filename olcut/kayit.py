@@ -14,7 +14,7 @@ from olcut.katalog_islemleri import CALISMA_ANAHTAR, kanonik_test, katalog_testl
 from olcut.norm import (
     META_KOLONLAR, NORMATIF_YAS, OTURUM_ADI_KOLON, TEST_DOSYA, _STANDART_NORMAL, degisken_yonu, sifir_gecerli,
     turetilmis_degerler, yas_persentil_bul)
-from olcut.ortak import DOGUM_KOLON, _dt_simdi, _girildi, ayar_oku, ayar_yaz, guvenli_float, tam_yas
+from olcut.ortak import DOGUM_KOLON, _dt_simdi, _girildi, ayar_oku, ayar_yaz, guvenli_float, tam_yas, veri_yolu
 
 
 GRUP_KOLON = "Grup/Sınıf"
@@ -76,10 +76,10 @@ def kayitlari_yaz(kayitlar):
     if not kayitlar:
         return
     yeni = pd.DataFrame(kayitlar)
-    if os.path.exists(TEST_DOSYA):
-        df_eski = pd.read_excel(TEST_DOSYA)
+    if os.path.exists(veri_yolu(TEST_DOSYA)):
+        df_eski = pd.read_excel(veri_yolu(TEST_DOSYA))
         yeni = pd.concat([df_eski, yeni], ignore_index=True)
-    yeni.to_excel(TEST_DOSYA, index=False)
+    yeni.to_excel(veri_yolu(TEST_DOSYA), index=False)
 
 
 # ── Makullük sınırları ──
@@ -185,13 +185,13 @@ def onceki_olcumler(sporcu, test_adi, tarih=None):
     Paket 38g: sporcunun bu testteki kayıtlı son ölçümleri {değişken: (değer, 'gg.aa.yyyy')} — test_sonuclari.xlsx.
     tarih verilirse o günden SONRAKİ kayıtlar sayılmaz. Dosya yoksa boş. Okuma dosyanın değişme zamanıyla önbellekli.
     """
-    if not sporcu or not os.path.exists(TEST_DOSYA):
+    if not sporcu or not os.path.exists(veri_yolu(TEST_DOSYA)):
         return {}
     try:
-        anahtar = (os.path.abspath(TEST_DOSYA), os.path.getmtime(TEST_DOSYA))
+        anahtar = (os.path.abspath(veri_yolu(TEST_DOSYA)), os.path.getmtime(veri_yolu(TEST_DOSYA)))
         if anahtar not in _GECMIS_ONBELLEK:
             _GECMIS_ONBELLEK.clear()
-            df = pd.read_excel(TEST_DOSYA)
+            df = pd.read_excel(veri_yolu(TEST_DOSYA))
             df["_t"] = pd.to_datetime(df.get("Tarih"), format="%d.%m.%Y", errors="coerce")
             _GECMIS_ONBELLEK[anahtar] = df
         df = _GECMIS_ONBELLEK[anahtar]

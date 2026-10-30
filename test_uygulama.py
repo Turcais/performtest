@@ -1764,8 +1764,8 @@ def test_23f_yonlendirme_ekrani_bos_dosyayla_acilir(tmp_path, monkeypatch):
         at = _apptest(tmp_path, monkeypatch, hazirla)
         assert not at.exception, [e.value for e in at.exception]
         # Paket 38k/38l: gezinme (üst menü, yan menü, alt bilgideki "Hakkında") eylem sayılmaz
-        assert [b.label for b in at.main.button if b.key != "alt_hakkinda"
-                and not (b.key or "").startswith("ust-menu-")] == ["İlk sporcuyu ekle"]
+        assert [b.label for b in at.main.button if b.key not in ("alt_hakkinda", "alt_kulupler", "ust-kulup-ekle")
+                and not (b.key or "").startswith("ust-menu-")] == ["İlk sporcuyu ekle"]     # 38n: + Kulüp(ler)
         assert any("Ne yapmak istiyorsunuz?" in m.value for m in at.markdown)
         # Paket 33 B: düğmenin üstünde en fazla üç satır tanıtım (ne yapar + üç adım)
         tanitim = [m.value for m in at.markdown if "Sporcu ekle" in m.value and "Test uygula" in m.value]
@@ -4281,7 +4281,7 @@ def test_44a_veri_modulleri_yalniz_sabit(agac):
 # 45. Bölme Aşama 2: olcut/ paketinin katman sırası (döngüsel bağımlılık yok)
 # ════════════════════════════════════════════════════════════
 _OLCUT_KATMAN = ["ortak", "disa_aktarma", "tema", "esik", "katalog_islemleri", "gorseller.cizim", "gorseller.hareketler",
-                 "gorseller.sahneler", "norm", "analiz", "kayit", "raporlar", "oneri", "karsilastirma", "bilesenler", "sayfalar"]
+                 "gorseller.sahneler", "norm", "analiz", "kayit", "kulup", "raporlar", "oneri", "karsilastirma", "bilesenler", "sayfalar"]
 
 
 def _olcut_katmani(modul):
@@ -4828,10 +4828,10 @@ def test_48b_ust_menu_ve_alt_bilgi_her_sayfada(tmp_path, monkeypatch):
         assert _alt_bilgi_sayisi(at, M) == 1, sayfa
         assert len([b for b in at.button if b.key == "alt_hakkinda"]) == (0 if sayfa == "Hakkında" else 1), sayfa
         sira = _duz_agac(at)
-        ilk_dugme = next(c for c in sira if type(c).__name__ == "Button")
-        assert ilk_dugme.key == beklenen[0], sayfa                       # menü ana alanın en üstünde
-        assert getattr(sira[-1], "key", None) == "alt_hakkinda" or M.ALT_BILGI_METNI in str(
-            getattr(sira[-1], "value", "")), sayfa                        # alt bilgi en sonda
+        dugmeler = [c.key for c in sira if type(c).__name__ == "Button"]
+        assert dugmeler[:2] == ["ust-kulup-ekle", beklenen[0]], sayfa     # menü ana alanın en üstünde (38n: + Kulüp)
+        assert getattr(sira[-1], "key", None) in ("alt_hakkinda", "alt_kulupler") or M.ALT_BILGI_METNI in str(
+            getattr(sira[-1], "value", "")), sayfa                        # alt bilgi en sonda (38n: + Kulüpler)
     at.session_state["sayfa"] = "Kaynakça"
     at.run()
     at.button(key="ust-menu-ana-sayfa").click().run()
@@ -4866,7 +4866,7 @@ def test_48c_test_oturumundan_cikista_taslak_kalir(tmp_path, monkeypatch):
     sira = _duz_agac(at)
     anahtar = [getattr(c, "key", None) for c in sira]
     alt = next(i for i, c in enumerate(sira) if M.ALT_BILGI_METNI in str(getattr(c, "value", "")))
-    assert "ot_geri" in anahtar and anahtar.index("ot_geri") < alt and anahtar.index("ust-menu-ana-sayfa") == min(
+    assert "ot_geri" in anahtar and anahtar.index("ot_geri") < alt and anahtar.index("ust-kulup-ekle") == min(
         i for i, k in enumerate(anahtar) if k)
     at.button(key="ust-menu-ana-sayfa").click().run()
     assert not at.exception and at.session_state["sayfa"] == "Ana Sayfa"
@@ -4951,3 +4951,204 @@ def test_49c_bugun_karti_bos_veride_cokmez(tmp_path, monkeypatch):
     assert not at.exception, [e.value for e in at.exception]
     kart = " ".join(m.value for m in at.sidebar.markdown if "sp-bugun" in m.value)
     assert "<b>0</b> sporcu kayıtlı" in kart and "Henüz kayıtlı ölçüm yok." in kart
+
+
+
+# ════════════════════════════════════════════════════════════
+# 50. Paket 38n-1: kulüp bazında çalışma alanı (veri yalıtımı), Kulüpler sayfası
+# ════════════════════════════════════════════════════════════
+def _p38n_kulupler(d):
+    """
+    Genel: _p38g_veri (Elif 10 K, Onur 24 E, Tolga 26 E). Kulüp A: Elif + Onur; Kulüp B: yalnız Tolga (adı 'Tolga
+    Demo' — A'da hiçbir yerde görünmemeli). Kulüpler kulupler/<kod>/ altında, bugünkü dosya adlarıyla.
+    """
+    import pandas as _pd
+    K = _modul("olcut.kulup")
+    _p38g_veri(d)
+    sp = _pd.read_excel(d / "sporcular.xlsx")
+    ts = _pd.read_excel(d / "test_sonuclari.xlsx")
+    for ad, kisiler in (("Demo Kulüp A", ["Elif", "Onur"]), ("Demo Kulüp B", ["Tolga"])):
+        kod = K.kulup_olustur({"ad": ad, "sehir": "Ankara"})
+        k = d / "kulupler" / kod
+        sp[sp["Ad"].isin(kisiler)].to_excel(k / "sporcular.xlsx", index=False)
+        ts[ts["Sporcu"].isin([f"{x} Demo" for x in kisiler])].to_excel(k / "test_sonuclari.xlsx", index=False)
+
+
+def _agac_metni(at):
+    parca = []
+
+    def yuru(n):
+        for c in (n.children.values() if isinstance(getattr(n, "children", None), dict) else ()):
+            p = getattr(c, "proto", None)
+            parca.append(str(p) if p is not None else "")
+            yuru(c)
+    yuru(at._tree)
+    return "\n".join(parca)
+
+
+def test_50a_veri_yolu_genel_ve_kulup(tmp_path, monkeypatch):
+    """Genel ya da Streamlit dışı: dosya adı olduğu gibi (bugünkü davranış); kulüpte kulupler/<kod>/ad; geçersiz kod
+    (../ gibi) Genel'e düşer — klasör dışına çıkılmaz."""
+    O = _modul("olcut.ortak")
+    assert O.veri_yolu("sporcular.xlsx") == "sporcular.xlsx" and O.aktif_kulup() == ""
+    for kotu in ("../x", "A B", "arslan_sk", "", "-a"):
+        assert not O.KULUP_KODU_KALIBI.match(kotu), kotu
+    assert O.KULUP_KODU_KALIBI.match("arslan-sk") and O.kulup_klasoru("arslan-sk") == os.path.join("kulupler",
+                                                                                                    "arslan-sk")
+
+
+def test_50b_kulup_olustur_kod_arsiv_ve_klasorsuz_bugunku_gibi(tmp_path, monkeypatch):
+    """Kod Türkçe harfsiz ve tekil; klasör + kulup.json + başlık satırlı boş xlsx; arşiv gizler, silmez. 'kulupler'
+    yokken seçici hiç görünmez (ekran bugünkü gibi)."""
+    import json as _json
+    K = _modul("olcut.kulup")
+    monkeypatch.chdir(tmp_path)
+    assert K.kulupler() == {}
+    assert K.kulup_kodu("Gordion Buz Sporları") == "gordion-buz-sporlari"
+    assert K.kulup_kodu("Poyraz Karate Kulübü") == "poyraz-karate-kulubu"
+    assert K.kulup_kodu("Arslan SK", ["arslan-sk"]) == "arslan-sk-2"
+    kod = K.kulup_olustur({"ad": "Arslan SK", "branslar": ["Futbol"]})
+    k = tmp_path / "kulupler" / kod
+    assert sorted(os.listdir(k)) == ["ilgi_anketi.xlsx", "kulup.json", "sporcular.xlsx", "test_sonuclari.xlsx"]
+    b = _json.loads((k / "kulup.json").read_text(encoding="utf-8"))
+    assert b["ad"] == "Arslan SK" and b["karsilastirma_onayi"] is False and b["arsiv"] is False
+    assert set(b) == set(K.KULUP_ALANLARI)
+    assert K.kulup_arsivle(kod) and K.kulupler() == {} and list(K.kulupler(arsiv=True)) == [kod] and k.exists()
+    bos = tmp_path / "bos"
+    bos.mkdir()
+    at = _apptest(bos, monkeypatch, _p38g_veri)
+    assert not at.exception and not [s for s in at.selectbox if s.key == "calisma_alani_secici"]
+
+
+def test_50c_kulup_a_seciliyken_b_hicbir_yerde_yok(tmp_path, monkeypatch):
+    """
+    A seçiliyken her sayfada (sporcu listelerinin göründüğü hâller dahil), indirmelerde ve Bugün kartında B'nin sporcusu
+    (Tolga Demo) yok; A'nın sporcusu var. Genel'e dönünce üçü de görünür.
+    """
+    import io as _io
+    import pandas as _pd
+    kayit = _indirme_kaydi(monkeypatch)
+    at = _apptest(tmp_path, monkeypatch, _p38n_kulupler)
+    secici = at.selectbox(key="calisma_alani_secici")
+    assert secici.options == [
+        "Çalışma alanı: Genel", "Çalışma alanı: Demo Kulüp A", "Çalışma alanı: Demo Kulüp B"]
+    secici.select("demo-kulup-a").run()
+    assert at.session_state["calisma_alani"] == "demo-kulup-a" and at.session_state["sayfa"] == "Ana Sayfa"
+    durumlar = [("Ana Sayfa", {}), ("Sporcu Girişi", {}), ("Test Uygula", {}), ("Test Oturumu", {}),
+                ("Test Oturumu", {"ot_adim": 2, "ots::testler": ["Durarak Uzun Atlama"]}),
+                ("Sonuçları Görüntüle", {}), ("Sonuçları Görüntüle", {"sonuc_bolum": "Karşılaştırma"}),
+                ("Raporlar", {}), ("Niteliğe göre test bul", {}), ("Kulüpler", {})]
+    for sayfa, ek in durumlar:
+        at.session_state["sayfa"] = sayfa
+        for k, v in ek.items():
+            at.session_state[k] = v
+        at.run()
+        assert not at.exception, (sayfa, [e.value for e in at.exception])
+        metin = _agac_metni(at)
+        assert "Tolga Demo" not in metin, (sayfa, ek)
+    # sporcu seçicileri yalnız A
+    at.session_state["sayfa"] = "Raporlar"
+    at.run()
+    assert set(at.selectbox(key="rapor_sporcu").options) == {"Elif Demo", "Onur Demo"}
+    assert all(b"Tolga" not in (k["veri"] if isinstance(k["veri"], bytes) else str(k["veri"]).encode())
+               for k in kayit)
+    # karşılaştırma indirmesi: A'nın 'Tümünü seç'i yalnız A
+    at.session_state["sayfa"] = "Sonuçları Görüntüle"
+    at.session_state["sonuc_bolum"] = "Karşılaştırma"
+    at.run()
+    for s in ("Elif Demo", "Onur Demo"):
+        at.checkbox(key=f"ksa_a::k::{s}").check()
+    assert not [c for c in at.checkbox if (c.key or "").endswith("Tolga Demo")]
+    at.run()
+    at.selectbox(key="ksa_test").select("Durarak Uzun Atlama").run()
+    at.button(key="ksa_karsilastir").click().run()
+    csv = next(k["veri"] for k in reversed(kayit) if k["anahtar"] == "ksa_indir_csv")
+    geri = _pd.read_csv(_io.BytesIO(csv), sep=";", decimal=",", encoding="utf-8-sig")
+    assert set(geri["Sporcu"]) == {"Elif Demo", "Onur Demo"}
+    kart = " ".join(m.value for m in at.sidebar.markdown if "sp-bugun" in m.value)
+    assert "<b>2</b> sporcu kayıtlı" in kart
+    # Genel: üçü de
+    at.selectbox(key="calisma_alani_secici").select("").run()
+    at.session_state["sayfa"] = "Raporlar"
+    at.run()
+    assert set(at.selectbox(key="rapor_sporcu").options) == {"Elif Demo", "Onur Demo", "Tolga Demo"}
+
+
+def test_50d_kulup_degisince_secimler_taslak_ve_onbellek_karismaz(tmp_path, monkeypatch):
+    """A'da seçimler + diskte taslak; B'ye geçince seçimler silinir, Ana Sayfa açılır, B'de taslak yok, Bugün kartı B'nin
+    sayısını gösterir; A'ya dönünce A'nın taslağı (diskte) yine görünür."""
+    T, K = _modul("olcut.sayfalar.test_oturumu"), _modul("olcut.kayit")
+    at = _apptest(tmp_path, monkeypatch, _p38n_kulupler)
+    at.selectbox(key="calisma_alani_secici").select("demo-kulup-a").run()
+    t = T.taslak_bos(["Durarak Uzun Atlama"], ["Elif Demo"], {"tarih": "2026-10-29"})
+    t["degerler"]["Elif Demo"] = {K.oturum_sutunu("Durarak Uzun Atlama", "Deneme 1 (cm)"): "131"}
+    assert T.taslak_yaz(t, str(tmp_path / "kulupler" / "demo-kulup-a" / T.TASLAK_DOSYA))
+    assert not (tmp_path / T.TASLAK_DOSYA).exists()
+    at.session_state["sayfa"] = "Raporlar"
+    at.run()
+    at.session_state["ksa_a::secim"] = ["Elif Demo"]
+    at.run()
+    kart = " ".join(m.value for m in at.sidebar.markdown if "sp-bugun" in m.value)
+    assert "Yarım kalan oturum" in kart and "<b>2</b> sporcu" in kart
+    at.selectbox(key="calisma_alani_secici").select("demo-kulup-b").run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert at.session_state["sayfa"] == "Ana Sayfa" and "ksa_a::secim" not in at.session_state
+    assert "rapor_sporcu" not in at.session_state
+    kart = " ".join(m.value for m in at.sidebar.markdown if "sp-bugun" in m.value)
+    assert "Yarım kalan oturum" not in kart and "<b>1</b> sporcu" in kart
+    assert "Elif Demo" not in _agac_metni(at)
+    at.selectbox(key="calisma_alani_secici").select("demo-kulup-a").run()
+    kart = " ".join(m.value for m in at.sidebar.markdown if "sp-bugun" in m.value)
+    assert "Yarım kalan oturum: <b>1</b> değer girildi" in kart
+
+
+def test_50e_kulupler_sayfasi_olustur_duzenle_arsivle(tmp_path, monkeypatch):
+    """Kulüpler sayfası (alt bilgiden): yeni kulüp formu klasörü açar; 'Bu kulübe geç'; aktif kulüp arşivlenince
+    Genel'e dönülür; arşiv hiçbir dosyayı silmez."""
+    K = _modul("olcut.kulup")
+    at = _apptest(tmp_path, monkeypatch, _p38g_veri)
+    at.button(key="alt_kulupler").click().run()
+    assert at.session_state["sayfa"] == "Kulüpler" and not at.exception
+    assert not [b for b in at.button if b.key == "alt_kulupler"]
+    at.text_input(key="kl_yeni_ad").input("Gordion Buz Sporları")
+    at.text_input(key="kl_yeni_sehir").input("Ankara")
+    at.button(key="FormSubmitter:kl_yeni-Kulübü oluştur").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert (tmp_path / "kulupler" / "gordion-buz-sporlari" / "sporcular.xlsx").exists()
+    assert K.kulup_oku("gordion-buz-sporlari")["sehir"] == "Ankara"
+    at.run()
+    assert [s for s in at.selectbox if s.key == "calisma_alani_secici"]          # artık seçici görünür
+    at.button(key="kl_gec").click().run()
+    assert at.session_state["calisma_alani"] == "gordion-buz-sporlari" and at.session_state["sayfa"] == "Ana Sayfa"
+    kart = " ".join(m.value for m in at.sidebar.markdown if "sp-bugun" in m.value)
+    assert "<b>0</b> sporcu kayıtlı" in kart
+    at.session_state["sayfa"] = "Kulüpler"
+    at.run()
+    at.button(key="kl_arsivle").click().run()
+    assert at.session_state["calisma_alani"] == "" and K.kulupler() == {}
+    assert (tmp_path / "kulupler" / "gordion-buz-sporlari" / "kulup.json").exists()
+
+
+def test_50f_yeni_kulupte_her_sayfa_bos_veriyle_acilir(tmp_path, monkeypatch):
+    """Yeni (boş) kulüpte bütün sayfalar hata vermeden açılır."""
+    K = _modul("olcut.kulup")
+
+    def hazirla(d):
+        K.kulup_olustur({"ad": "Boş Kulüp"})
+    at = _apptest(tmp_path, monkeypatch, hazirla)
+    at.selectbox(key="calisma_alani_secici").select("bos-kulup").run()
+    for sayfa in _P38K_SAYFALAR + ["Kulüpler"]:
+        at.session_state["sayfa"] = sayfa
+        at.run()
+        assert not at.exception, (sayfa, [e.value for e in at.exception])
+
+
+def test_50g_ust_satirda_kulup_ekle(tmp_path, monkeypatch):
+    """Üst satırda her zaman (kulüp yokken de) '+ Kulüp'; tıklayınca Kulüpler sayfası, 'Yeni kulüp' formu açık."""
+    at = _apptest(tmp_path, monkeypatch, _p38g_veri)
+    b = at.button(key="ust-kulup-ekle")
+    assert b.label == "Kulüp" and b.proto.icon == ":material/add:"
+    b.click().run()
+    assert not at.exception and at.session_state["sayfa"] == "Kulüpler"
+    assert [e for e in _acilirlar(at) if e.label == "Yeni kulüp" and e.proto.expanded]
+    assert "kl_yeni_ac" not in at.session_state                       # bir kez açar

@@ -27,7 +27,8 @@ from olcut.tema import (   # Bölme Aşama 2: olcut/tema.py
     TEMA_CSS, tema_toml, grafik_duzeni, config_toml_yaz, tasarimi_uygula)
 
 
-from olcut.ortak import (   # Bölme Aşama 2: olcut/ortak.py
+from olcut.ortak import (
+    veri_yolu,   # Bölme Aşama 2: olcut/ortak.py
     _desteklenen, _TR_KUCUK, _TR_BUYUK, _TR_BUYUT, _TR_KUCULT, _sozcuk_bicimi, ad_bicimi, _girildi, DOGUM_KOLON,
     tarih_coz, dogum_ceyregi, tam_yas, _yas_degeri, _e, _sayi, _tarih_gunu, guvenli_float,
     METIN_DEGISKEN_KALIBI, AYAR_DOSYA, ayar_oku, ayar_yaz, _tablo_guvenli, tablo_oku, _dt_simdi, NOT_CIPLERI,
@@ -485,9 +486,14 @@ from olcut.sayfalar.sonuclar import (   # Bölme Aşama 2: olcut/sayfalar/sonucl
 # YAN MENÜ
 # ════════════════════════════════════════════════════════════
 SAYFALAR = ["Ana Sayfa", "Sporcu Girişi", "Niteliğe göre test bul", "Test Uygula", "Test Oturumu",
-            "Sonuçları Görüntüle", "Raporlar", "Kaynakça", "Hakkında"]
+            "Sonuçları Görüntüle", "Raporlar", "Kaynakça", "Hakkında", "Kulüpler"]
 UST_MENU = ["Ana Sayfa", "Raporlar", "Kaynakça", "Hakkında"]          # Paket 38k: üstte, site menüsü gibi
-YAN_MENU = [s_ for s_ in SAYFALAR if s_ not in UST_MENU]                # sol menüde iş sayfaları
+IKINCIL_SAYFALAR = ["Kulüpler"]                                        # Paket 38n: alt bilgiden (Hakkında'nın yanı)
+YAN_MENU = [s_ for s_ in SAYFALAR if s_ not in UST_MENU + IKINCIL_SAYFALAR]   # sol menüde iş sayfaları
+
+# Paket 38n: çalışma alanı (Genel ya da kulupler/<kod>/) — her veri okumasından ÖNCE doğrulanır
+from olcut.bilesenler import calisma_alani_dogrula
+calisma_alani_dogrula()
 
 
 # Paket 38b: değer girilirken sayfa yenilendiyse (adreste ?taslak=1 ve diskte taslak) kaldığı yere döner
@@ -496,9 +502,10 @@ if "sayfa" not in st.session_state and _qp_al("taslak") == "1" and taslak_oku():
     st.session_state["ots::otomatik"] = True
 # "Açılışta bu ekranı gösterme" seçiliyse oturumun ilk açılışı doğrudan iş sayfasına (menü aynen kalır)
 if "sayfa" not in st.session_state and ayar_oku().get("yonlendirme_gizle"):
-    st.session_state["sayfa"] = "Test Uygula" if os.path.exists(SPORCU_DOSYA) else "Sporcu Girişi"
+    st.session_state["sayfa"] = "Test Uygula" if os.path.exists(veri_yolu(SPORCU_DOSYA)) else "Sporcu Girişi"
 from olcut.bilesenler import alt_bilgi, bugun_karti, ust_menu, yan_menu   # 38k: üst menü, alt bilgi; 38l: yan
 from olcut.sayfalar.hakkinda import hakkinda_sayfasi                  # Paket 38k: olcut/sayfalar/hakkinda.py
+from olcut.sayfalar.kulupler import kulupler_sayfasi                  # Paket 38n: olcut/sayfalar/kulupler.py
 # Paket 38k: "sayfa" yönlendirme durumu (artık bir seçicinin anahtarı değil); sol menü yalnız iş sayfaları
 if st.session_state.get("sayfa") not in SAYFALAR:
     st.session_state["sayfa"] = "Ana Sayfa"
@@ -566,5 +573,9 @@ elif sayfa == "Kaynakça":
 # ── HAKKINDA (Paket 38k) ──
 elif sayfa == "Hakkında":
     hakkinda_sayfasi()
+
+# ── KULÜPLER (Paket 38n) ──
+elif sayfa == "Kulüpler":
+    kulupler_sayfasi()
 
 alt_bilgi(sayfa)                                 # Paket 38k: her sayfanın en altında (raporlara girmez)

@@ -478,9 +478,13 @@ hr {{ border-color:{renk_css("cizgi")} !important; margin:{b(2)} 0 !important; }
 [data-testid="stAppDeployButton"], [data-testid="stDeployButton"] {{ display:none !important; }}
 [data-testid="stButton"] button, [data-testid="stDownloadButton"] button, [data-testid="stPopover"] button,
 [data-testid="stFormSubmitButton"] button {{ min-height:44px; min-width:44px; }}
-.st-key-ust-menu {{ flex-wrap:wrap; gap:0 {b(0.5)}; margin:0 0 {b(2)}; padding-bottom:{b(0.5)};
+.st-key-ust-menu {{ flex-wrap:wrap; gap:0 {b(0.5)}; margin:{b(2)} 0 {b(2)}; padding-bottom:{b(0.5)};
     border-bottom:1px solid {renk_css("cizgi")}; }}
 .st-key-ust-menu button {{ min-height:44px; padding:0 6px; color:{renk_css("murekkep")}; }}
+.st-key-calisma-alani {{ width:auto !important; min-width:220px; max-width:320px; }}
+.st-key-ust-kulup-ekle {{ margin-right:{b(1.5)}; }}
+.st-key-ust-kulup-ekle button {{ color:{renk_css("ana")}; }}
+.st-key-calisma-alani [data-baseweb="select"] > div {{ min-height:44px; font-weight:600; }}
 .st-key-ust-menu button p {{ font-size:{YAZI["govde"][0]}; font-weight:600; }}
 .st-key-ust-menu [class*="-aktif"] button {{ color:{renk_css("ana")}; }}
 .st-key-ust-menu [class*="-aktif"] button p {{ font-weight:700; text-decoration:underline; text-underline-offset:6px;

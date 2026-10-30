@@ -23,7 +23,7 @@ from olcut.norm import (
     BILESIK_MAKS_GUN, META_KOLONLAR, NORMATIF, SPORCU_DOSYA, TEST_DOSYA, bilesik_z_hesapla,
     normatif_degerlendir, orneklem_disi_metni, orneklem_notlari, orneklem_tablosu, sporcu_z_profili)
 from olcut.oneri import ozet_kartlari_html
-from olcut.ortak import ad_bicimi
+from olcut.ortak import ad_bicimi, veri_yolu
 from olcut.tema import _sayi_goster, grafik_duzeni, grafik_norm_renk, grafik_renk, kart_izgarasi_html
 
 
@@ -31,10 +31,10 @@ def sonuclari_goruntule_sayfasi():
     """Sonuçları Görüntüle sayfası (Bölme Aşama 2: satır içi dal fonksiyona sarıldı)."""
     st.header("Test Sonuçları ve Analiz")
 
-    if not os.path.exists(TEST_DOSYA):
+    if not os.path.exists(veri_yolu(TEST_DOSYA)):
         st.info("Kaydedilmiş test sonucu yok.")
     else:
-        df_test = test_tablosu_duzelt(pd.read_excel(TEST_DOSYA))     # takma adlı kayıt asıl adla (Paket 27)
+        df_test = test_tablosu_duzelt(pd.read_excel(veri_yolu(TEST_DOSYA)))     # takma adlı kayıt asıl adla (Paket 27)
 
         # Tarih sütununu datetime'a çevir
         try:
@@ -70,7 +70,7 @@ def sonuclari_goruntule_sayfasi():
                               f"{_html.escape(str(_kp.get('Cinsiyet', '—')))} · "
                               f"{df_filtre['Test'].nunique()} test, {len(df_filtre)} kayıt")
                 if c_k2.button("Grup içi konum", icon=":material/groups:", key="gk_ac", width="stretch"):
-                    grup_konum_penceresi(filtre, test_tablosu_duzelt(pd.read_excel(TEST_DOSYA)))
+                    grup_konum_penceresi(filtre, test_tablosu_duzelt(pd.read_excel(veri_yolu(TEST_DOSYA))))
 
         # ── Paket 38a: özet kartları ──
         _son_t = df_filtre["Tarih_dt"].max() if "Tarih_dt" in df_filtre.columns else pd.NaT
@@ -246,8 +246,8 @@ def sonuclari_goruntule_sayfasi():
 
                 # Sporcu profilinden cinsiyet ve branş al
                 sporcu_bilgi = {}
-                if os.path.exists(SPORCU_DOSYA):
-                    df_sp = pd.read_excel(SPORCU_DOSYA)
+                if os.path.exists(veri_yolu(SPORCU_DOSYA)):
+                    df_sp = pd.read_excel(veri_yolu(SPORCU_DOSYA))
                     eslesme = df_sp[df_sp["Ad"] + " " + df_sp["Soyad"] == norm_sporcu]
                     if not eslesme.empty:
                         sporcu_bilgi = eslesme.iloc[0].to_dict()

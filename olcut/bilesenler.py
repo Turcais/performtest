@@ -17,9 +17,10 @@ from olcut.analiz import (
 from olcut.katalog_islemleri import (
     ONERI_IZ_SINIRI, kanonik_test, sira_uyarilari, test_ara, test_etiketli, test_izi_parcalari)
 from olcut.kayit import calisma_bos, calisma_kaydet, calisma_sil, calismalar_oku
+from olcut.kulup import calisma_alani_adi, kulupler
 from olcut.norm import SPORCU_DOSYA
 from olcut.oneri import _virgullu, konum_sekme_sirasi, sira_birlestir
-from olcut.ortak import _desteklenen
+from olcut.ortak import CALISMA_ALANI_ANAHTAR, _desteklenen, aktif_kulup, veri_yolu
 from olcut.raporlar import gelisim_bolumu_html
 from olcut.tema import renk_css
 
@@ -79,11 +80,11 @@ def ilgi_anketi_formu(sporcu):
         if st.form_submit_button("💾 Anketi kaydet"):
             kayit_i = {"Sporcu": sporcu, "Tarih": ilgi_tarih.strftime("%d.%m.%Y"),
                        "Anket": ILGI_ANKET_ADI, **yeni}
-            if os.path.exists(ILGI_DOSYA):
-                df_i_tum = pd.concat([pd.read_excel(ILGI_DOSYA), pd.DataFrame([kayit_i])], ignore_index=True)
+            if os.path.exists(veri_yolu(ILGI_DOSYA)):
+                df_i_tum = pd.concat([pd.read_excel(veri_yolu(ILGI_DOSYA)), pd.DataFrame([kayit_i])], ignore_index=True)
             else:
                 df_i_tum = pd.DataFrame([kayit_i])
-            df_i_tum.to_excel(ILGI_DOSYA, index=False)
+            df_i_tum.to_excel(veri_yolu(ILGI_DOSYA), index=False)
             st.success("✅ İlgi anketi kaydedildi.")
             ilgi_kayit = kayit_i
     return ilgi_kayit
@@ -333,7 +334,7 @@ def _karsilastirmaya_git():
 @st.dialog("Grup içi konum ve gelişim", width="large")
 def grup_konum_penceresi(sporcu, df_test):
     """Sporcu kartından açılır: test + değişken seçilir; kendi değişimi ve aynı yaş bandı/cinsiyetteki konumu."""
-    df_sp = pd.read_excel(SPORCU_DOSYA) if os.path.exists(SPORCU_DOSYA) else pd.DataFrame()
+    df_sp = pd.read_excel(veri_yolu(SPORCU_DOSYA)) if os.path.exists(veri_yolu(SPORCU_DOSYA)) else pd.DataFrame()
     ciftler = rapor_konum_degiskenleri(df_test, sporcu)
     if not ciftler:
         st.info("Bu sporcunun sayısal test sonucu yok.")
@@ -402,6 +403,62 @@ def _sayfaya_git(hedef):
 UST_MENU_ETIKETLERI = {"Ana Sayfa": "⌂ Ana Sayfa"}
 _UST_MENU_KODU = {"Ana Sayfa": "ana-sayfa", "Raporlar": "raporlar", "Kaynakça": "kaynakca", "Hakkında": "hakkinda"}
 HAKKINDA_SAYFASI = "Hakkında"
+KULUPLER_SAYFASI = "Kulüpler"
+
+
+CALISMA_ALANI_SECICI = "calisma_alani_secici"
+_ALAN_KORUNAN = {CALISMA_ALANI_ANAHTAR, CALISMA_ALANI_SECICI}
+
+
+def calisma_alani_dogrula():
+    """
+    Paket 38n: seçili kulüp hâlâ geçerli mi (klasör var, arşivde değil)? Değilse Genel'e döner. Sayfa kodu ve veri
+    okumalarından ÖNCE çağrılır. Döner: aktif kulüp kodu ('' = Genel).
+    """
+    kod = st.session_state.get(CALISMA_ALANI_ANAHTAR, "") or ""
+    if kod and kod not in kulupler():
+        calisma_alanina_gec("")
+        return ""
+    return aktif_kulup()
+
+
+def calisma_alanina_gec(kod):
+    """
+    Çalışma alanını değiştirir: bu oturumdaki bütün seçimler (sporcu, oturum, karşılaştırma, rapor, taslak) silinir,
+    sayfa Ana Sayfa'ya döner, dosyaya bağlı önbellekler temizlenir — bir kulübün verisi ötekine sızmaz.
+    """
+    for k in [k for k in list(st.session_state.keys()) if k not in _ALAN_KORUNAN]:
+        del st.session_state[k]
+    st.session_state[CALISMA_ALANI_ANAHTAR] = kod or ""
+    st.session_state[CALISMA_ALANI_SECICI] = kod or ""
+    st.session_state["sayfa"] = "Ana Sayfa"
+    st.cache_data.clear()
+
+
+KULUP_YENI_AC = "kl_yeni_ac"
+
+
+def _yeni_kulube_git():
+    """Üstteki '+ Kulüp': Kulüpler sayfası, 'Yeni kulüp' formu açık."""
+    st.session_state["sayfa"] = KULUPLER_SAYFASI
+    st.session_state[KULUP_YENI_AC] = True
+
+
+def _secici_degisti():
+    calisma_alanina_gec(st.session_state.get(CALISMA_ALANI_SECICI, ""))
+
+
+def calisma_alani_secici():
+    """Üst menünün solunda 'Çalışma alanı' (yalnız en az bir kulüp varsa; yoksa ekran bugünküyle aynı)."""
+    secenekler = [""] + list(kulupler())
+    if len(secenekler) == 1:
+        return
+    st.session_state[CALISMA_ALANI_SECICI] = st.session_state.get(CALISMA_ALANI_ANAHTAR, "") or ""
+    with st.container(key="calisma-alani"):
+        st.selectbox("Çalışma alanı", secenekler, key=CALISMA_ALANI_SECICI,
+                     format_func=lambda k: f"Çalışma alanı: {calisma_alani_adi(k)}",
+                     on_change=_secici_degisti, label_visibility="collapsed",
+                     help="Çalışma alanı: seçili kulübün sporcuları ve sonuçları. Değişince seçimler temizlenir.")
 
 
 def ust_menu(sayfa, sayfalar):
@@ -411,6 +468,9 @@ def ust_menu(sayfa, sayfalar):
     Test Oturumu'nda taslak her değişiklikte diske yazıldığı için buradan çıkışta veri kaybolmaz.
     """
     with st.container(key="ust-menu", **_desteklenen(st.container, horizontal=True, vertical_alignment="center")):
+        calisma_alani_secici()                                       # Paket 38n: solda çalışma alanı
+        st.button("Kulüp", type="tertiary", key="ust-kulup-ekle", on_click=_yeni_kulube_git,
+                  help="Yeni kulüp ekle (Kulüpler sayfası)", **_desteklenen(st.button, icon=":material/add:"))
         for hedef in sayfalar:
             kod = _UST_MENU_KODU.get(hedef, re.sub(r"\W+", "-", hedef.lower()))
             st.button(UST_MENU_ETIKETLERI.get(hedef, hedef), type="tertiary",
@@ -449,15 +509,15 @@ def _bugun_ozeti(zaman):
     from olcut.karsilastirma import oturum_etiketleri
     from olcut.norm import TEST_DOSYA
     n = 0
-    if os.path.exists(SPORCU_DOSYA):
+    if os.path.exists(veri_yolu(SPORCU_DOSYA)):
         try:
-            n = len(pd.read_excel(SPORCU_DOSYA).dropna(how="all"))
+            n = len(pd.read_excel(veri_yolu(SPORCU_DOSYA)).dropna(how="all"))
         except Exception:
             n = 0
     son = None
-    if os.path.exists(TEST_DOSYA):
+    if os.path.exists(veri_yolu(TEST_DOSYA)):
         try:
-            df = pd.read_excel(TEST_DOSYA)
+            df = pd.read_excel(veri_yolu(TEST_DOSYA))
             if "Oturum" in df.columns and not df.empty:
                 etiketler = oturum_etiketleri(df)
                 son = next(iter(etiketler.values()), None)
@@ -469,7 +529,7 @@ def _bugun_ozeti(zaman):
 def _dosya_zamani():
     from olcut.norm import TEST_DOSYA
     return tuple((os.path.abspath(y), os.path.getmtime(y) if os.path.exists(y) else 0)
-                 for y in (SPORCU_DOSYA, TEST_DOSYA))
+                 for y in (veri_yolu(SPORCU_DOSYA), veri_yolu(TEST_DOSYA)))
 
 
 def _taslaga_don():
@@ -503,3 +563,6 @@ def alt_bilgi(sayfa):
         if sayfa != HAKKINDA_SAYFASI:
             st.button(HAKKINDA_SAYFASI, type="tertiary", key="alt_hakkinda", on_click=_sayfaya_git,
                       args=(HAKKINDA_SAYFASI,))
+        if sayfa != KULUPLER_SAYFASI:                                  # Paket 38n: ikincil, Hakkında'nın yanında
+            st.button(KULUPLER_SAYFASI, type="tertiary", key="alt_kulupler", on_click=_sayfaya_git,
+                      args=(KULUPLER_SAYFASI,))

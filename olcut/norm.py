@@ -17,7 +17,7 @@ from veri.normlar_tsyt import TSYT_NORMLARI
 from veri.normlar_yas import NORMATIF_YAS
 from olcut.esik import NORMATIF_ESIK_YAS
 from olcut.katalog_islemleri import TEST_KATALOGU, kanonik_test
-from olcut.ortak import DOGUM_KOLON, _girildi, dogum_ceyregi, guvenli_float, tarih_coz
+from olcut.ortak import DOGUM_KOLON, _girildi, dogum_ceyregi, guvenli_float, tarih_coz, veri_yolu
 from olcut.tema import kategori_rengi
 
 
@@ -458,8 +458,8 @@ def sporcu_z_profili(df_test, sporcu):
     Z-Skor Profili sekmesi, radar ve ileride branş eşleştirmesi bu tek kaynağı kullanır.
     """
     bilgi = {}
-    if os.path.exists(SPORCU_DOSYA):
-        df_sp = pd.read_excel(SPORCU_DOSYA)
+    if os.path.exists(veri_yolu(SPORCU_DOSYA)):
+        df_sp = pd.read_excel(veri_yolu(SPORCU_DOSYA))
         esl = df_sp[df_sp["Ad"].astype(str) + " " + df_sp["Soyad"].astype(str) == sporcu]
         if not esl.empty:
             bilgi = esl.iloc[0].to_dict()

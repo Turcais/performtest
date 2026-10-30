@@ -150,10 +150,41 @@ METIN_DEGISKEN_KALIBI = re.compile(r"\((?:Sağ/Sol|Geçti/Kalmadı|E/K)\)")
 AYAR_DOSYA = "ayarlar.json"          # yerel tercih dosyası (ör. "bir daha gösterme")
 
 
+# ── Çalışma alanı (Paket 38n): "Genel" (çalışma klasöründeki dosyalar) ya da kulupler/<kod>/ ──
+# Dosya adı sabitleri (SPORCU_DOSYA, TEST_DOSYA, …) yalnız ADDIR; her okuma/yazma veri_yolu(ad) ile yapılır. Seçili
+# kulüp oturum durumunda tutulur (os.chdir YOK: süreç geneli, oturumlar birbirinin klasörünü değiştirirdi).
+KULUP_KLASORU = "kulupler"
+CALISMA_ALANI_ANAHTAR = "calisma_alani"     # st.session_state: kulüp kodu; "" = Genel
+KULUP_KODU_KALIBI = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def aktif_kulup():
+    """Bu oturumda seçili kulüp kodu; Genel, geçersiz kod ya da Streamlit dışı (test, araç) → ""."""
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+        if get_script_run_ctx(suppress_warning=True) is None:
+            return ""
+        import streamlit as _st
+        kod = _st.session_state.get(CALISMA_ALANI_ANAHTAR, "") or ""
+    except Exception:
+        return ""
+    return kod if KULUP_KODU_KALIBI.match(kod) else ""
+
+
+def kulup_klasoru(kod):
+    return os.path.join(KULUP_KLASORU, kod)
+
+
+def veri_yolu(ad):
+    """Aktif çalışma alanındaki dosyanın yolu: Genel'de ad olduğu gibi (bugünkü davranış), kulüpte kulupler/<kod>/ad."""
+    kod = aktif_kulup()
+    return os.path.join(kulup_klasoru(kod), ad) if kod else ad
+
+
 def ayar_oku():
     """Yerel tercihler (ayarlar.json). Dosya yoksa ya da bozuksa boş sözlük — ekran yine açılır."""
     try:
-        with open(AYAR_DOSYA, encoding="utf-8") as f:
+        with open(veri_yolu(AYAR_DOSYA), encoding="utf-8") as f:
             veri = _json.load(f)
         return veri if isinstance(veri, dict) else {}
     except (OSError, ValueError):
@@ -164,7 +195,7 @@ def ayar_yaz(anahtar, deger):
     veri = ayar_oku()
     veri[anahtar] = deger
     try:
-        with open(AYAR_DOSYA, "w", encoding="utf-8") as f:
+        with open(veri_yolu(AYAR_DOSYA), "w", encoding="utf-8") as f:
             _json.dump(veri, f, ensure_ascii=False, indent=1)
     except OSError:
         pass

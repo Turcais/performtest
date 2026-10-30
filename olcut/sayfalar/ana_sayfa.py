@@ -9,7 +9,7 @@ from olcut.bilesenler import _gecerli_secim, _git_test_uygula, _oneri_git, _sayf
 from olcut.katalog_islemleri import katalog_testleri, test_ara, test_etiketli, test_tablosu_duzelt
 from olcut.norm import SPORCU_DOSYA, TEST_DOSYA
 from olcut.oneri import oneri_baglami, oneri_secenekleri, oneriler, yarim_sustur, yarim_susturulanlar
-from olcut.ortak import ayar_oku, ayar_yaz, tablo_oku
+from olcut.ortak import ayar_oku, ayar_yaz, tablo_oku, veri_yolu
 
 
 def _yonlendirme_gizle_degisti():
@@ -18,8 +18,8 @@ def _yonlendirme_gizle_degisti():
 
 def yonlendirme_ekrani():
     """'Ne yapmak istiyorsunuz?' — durum dosyalardan okunur; her düğme ilgili sayfayı seçimleri dolu açar."""
-    df_sp = tablo_oku(SPORCU_DOSYA)
-    df_ts = test_tablosu_duzelt(tablo_oku(TEST_DOSYA))
+    df_sp = tablo_oku(veri_yolu(SPORCU_DOSYA))
+    df_ts = test_tablosu_duzelt(tablo_oku(veri_yolu(TEST_DOSYA)))
     b = oneri_baglami(df_sp, df_ts, susturulan=yarim_susturulanlar())
     st.markdown("#### Ne yapmak istiyorsunuz?")
 

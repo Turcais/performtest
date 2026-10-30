@@ -16,7 +16,7 @@ from olcut.karsilastirma import (
     sporcular_arasi_disa, wilcoxon_isaretli_sira)
 from olcut.katalog_islemleri import ara_katla, test_tablosu_duzelt
 from olcut.norm import TEST_DOSYA
-from olcut.ortak import ad_bicimi
+from olcut.ortak import ad_bicimi, veri_yolu
 from olcut.tema import grafik_duzeni, grafik_renk
 
 KARS_PASIF_IPUCU = "Önce sporcuları seçip Karşılaştır'a basın."
@@ -296,10 +296,10 @@ def _oturumlar_arasi_sonuc(df, p):
 def karsilastirma_sayfasi():
     """Sonuçlar → Karşılaştırma bölümü: Sporcular arası / Oturumlar arası sekmeleri."""
     st.header("Karşılaştırma")
-    if not os.path.exists(TEST_DOSYA):
+    if not os.path.exists(veri_yolu(TEST_DOSYA)):
         st.info("Kaydedilmiş test sonucu yok.")
         return
-    df = test_tablosu_duzelt(pd.read_excel(TEST_DOSYA))
+    df = test_tablosu_duzelt(pd.read_excel(veri_yolu(TEST_DOSYA)))
     df["Tarih_dt"] = pd.to_datetime(df["Tarih"], format="%d.%m.%Y", errors="coerce")
     s1, s2 = st.tabs(["Sporcular arası", "Oturumlar arası"])
     with s1:

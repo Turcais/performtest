@@ -18,7 +18,7 @@ from olcut.katalog_islemleri import NITELIK_DIGER, NITELIK_KARTLARI, nitelik_kar
 from olcut.kayit import GRUP_KOLON, _sayi_kisa, oturum_secenekleri
 from olcut.norm import SPORCU_DOSYA, TEST_DOSYA, sporcu_z_profili
 from olcut.oneri import ozet_kartlari_html
-from olcut.ortak import _girildi, _tarih_gunu, ad_bicimi
+from olcut.ortak import _girildi, _tarih_gunu, ad_bicimi, veri_yolu
 from olcut.raporlar import (
     _aralik_sayi, _gelisim_grafik_svg, _veli_duzeyi, gelisim_bolumu_html, gelisim_metni, konum_seridi_veli_svg,
     test_degisken_etiketi, veli_aralik_konumu, veli_konum_uygun)
@@ -40,7 +40,7 @@ NITELIK_NOTU = "Yön göstericidir, tanı değil."
 def sonuc_kart_gorunumu():
     """Tek sporcu seçili ve 'Ayrıntılı analiz' kapalı → dört soru kartı."""
     s = st.session_state.get("sonuc_sporcu")
-    return (os.path.exists(TEST_DOSYA) and s not in (None, "Tüm Sporcuları Göster")
+    return (os.path.exists(veri_yolu(TEST_DOSYA)) and s not in (None, "Tüm Sporcuları Göster")
             and not st.session_state.get("sonuc_ayrintili", False))
 
 
@@ -202,7 +202,7 @@ def tum_gelisim_penceresi(sporcu, df_test):
 def sonuclar_sporcu_sayfasi():
     """Tek sporcu: sporcu kartı, dört özet kutusu, dört soru kartı, en altta kapalı 'Tüm kayıtlar'."""
     st.header("Test Sonuçları ve Analiz")
-    df_tum = test_tablosu_duzelt(pd.read_excel(TEST_DOSYA))
+    df_tum = test_tablosu_duzelt(pd.read_excel(veri_yolu(TEST_DOSYA)))
     df_tum["Tarih_dt"] = pd.to_datetime(df_tum["Tarih"], format="%d.%m.%Y", errors="coerce")
     df_test, filtre = sonuc_suzgecleri(df_tum)
     if filtre == "Tüm Sporcuları Göster":           # seçim artık geçersiz: ayrıntılı görünüme dön
@@ -266,7 +266,7 @@ def sonuclar_sporcu_sayfasi():
     with ust[1].container(border=True):             # 2 · Yaşıtlarına göre nerede?
         try:
             st.markdown("#### Yaşıtlarına göre nerede?")
-            k = (grup_ici_konum(df_tum, pd.read_excel(SPORCU_DOSYA) if os.path.exists(SPORCU_DOSYA) else pd.DataFrame(),
+            k = (grup_ici_konum(df_tum, pd.read_excel(veri_yolu(SPORCU_DOSYA)) if os.path.exists(veri_yolu(SPORCU_DOSYA)) else pd.DataFrame(),
                                 filtre, *ciftler[secim]) if secim is not None else {"durum": "yetersiz", "n": 0})
             if veli_konum_uygun(k):
                 st.markdown(yasit_karti_metni(k, ad))
