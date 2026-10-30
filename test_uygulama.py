@@ -4281,7 +4281,7 @@ def test_44a_veri_modulleri_yalniz_sabit(agac):
 # 45. Bölme Aşama 2: olcut/ paketinin katman sırası (döngüsel bağımlılık yok)
 # ════════════════════════════════════════════════════════════
 _OLCUT_KATMAN = ["ortak", "disa_aktarma", "tema", "esik", "katalog_islemleri", "gorseller.cizim", "gorseller.hareketler",
-                 "gorseller.sahneler", "norm", "analiz", "kayit", "kulup", "raporlar", "oneri", "karsilastirma", "bilesenler", "sayfalar"]
+                 "gorseller.sahneler", "norm", "analiz", "kayit", "kulup", "raporlar", "oneri", "karsilastirma", "kulup_raporu", "bilesenler", "sayfalar"]
 
 
 def _olcut_katmani(modul):
@@ -5249,3 +5249,98 @@ def test_51c_kulupler_arasi_tek_onayda_kapali(tmp_path, monkeypatch):
     at.session_state["sonuc_bolum"] = "Karşılaştırma"
     at.run()
     assert not at.exception and any("en az iki kulübün onayı gerekli (şu an 1)" in i.value for i in at.info)
+
+
+
+# ════════════════════════════════════════════════════════════
+# 52. Paket 38n-2: kulüp raporu
+# ════════════════════════════════════════════════════════════
+def _p38n2_tablolar(yas=10, n=8):
+    """n sporcu (yarısı kız), iki oturum; Durarak Uzun Atlama (normlu) ve BOT-2 diz üstü şınav (kıyas yok)."""
+    import pandas as _pd
+    sp, ts = [], []
+    for i in range(n):
+        ad = f"Cocuk{i}"
+        sp.append({"Ad": ad, "Soyad": "Kulup", "Yaş": yas, "Cinsiyet": "Kadın" if i % 2 else "Erkek"})
+        for oturum, tarih, ek in (("Ön Test", "15.09.2026", 0), ("Son Test", "25.10.2026", 3)):
+            ts.append({"Sporcu": f"{ad} Kulup", "Test": "Durarak Uzun Atlama", "Tarih": tarih, "Oturum": oturum,
+                       "Test Yaşı": yas, "Deneme 1 (cm)": 110 + 5 * i + ek})
+            ts.append({"Sporcu": f"{ad} Kulup", "Test": "Diz Üstü Şınav — 30 sn (BOT-2)", "Tarih": tarih,
+                       "Oturum": oturum, "Test Yaşı": yas, "Tekrar": 10 + i + ek})
+    df_sp, df = _pd.DataFrame(sp), _pd.DataFrame(ts)
+    df["Tarih_dt"] = _pd.to_datetime(df["Tarih"], format="%d.%m.%Y")
+    return df_sp, df
+
+
+def _kr_html(tmp_path, monkeypatch, yas=10, n=8, ek=False):
+    """oturumlar_arasi yaşı aktif çalışma alanının sporcular.xlsx'inden okur: test klasörü kulübün klasörü gibi."""
+    KR = _modul("olcut.kulup_raporu")
+    monkeypatch.chdir(tmp_path)
+    df_sp, df = _p38n2_tablolar(yas, n)
+    df_sp.to_excel(tmp_path / "sporcular.xlsx", index=False)
+    df.drop(columns="Tarih_dt").to_excel(tmp_path / "test_sonuclari.xlsx", index=False)
+    import datetime as _dt
+    return KR.kulup_raporu_html({"ad": "Arslan SK", "sehir": "Ankara"}, df_sp, df, sporcu_listesi=ek,
+                                bugun=_dt.date(2026, 10, 30))
+
+
+def test_52a_kulup_raporu_icerik_ve_isim_yok(tmp_path, monkeypatch):
+    """Başlık, tarih, sayı, yaş bandı × cinsiyet, oturumlar, test konumu, değişim; ek kapalıyken hiçbir ad yok; yüzdelik
+    yok; 11 yaş altında 'daha iyi/kötü' yok; normsuz testte konum yok; n ≥ 6'da Wilcoxon."""
+    h = _kr_html(tmp_path, monkeypatch)
+    for parca in ("Arslan SK — Kulüp raporu", "Rapor tarihi: 30.10.2026", "Kayıtlı sporcu: 8",
+                  "<td>9–11</td><td>4</td><td>4</td><td>0</td><td>8</td>", "<td>Ön Test</td><td>15.09.2026</td><td>8</td>",
+                  "Ön Test (15.09.2026) → Son Test (25.10.2026)", "<td>Durarak Uzun Atlama</td><td>8</td>",
+                  "8 (norm kıyası yok)", "p = ", "▲ arttı 8"):
+        assert parca in h, parca
+    assert "Cocuk" not in h and "Kulup</td>" not in h
+    assert "✓ daha iyi" not in h and "! daha kötü" not in h                 # 11 yaş altı: yön etiketi yok
+    assert not re.search(r"\bP\d{1,2}\b|persentil|yüzdelik dilim", h.split("</style>")[1])
+    satir = re.search(r"<td>Durarak Uzun Atlama</td><td>8</td><td>(\d+)</td><td>(\d+)</td><td>(\d+)</td><td>(\d+)</td>",
+                      h)
+    assert satir and sum(map(int, satir.groups())) == 8                      # altında + içinde + üstünde + yok = n
+
+
+def test_52b_kulup_raporu_kurallar_kucuk_n_yetiskin_ek(tmp_path, monkeypatch):
+    """n < 6: yalnız tanımlayıcı. Yetişkinde 'daha iyi' olabilir. Ek açık: ad, yaş, cinsiyet, oturum — değer yok."""
+    h = _kr_html(tmp_path, monkeypatch, n=4)
+    assert "n &lt; 6: yalnız tanımlayıcı" in h and "p = " not in h
+    (tmp_path / "y").mkdir()
+    hy = _kr_html(tmp_path / "y", monkeypatch, yas=24, n=8)
+    assert "✓ daha iyi 8" in hy
+    (tmp_path / "e").mkdir()
+    he = _kr_html(tmp_path / "e", monkeypatch, ek=True)
+    ek = he.split("Ek: Sporcu listesi")[1]
+    assert "<td>Cocuk0 Kulup</td><td>10</td><td>Erkek</td><td>Ön Test, Son Test</td>" in ek
+    assert not re.search(r"<td>1[1-9]\d</td>", ek)                            # atlama değerleri (110+) yok
+    assert "Cocuk" not in he.split("Ek: Sporcu listesi")[0]                  # ek dışında yine ad yok
+
+
+def test_52c_raporlar_sayfasinda_kulup_raporu_sekmesi(tmp_path, monkeypatch):
+    """Sekme yalnız kulüp seçiliyken; PDF adı Kulup_raporu_<Kulüp>_<GGAAYYYY>.pdf; ek kapalıyken PDF'e giren HTML'de ad yok,
+    açılınca var; başka kulübün sporcusu yok."""
+    D, R = _modul("olcut.disa_aktarma"), _modul("olcut.sayfalar.raporlar")
+    girdi = []
+    monkeypatch.setattr(R, "pdf_cevir", lambda html, c=None: (girdi.append(html), (b"%PDF-1.7 x\n%%EOF", "s"))[1])
+    R.rapor_pdf.clear()
+    R.kulup_raporu_onbellekli.clear()
+    kayit = _indirme_kaydi(monkeypatch)
+    at = _apptest(tmp_path, monkeypatch, _p38o_kulupler())
+    at.session_state["sayfa"] = "Raporlar"
+    at.run()
+    assert [t.label for t in at.tabs] == ["Veli raporu", "Antrenör raporu"]          # Genel: kulüp sekmesi yok
+    at.selectbox(key="calisma_alani_secici").select("arslan-sk").run()
+    at.session_state["sayfa"] = "Raporlar"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert [t.label for t in at.tabs] == ["Veli raporu", "Antrenör raporu", "Kulüp raporu"]
+    pdf = [k for k in kayit if k["anahtar"] == "kulup_indir_pdf"][-1]
+    assert pdf["ad"] == f"Kulup_raporu_Arslan_SK_{D.tarih_eki()}.pdf"
+    kr = next(h for h in reversed(girdi) if "Kulüp raporu" in h)
+    assert "Arslan SK — Kulüp raporu" in kr and "Kayıtlı sporcu: 15" in kr
+    assert "Arslan0" not in kr and "Poyraz" not in kr and "Gordion" not in kr
+    at.checkbox(key="kr_ek").check().run()
+    kr2 = next(h for h in reversed(girdi) if "Kulüp raporu" in h)
+    assert "Ek: Sporcu listesi" in kr2 and "Arslan0 Kulup" in kr2 and "Poyraz" not in kr2
+    R.rapor_pdf.clear()
+    R.kulup_raporu_onbellekli.clear()

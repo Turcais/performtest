@@ -4,13 +4,17 @@ Raporlar (veli ve antrenör raporu) ve Kaynakça sayfaları.
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """
 import os
+from datetime import date
 import pandas as pd
 import streamlit as st
 from veri.metinler import KAYNAKCA
 from olcut.analiz import rapor_verisi
-from olcut.bilesenler import baslik_ac, bolum_terimleri, coklu_secim
+from olcut.bilesenler import _dosya_zamani, baslik_ac, bolum_terimleri, coklu_secim
 from olcut.disa_aktarma import PDF_YAZDIRMA_ADIMLARI, guvenli_dosya_adi, pdf_cevir, tarih_eki
-from olcut.norm import SPORCU_DOSYA
+from olcut.katalog_islemleri import test_tablosu_duzelt
+from olcut.kulup import kulup_oku
+from olcut.kulup_raporu import kulup_raporu_html
+from olcut.norm import SPORCU_DOSYA, TEST_DOSYA
 from olcut.ortak import ad_bicimi, aktif_kulup, veri_yolu
 from olcut.raporlar import KAYNAKCA_DAYANAK, KAYNAKCA_SINIFLAR, antrenor_raporu_html, veli_raporu_html
 
@@ -21,12 +25,12 @@ def rapor_pdf(html_metin, calisma_alani=""):
     return pdf_cevir(html_metin)[0]
 
 
-def rapor_indirme(html_metin, tur, sporcu, onek):
+def rapor_indirme(html_metin, tur, sporcu, onek, ad_bicimle=True):
     """
     "PDF olarak indir" (tek tık); çevirici yoksa yazdırmaya hazır HTML + adım adım talimat. HTML her durumda
     indirilebilir. Dosya adı: <Tur>_raporu_<Ad_Soyad>_<GGAAYYYY>; PDF'e ekranda gösterilen HTML'in kendisi girer.
     """
-    ad = guvenli_dosya_adi(f"{tur}_raporu", ad_bicimi(sporcu), tarih_eki())
+    ad = guvenli_dosya_adi(f"{tur}_raporu", ad_bicimi(sporcu) if ad_bicimle else sporcu, tarih_eki())   # kulüp adı aynen
     with st.spinner("PDF hazırlanıyor…"):
         pdf = rapor_pdf(html_metin, aktif_kulup())        # Paket 38n: anahtarda çalışma alanı
     c1, c2 = st.columns(2)
@@ -38,6 +42,17 @@ def rapor_indirme(html_metin, tur, sporcu, onek):
                        type="secondary" if pdf else "primary", width="stretch")
     if not pdf:
         st.info(PDF_YAZDIRMA_ADIMLARI, icon=":material/print:")
+
+
+@st.cache_data(show_spinner=False, max_entries=8)
+def kulup_raporu_onbellekli(kod, zaman, ek, gun):
+    """Kulüp raporu HTML'i — anahtarda kulüp, dosya zamanları (yol dahil), ek seçeneği ve gün."""
+    df_sp = pd.read_excel(veri_yolu(SPORCU_DOSYA)) if os.path.exists(veri_yolu(SPORCU_DOSYA)) else pd.DataFrame()
+    df = pd.DataFrame()
+    if os.path.exists(veri_yolu(TEST_DOSYA)):
+        df = test_tablosu_duzelt(pd.read_excel(veri_yolu(TEST_DOSYA)))
+        df["Tarih_dt"] = pd.to_datetime(df["Tarih"], format="%d.%m.%Y", errors="coerce")
+    return kulup_raporu_html(kulup_oku(kod), df_sp, df, sporcu_listesi=ek)
 
 
 def raporlar_sayfasi():
@@ -65,7 +80,9 @@ def raporlar_sayfasi():
                        "\"belirlenemedi\" olarak yazılır. Sporcu Girişi sayfasından eklenebilir.")
         if not r_veri["ilgi"]:
             st.info("İlgi anketi doldurulmamış; raporların ilgi penceresi boş kalır. Anket Sporcu Girişi sayfasında.")
-        r1, r2 = st.tabs(["Veli raporu", "Antrenör raporu"])
+        kulup_kodu = aktif_kulup()                                     # Paket 38n-2: yalnız kulüp seçiliyken
+        sekmeler = st.tabs(["Veli raporu", "Antrenör raporu"] + (["Kulüp raporu"] if kulup_kodu else []))
+        r1, r2 = sekmeler[0], sekmeler[1]
         with r1:
             veli_html = veli_raporu_html(r_veri)
             rapor_indirme(veli_html, "Veli", r_sporcu, "veli_indir")
@@ -74,6 +91,15 @@ def raporlar_sayfasi():
             ant_html = antrenor_raporu_html(r_veri)
             rapor_indirme(ant_html, "Antrenor", r_sporcu, "ant_indir")
             rapor_goster(ant_html, 1400)
+        if kulup_kodu:
+            with sekmeler[2]:
+                bilgi = kulup_oku(kulup_kodu)
+                st.caption("Kulübün toplu durumu: hiçbir çocuğun adı ve tek tek değeri yok; sıralama ve yüzdelik yok.")
+                ek = st.checkbox("Sporcu listesini ek olarak ekle", key="kr_ek", value=False,
+                                 help="Yalnız ad, yaş, cinsiyet ve ölçüldüğü oturumlar; değer ve sıra yok.")
+                kr_html = kulup_raporu_onbellekli(kulup_kodu, _dosya_zamani(), ek, date.today().isoformat())
+                rapor_indirme(kr_html, "Kulup", bilgi["ad"], "kulup_indir", ad_bicimle=False)
+                rapor_goster(kr_html, 1500)
 
 
 def kaynakca_sayfasi():

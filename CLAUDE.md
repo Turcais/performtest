@@ -1,6 +1,6 @@
 # Ölçüt — devralma notu
 
-Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38o** (38n-2: kulüp raporu sırada) (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
+Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38n-2** (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
 Kullanıcı: Ertuğrul (spor bilimleri doktora öğrencisi, Gazi Üniversitesi). **Türkçe yazın, adım adım açıklayın.**
 Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `sporcular.xlsx`, `test_sonuclari.xlsx`, `ilgi_anketi.xlsx`, `ayarlar.json`, `oturum_taslagi.json`; uygulamanın ürettiği `.streamlit/config.toml` da girmez. Kulüpler (38n): `kulupler/<kod>/` altında aynı adlı dosyalar + `kulup.json` (aşağıda).
 
@@ -49,6 +49,7 @@ Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma** (`ol
 - Dosya yolu: **her okuma/yazma `ortak.veri_yolu(AD)`** (`SPORCU_DOSYA` vb. yalnız addır). Seçili kulüp `st.session_state["calisma_alani"]` (kod; "" = Genel); Streamlit dışında (test, araç) ve geçersiz kodda Genel. **`os.chdir` YASAK** (süreç geneli; oturumlar birbirinin klasörünü değiştirir). Yeni bir veri dosyası okuyan kod da `veri_yolu` kullanmalı; dosyaya bağlı önbellek anahtarına tam yol (ya da çalışma alanı) girmeli.
 - Seçici: üst menünün solunda "Çalışma alanı: <ad>" (`bilesenler.calisma_alani_secici`; yalnız en az bir kulüp varsa); yanında her zaman "+ Kulüp" (Kulüpler sayfası, "Yeni kulüp" formu açık). Üst satır Streamlit üst şeridinin (60 px) altında başlar (`.st-key-ust-menu` üst boşluğu). Değişince `calisma_alanina_gec`: oturumdaki bütün seçimler silinir, Ana Sayfa, `st.cache_data.clear()`. `calisma_alani_dogrula()` her çalıştırmada veri okumadan önce: silinmiş/arşivlenmiş kulüpte kalınmaz.
 - Kulüpler sayfası (`olcut/sayfalar/kulupler.py`, alt bilgide Hakkında'nın yanında; menüde değil): liste, yeni kulüp (kod otomatik; klasör + başlık satırlı boş xlsx), düzenle, arşivle/arşivden çıkar (silmez), bu kulübe geç. Kulüp yönetimi `olcut/kulup.py` (katman: `kayit`tan sonra). Silme ve Genel veriyi kulübe taşıma yok.
+- **Kulüp raporu** (38n-2; `olcut/kulup_raporu.py`, katman `karsilastirma`dan sonra): Raporlar'da üçüncü sekme, yalnız kulüp seçiliyken; PDF bugünkü yolla (A4), dosya `Kulup_raporu_<Kulüp adı aynen>_<GGAAYYYY>.pdf`. İçerik: kulüp adı, tarih, sporcu sayısı; yaş bandı × cinsiyet; oturumlar (ad, tarih, sporcu sayısı); test başına ölçülen sporcu ve konum dağılımı (aralığın altında / içinde / üstünde KAÇ sporcu — sporcu başına `sporcu_z_profili` → `veli_test_ozeti` → `veli_aralik_konumu`, veli raporuyla aynı yol); ilk ↔ son oturum değişimi (`oturumlar_arasi` + Wilcoxon n ≥ 6). Yeni hesap yok; yeni yalnız seçim kuralları (ilk/son oturum; çok değişkenli testte "En İyi", yoksa ilk). "Norm kıyası yok" = hiçbir sporcuda norm satırı oluşmadı (antrenör raporundaki normsuz tanımı); dayanıklılık ve vücut ölçüsü veli raporundaki gibi konuma girmez. Sporcu adı yok; "Sporcu listesini ek olarak ekle" (varsayılan kapalı): ad, yaş, cinsiyet, ölçüldüğü oturumlar — değer/sıra yok. Örnek: `Olcut_Demo\Kulup_raporu_Demo_Kulup_A_<tarih>.pdf`.
 - Yalıtım testi 50c/50d; demo (`Olcut_Demo`) bölünerek de denetlendi: A seçiliyken B'nin ve Genel'in sporcusu hiçbir ekranda yok.
 
 ## PDF ve dışa aktarma (Paket 38i)
@@ -73,7 +74,6 @@ Arayüz taslağı (Adım 1–4, Sıradaki kipi, Sonuçlar, Veli kartı): https:/
 
 ## Bekleyen işler
 Yeni test paketleri (FMS, antropometri, kendi hokey/ragbi protokolleri, kaleci testleri), pozisyon ve amaç alanı, norm genişletme (bacak presi, barfiks, şınav, mekik), kuvvet platformu içe aktarma (RFD/GRF). SQLite'a geçiş yok (xlsx yeterli).
-- **38n-2 kulüp raporu** (sıradaki; onaylandı): Raporlar'da üçüncü sekme (yalnız kulüp seçiliyken), PDF A4; kulüp adı, tarih, sporcu sayısı, yaş bandı (6–8, 9–11, 12–14, 15–17, 18+) × cinsiyet, oturumlar, test başına n ve normlu testte aralık dağılımı (isim yok), oturumlar arası değişim (n ≥ 6 kuralı); 11 yaş altı ve n < 20 kuralları; isteğe bağlı sporcu listesi eki (ad, yaş, cinsiyet, oturumlar; değer/sıra yok).
 - Genel veriyi bir kulübe taşıma. Kulüp silme (önce dışa aktarma).
 - (karar bekliyor) Karşılaştırma dışa aktarımında sporcu adı yerine kod seçeneği.
 - (karar bekliyor) Branş grubu eşleştirmesinde gruplar arası uzaklık farkları çok küçük: ayırt edilemezlik kuralı (ör. ilk iki grubun farkı eşiğin altındaysa "ayırt edilemedi").
