@@ -30,12 +30,19 @@ KARS_KUCUK_NOTU = ("11 yaş altı sporcu var: sıralama ve “daha iyi / daha k�
 KARS_YUZDELIK_YOK_NOTU = "Grupta 20'den az sporcu var: yüzdelik gösterilmez; ortalama ve aralık verilir."
 
 
-def sporcu_ozellikleri(sporcular):
-    """{sporcu: {"yas": int|None, "cinsiyet": str}} — sporcular.xlsx'ten (Ad + ' ' + Soyad), bir kez okunur."""
+def sporcu_ozellikleri(sporcular, df_sporcu=None):
+    """
+    {sporcu: {"yas": int|None, "cinsiyet": str}} — sporcular.xlsx'ten (Ad + ' ' + Soyad), bir kez okunur.
+    Paket 38o: df_sporcu verilirse o tablo kullanılır (kulüpler arası: her kulübün kendi tablosu).
+    """
     sonuc = {s: {"yas": None, "cinsiyet": ""} for s in sporcular}
-    if not sporcular or not os.path.exists(veri_yolu(SPORCU_DOSYA)):
+    if df_sporcu is None:
+        if not sporcular or not os.path.exists(veri_yolu(SPORCU_DOSYA)):
+            return sonuc
+        df_sporcu = pd.read_excel(veri_yolu(SPORCU_DOSYA))
+    if not sporcular or df_sporcu is None or df_sporcu.empty:
         return sonuc
-    df = pd.read_excel(veri_yolu(SPORCU_DOSYA))
+    df = df_sporcu.copy()
     if not {"Ad", "Soyad"} <= set(df.columns):
         return sonuc
     df["_ad"] = df["Ad"].astype(str) + " " + df["Soyad"].astype(str)
@@ -339,3 +346,53 @@ def csv_ile_istatistik(tablo, w):
     t = tablo.copy()
     t["p (Wilcoxon)"], t["Etki büyüklüğü r"] = w["p"], w["r"]
     return t
+
+
+# ── Kulüpler arası (Paket 38o): yalnız toplu değerler, onaylı kulüpler, hücre başına en az n ──
+KULUPLER_ARASI_EN_AZ_N = 10
+YAS_BANTLARI = ((6, 8), (9, 11), (12, 14), (15, 17), (18, None))
+KARS_KULUP_YETERSIZ = f"yetersiz (n < {KULUPLER_ARASI_EN_AZ_N})"
+
+
+def yas_bandi(yas):
+    """6–8, 9–11, 12–14, 15–17, 18+ (yaş yoksa ya da 6'dan küçükse None)."""
+    if yas is None:
+        return None
+    for alt, ust in YAS_BANTLARI:
+        if yas >= alt and (ust is None or yas < ust + 1):
+            return f"{alt}–{ust}" if ust else f"{alt}+"
+    return None
+
+
+_BANT_SIRASI = {(f"{a}–{u}" if u else f"{a}+"): i for i, (a, u) in enumerate(YAS_BANTLARI)}
+
+
+def kulupler_arasi(veriler, test, degisken, en_az_n=KULUPLER_ARASI_EN_AZ_N):
+    """
+    veriler: [(etiket, df_sporcu, df_test)] — etiket ekranda görünen ad ya da kod. Her kulüpte sporcu başına son ölçüm
+    (oturum_degerleri), yaş bandı × cinsiyet hücreleri, hücre özeti grup_ozeti ile. n < en_az_n ise değer yok
+    ("yetersiz"); en küçük / en büyük hiç verilmez (tek sporcunun değeridir); çeyrekler yalnız n ≥ 20. Sporcu adı
+    dönmez. Sıra: yaş bandı, cinsiyet, kulüp (verilen sırayla) — performansa göre sıralama yok.
+    Dönen: {"satirlar": [{Yaş bandı, Cinsiyet, Kulüp, n, Ortalama, P25, P75}], "birim": str}
+    """
+    satirlar = []
+    for sira, (etiket, df_sp, df_t) in enumerate(veriler):
+        deg = oturum_degerleri(df_t, test, degisken) if df_t is not None and not df_t.empty else {}
+        oz = sporcu_ozellikleri(list(deg), df_sp)
+        hucre = {}
+        for s, v in deg.items():
+            bant, cins = yas_bandi(oz[s]["yas"]), oz[s]["cinsiyet"]
+            if bant and cins in ("Erkek", "Kadın"):
+                hucre.setdefault((bant, cins), []).append(v)
+        for (bant, cins), vs in hucre.items():
+            g = grup_ozeti(vs)
+            yeter = g["n"] >= en_az_n
+            satirlar.append({"Yaş bandı": bant, "Cinsiyet": cins, "Kulüp": etiket, "n": g["n"],
+                             "Ortalama": round(g["ortalama"], 2) if yeter else None,
+                             "P25": round(g["p25"], 2) if yeter and g.get("p25") is not None else None,
+                             "P75": round(g["p75"], 2) if yeter and g.get("p75") is not None else None,
+                             "Not": "" if yeter else KARS_KULUP_YETERSIZ, "_sira": sira})
+    satirlar.sort(key=lambda r: (_BANT_SIRASI[r["Yaş bandı"]], r["Cinsiyet"], r["_sira"]))
+    for r in satirlar:
+        del r["_sira"]
+    return {"satirlar": satirlar, "birim": degisken_birimi(test, degisken)}

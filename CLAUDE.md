@@ -1,6 +1,6 @@
 # Ölçüt — devralma notu
 
-Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38n-1** (38n-2: kulüp raporu sırada) (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
+Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38o** (38n-2: kulüp raporu sırada) (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
 Kullanıcı: Ertuğrul (spor bilimleri doktora öğrencisi, Gazi Üniversitesi). **Türkçe yazın, adım adım açıklayın.**
 Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `sporcular.xlsx`, `test_sonuclari.xlsx`, `ilgi_anketi.xlsx`, `ayarlar.json`, `oturum_taslagi.json`; uygulamanın ürettiği `.streamlit/config.toml` da girmez. Kulüpler (38n): `kulupler/<kod>/` altında aynı adlı dosyalar + `kulup.json` (aşağıda).
 
@@ -31,10 +31,11 @@ Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `s
 - Erişilebilirlik: yazı ≥14 px, dokunma hedefi ≥44 px, kontrast ≥4.5:1, renk tek başına anlam taşımaz (simge + sözcük), varsayılan açık tema.
 - Test Oturumu / Test Uygula: ölçüm sırasında karşılaştırma gösterilmez; aykırı değerde engelleme değil uyarı (normlu: ≈P1–P99; normsuz: dünya rekoru ötesi ya da önceki ölçümün ×3 / ÷3'ü).
 
-## Sonuçlar ve Karşılaştırma (Paket 38g)
-Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma** (`olcut/sayfalar/karsilastirma.py`, hesap `olcut/karsilastirma.py`).
-- *Sporcular arası*: iki "Sporcu seç" sütunu (Grup A / B; onay kutusu, arama, Tümünü seç / Temizle; B boşsa yalnız A içinde), oturum süzgeci (varsayılan Tüm oturumlar), ortak testler, "Karşılaştır" (basılana kadar sonuç pasif; seçim değişince "sonuç eski"). Tablo (tarih, değer, birim) + grafik + grup ortalaması/aralığı; karışık yaş/cinsiyette uyarı ve isteğe bağlı Z.
+## Sonuçlar ve Karşılaştırma (Paket 38g, 38o)
+Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma** (`olcut/sayfalar/karsilastirma.py`, hesap `olcut/karsilastirma.py`). Sekmeler (38o): **Genel · Oturumlar arası · Kulüpler arası**.
+- *Genel* (eski adı Sporcular arası): iki "Sporcu seç" sütunu (Grup A / B; onay kutusu, arama, Tümünü seç / Temizle; B boşsa yalnız A içinde), oturum süzgeci (varsayılan Tüm oturumlar), ortak testler, "Karşılaştır" (basılana kadar sonuç pasif; seçim değişince "sonuç eski"). Tablo (tarih, değer, birim) + grafik + grup ortalaması/aralığı; karışık yaş/cinsiyette uyarı ve isteğe bağlı Z.
 - *Oturumlar arası*: iki "Oturum seç" sütunu (ad + tarih + sporcu sayısı); aynı sporcu için Önce / Sonra / Fark, yön testin yönünden (simge + sözcük); "İstatistik göster": n ≥ 6 Wilcoxon işaretli sıra + eşleştirilmiş sıra-iki serili r, n < 6 yalnız tanımlayıcı.
+- *Kulüpler arası* (38o): yalnız `karsilastirma_onayi` true ve arşivde olmayan kulüpler, en az iki; seçili kulüp onaysızsa kilitli (karşılıklılık). Seçili kulüp adıyla, ötekiler kod sırasıyla "Kulüp 1, 2…"; Genel çalışma alanında hepsi kodlu. Her kulüpte sporcu başına son ölçüm (`kayit.oturum_degerleri`), yaş bandı (6–8, 9–11, 12–14, 15–17, 18+) × cinsiyet hücresi, `grup_ozeti`: n ve ortalama yalnız n ≥ 10 (`KULUPLER_ARASI_EN_AZ_N`), çeyrekler yalnız n ≥ 20; en küçük/en büyük HİÇ yok (tek sporcunun değeri); sıra bant → cinsiyet → kulüp (başarıya göre değil); sporcu adı yok. Başka kulübün verisi yalnız `kulup.kulup_verisi(kod)` ile okunur (yalıtımın bilinçli tek istisnası).
 - Eski "Kapsam" radio'su kalktı; mantığı (`kayit.oturum_degerleri`, `oturumlar_arasi_fark`) yeni ekranın altında kullanılır.
 
 ## Gezinme, Hakkında, alt bilgi (Paket 38k)
@@ -73,7 +74,6 @@ Arayüz taslağı (Adım 1–4, Sıradaki kipi, Sonuçlar, Veli kartı): https:/
 ## Bekleyen işler
 Yeni test paketleri (FMS, antropometri, kendi hokey/ragbi protokolleri, kaleci testleri), pozisyon ve amaç alanı, norm genişletme (bacak presi, barfiks, şınav, mekik), kuvvet platformu içe aktarma (RFD/GRF). SQLite'a geçiş yok (xlsx yeterli).
 - **38n-2 kulüp raporu** (sıradaki; onaylandı): Raporlar'da üçüncü sekme (yalnız kulüp seçiliyken), PDF A4; kulüp adı, tarih, sporcu sayısı, yaş bandı (6–8, 9–11, 12–14, 15–17, 18+) × cinsiyet, oturumlar, test başına n ve normlu testte aralık dağılımı (isim yok), oturumlar arası değişim (n ≥ 6 kuralı); 11 yaş altı ve n < 20 kuralları; isteğe bağlı sporcu listesi eki (ad, yaş, cinsiyet, oturumlar; değer/sıra yok).
-- 38o kulüpler arası karşılaştırma: yalnız toplu değerler, hücre başına en az n, yalnız `karsilastirma_onayi` true kulüpler.
 - Genel veriyi bir kulübe taşıma. Kulüp silme (önce dışa aktarma).
 - (karar bekliyor) Karşılaştırma dışa aktarımında sporcu adı yerine kod seçeneği.
 - (karar bekliyor) Branş grubu eşleştirmesinde gruplar arası uzaklık farkları çok küçük: ayırt edilemezlik kuralı (ör. ilk iki grubun farkı eşiğin altındaysa "ayırt edilemedi").

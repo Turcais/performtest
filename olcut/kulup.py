@@ -11,6 +11,7 @@ import unicodedata
 from datetime import date
 import pandas as pd
 from olcut.analiz import ANTRENMAN_KOLON, ANTRENMAN_TARIH_KOLON, ILGI_DOSYA
+from olcut.katalog_islemleri import test_tablosu_duzelt
 from olcut.kayit import GRUP_KOLON
 from olcut.norm import META_KOLONLAR, SPORCU_DOSYA, TEST_DOSYA
 from olcut.ortak import DOGUM_KOLON, KULUP_KLASORU, KULUP_KODU_KALIBI, kulup_klasoru
@@ -114,3 +115,23 @@ def calisma_alani_adi(kod):
 
 def bugun_metni():
     return date.today().strftime("%d.%m.%Y")
+
+
+def kulup_verisi(kod):
+    """
+    Paket 38o — yalıtımın BİLİNÇLİ istisnası, yalnız kulüpler arası karşılaştırma için: kulübün sporcu ve sonuç
+    tablosu (veri_yolu değil, kulübün kendi klasörü). Çağıran yalnız toplu değer gösterir. Döner: (df_sporcu, df_test).
+    """
+    def oku(ad):
+        yol = os.path.join(kulup_klasoru(kod), ad)
+        try:
+            return pd.read_excel(yol) if os.path.exists(yol) else pd.DataFrame()
+        except Exception:
+            return pd.DataFrame()
+    df_t = oku(TEST_DOSYA)
+    return oku(SPORCU_DOSYA), (test_tablosu_duzelt(df_t) if not df_t.empty else df_t)
+
+
+def karsilastirma_katilimcilari():
+    """Kulüpler arası karşılaştırmaya onay vermiş, arşivde olmayan kulüpler {kod: bilgi}."""
+    return {k: b for k, b in kulupler().items() if b["karsilastirma_onayi"]}

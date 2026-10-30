@@ -4355,7 +4355,7 @@ def test_46a_karsilastirma_ekrani_sekmeler_ve_pasif(tmp_path, monkeypatch):
     at.session_state["sonuc_bolum"] = "Karşılaştırma"
     at.run()
     assert not at.exception, [e.value for e in at.exception]
-    assert [t.label for t in at.tabs] == ["Sporcular arası", "Oturumlar arası"]
+    assert [t.label for t in at.tabs] == ["Genel", "Oturumlar arası", "Kulüpler arası"]   # 38o: Genel = sporcular arası
     assert not [r for r in at.radio if r.label == "Kapsam"]
     assert any("Önce sporcuları seçip Karşılaştır'a basın." in m.value for m in at.markdown)
     assert not at.dataframe
@@ -5152,3 +5152,100 @@ def test_50g_ust_satirda_kulup_ekle(tmp_path, monkeypatch):
     assert not at.exception and at.session_state["sayfa"] == "Kulüpler"
     assert [e for e in _acilirlar(at) if e.label == "Yeni kulüp" and e.proto.expanded]
     assert "kl_yeni_ac" not in at.session_state                       # bir kez açar
+
+
+
+# ════════════════════════════════════════════════════════════
+# 51. Paket 38o: Karşılaştırma sekmeleri (Genel · Oturumlar arası · Kulüpler arası)
+# ════════════════════════════════════════════════════════════
+def _p38o_kulup_tablolari(ad_on, n_kiz, n_erkek, yas, atlama0):
+    """n_kiz kız + n_erkek erkek, hepsi aynı yaşta; Durarak Uzun Atlama bir oturumda. Adlar '<ad_on><i> Kulup'."""
+    import pandas as _pd
+    sp, ts = [], []
+    for i in range(n_kiz + n_erkek):
+        cins = "Kadın" if i < n_kiz else "Erkek"
+        sp.append({"Ad": f"{ad_on}{i}", "Soyad": "Kulup", "Yaş": yas, "Cinsiyet": cins})
+        ts.append({"Sporcu": f"{ad_on}{i} Kulup", "Test": "Durarak Uzun Atlama", "Tarih": "01.10.2026",
+                   "Oturum": "S1", "Deneme 1 (cm)": atlama0 + i})
+    return _pd.DataFrame(sp), _pd.DataFrame(ts)
+
+
+def _p38o_kulupler(onay_a=True, onay_b=True, onay_c=False):
+    def hazirla(d):
+        K = _modul("olcut.kulup")
+        _p38g_veri(d)
+        for ad, on, onay, kiz, erkek in (("Arslan SK", "Arslan", onay_a, 12, 3), ("Poyraz Karate", "Poyraz", onay_b, 11, 0),
+                                         ("Gordion Buz", "Gordion", onay_c, 12, 0)):
+            kod = K.kulup_olustur({"ad": ad, "karsilastirma_onayi": onay})
+            sp, ts = _p38o_kulup_tablolari(on, kiz, erkek, 10, 120)
+            sp.to_excel(d / "kulupler" / kod / "sporcular.xlsx", index=False)
+            ts.to_excel(d / "kulupler" / kod / "test_sonuclari.xlsx", index=False)
+    return hazirla
+
+
+def test_51a_kulupler_arasi_hesap_kurallari():
+    """Hücre: yaş bandı × cinsiyet; n < 10 değer yok; en küçük/en büyük yok; çeyrek yalnız n ≥ 20; sporcu adı yok;
+    sıra bant → cinsiyet → verilen kulüp sırası (başarıya göre değil)."""
+    K = _modul("olcut.karsilastirma")
+    assert [K.yas_bandi(y) for y in (5, 6, 8.9, 9, 11, 11.5, 12, 17, 18, 40, None)] == \
+        [None, "6–8", "6–8", "9–11", "9–11", "9–11", "12–14", "15–17", "18+", "18+", None]
+    sp_a, ts_a = _p38o_kulup_tablolari("A", 12, 3, 10, 100)     # kız 12 (gösterilir), erkek 3 (yetersiz)
+    sp_b, ts_b = _p38o_kulup_tablolari("B", 25, 0, 13, 150)     # 12–14 kız 25 → çeyrekler de
+    r = K.kulupler_arasi([("Arslan SK", sp_a, ts_a), ("Kulüp 1", sp_b, ts_b)], "Durarak Uzun Atlama",
+                         "Deneme 1 (cm)")
+    s = {(x["Kulüp"], x["Cinsiyet"]): x for x in r["satirlar"]}
+    assert [(x["Yaş bandı"], x["Cinsiyet"], x["Kulüp"]) for x in r["satirlar"]] == [
+        ("9–11", "Erkek", "Arslan SK"), ("9–11", "Kadın", "Arslan SK"), ("12–14", "Kadın", "Kulüp 1")]
+    kiz = s[("Arslan SK", "Kadın")]
+    assert kiz["n"] == 12 and kiz["Ortalama"] == round(sum(range(100, 112)) / 12, 2) and kiz["P25"] is None
+    erkek = s[("Arslan SK", "Erkek")]
+    assert erkek["n"] == 3 and erkek["Ortalama"] is None and erkek["Not"].startswith("yetersiz")
+    assert s[("Kulüp 1", "Kadın")]["P25"] is not None and s[("Kulüp 1", "Kadın")]["n"] == 25
+    assert all(not ({"En küçük", "En büyük", "Sporcu"} & set(x)) for x in r["satirlar"])
+    assert "Kulup" not in repr(r) and "A0" not in repr(r)
+
+
+def test_51b_karsilastirma_sekmeleri_ve_kulupler_arasi(tmp_path, monkeypatch):
+    """
+    Sekmeler: Genel · Oturumlar arası · Kulüpler arası. Kulüpler arası: yalnız onaylı kulüpler; seçili kulüp adıyla,
+    öteki kodlu ('Kulüp 1'); onaysız kulüp seçiliyken kilitli; Genel'de hepsi kodlu; sonuçta sporcu adı yok.
+    """
+    at = _apptest(tmp_path, monkeypatch, _p38o_kulupler())
+    at.selectbox(key="calisma_alani_secici").select("arslan-sk").run()
+    at.session_state["sayfa"] = "Sonuçları Görüntüle"
+    at.session_state["sonuc_bolum"] = "Karşılaştırma"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert [t.label for t in at.tabs] == ["Genel", "Oturumlar arası", "Kulüpler arası"]
+    assert any("Katılan kulüpler: Arslan SK, Kulüp 1" in c.value for c in at.caption)
+    assert not any("Gordion" in c.value or "Poyraz" in c.value for c in at.caption)
+    at.button(key="kka_karsilastir").click().run()
+    tablo = at.dataframe[-1].value
+    assert set(tablo["Kulüp"]) == {"Arslan SK", "Kulüp 1"} and "Sporcu" not in tablo.columns
+    kiz = tablo[(tablo["Kulüp"] == "Arslan SK") & (tablo["Cinsiyet"] == "Kadın")].iloc[0]
+    assert kiz["n"] == 12 and abs(kiz["Ortalama"] - 125.5) < 1e-9
+    assert tablo[(tablo["Kulüp"] == "Kulüp 1")].iloc[0]["n"] == 11
+    sonuc = _agac_metni(at)
+    assert "Poyraz0" not in sonuc and "Gordion0" not in sonuc               # başka kulübün sporcusu hiçbir yerde yok
+    assert not ({"Poyraz Karate", "Gordion Buz"} & set(tablo["Kulüp"]))     # başka kulübün adı karşılaştırmada yok
+    # Genel çalışma alanı: hepsi kodlu
+    at.selectbox(key="calisma_alani_secici").select("").run()
+    at.session_state["sayfa"] = "Sonuçları Görüntüle"
+    at.session_state["sonuc_bolum"] = "Karşılaştırma"
+    at.run()
+    assert any("Katılan kulüpler: Kulüp 1, Kulüp 2" in c.value for c in at.caption)
+    # onaysız kulüp: kilitli
+    at.selectbox(key="calisma_alani_secici").select("gordion-buz").run()
+    at.session_state["sayfa"] = "Sonuçları Görüntüle"
+    at.session_state["sonuc_bolum"] = "Karşılaştırma"
+    at.run()
+    assert any("onay vermemiş" in i.value for i in at.info) and not [b for b in at.button if b.key == "kka_karsilastir"]
+
+
+def test_51c_kulupler_arasi_tek_onayda_kapali(tmp_path, monkeypatch):
+    """İkiden az onaylı kulüp: karşılaştırma yok, açıklama var."""
+    at = _apptest(tmp_path, monkeypatch, _p38o_kulupler(onay_b=False))
+    at.session_state["sayfa"] = "Sonuçları Görüntüle"
+    at.session_state["sonuc_bolum"] = "Karşılaştırma"
+    at.run()
+    assert not at.exception and any("en az iki kulübün onayı gerekli (şu an 1)" in i.value for i in at.info)

@@ -13,10 +13,11 @@ from olcut.karsilastirma import (
     KARS_ISTATISTIK_EN_AZ_N, KARS_KARISIK_UYARI, KARS_KUCUK_NOTU, KARS_YUZDELIK_YOK_NOTU, csv_ile_istatistik, etki_metni,
     grup_ozeti_disa, istatistik_disa, karisik_mi, ortak_testler, oturum_adlari, oturum_etiketleri, oturum_testleri,
     oturumlar_arasi, oturumlar_arasi_disa, sayisal_degiskenler, sporcu_ozellikleri, sporcular_arasi,
-    sporcular_arasi_disa, wilcoxon_isaretli_sira)
+    sporcular_arasi_disa, wilcoxon_isaretli_sira, KULUPLER_ARASI_EN_AZ_N, kulupler_arasi)
+from olcut.kulup import karsilastirma_katilimcilari, kulup_verisi
 from olcut.katalog_islemleri import ara_katla, test_tablosu_duzelt
 from olcut.norm import TEST_DOSYA
-from olcut.ortak import ad_bicimi, veri_yolu
+from olcut.ortak import ad_bicimi, aktif_kulup, veri_yolu
 from olcut.tema import grafik_duzeni, grafik_renk
 
 KARS_PASIF_IPUCU = "Önce sporcuları seçip Karşılaştır'a basın."
@@ -293,16 +294,88 @@ def _oturumlar_arasi_sonuc(df, p):
                       "oturumlar", "koa_indir")
 
 
-def karsilastirma_sayfasi():
-    """Sonuçlar → Karşılaştırma bölümü: Sporcular arası / Oturumlar arası sekmeleri."""
-    st.header("Karşılaştırma")
-    if not os.path.exists(veri_yolu(TEST_DOSYA)):
-        st.info("Kaydedilmiş test sonucu yok.")
+# ── Kulüpler arası (Paket 38o) ──
+KARS_KULUP_ACIKLAMA = (f"Yalnız toplu değerler: her kulüpte sporcu başına son ölçüm, yaş bandı × cinsiyet hücresinde "
+                       f"sporcu sayısı ve ortalama. {KULUPLER_ARASI_EN_AZ_N}'dan az sporcu olan hücrede değer "
+                       "gösterilmez; en küçük ve en büyük değer hiç gösterilmez (tek bir sporcunun değeridir); çeyrekler "
+                       "yalnız 20 ve üstü sporcuda. Satırlar kulübe göre dizilir, başarıya göre sıralanmaz. Sporcu adı "
+                       "yoktur; yalnız kulüp bilgilerinde karşılaştırmaya onay vermiş kulüpler katılır.")
+KARS_KULUP_PASIF = "Test ve değişkeni seçip Karşılaştır'a basın."
+
+
+def kulup_etiketleri(katilan, aktif):
+    """Seçili kulüp adıyla, ötekiler kod sırasıyla 'Kulüp 1, 2…' (başka kulübün adı görünmez)."""
+    etiket, i = {}, 1
+    if aktif in katilan:
+        etiket[aktif] = katilan[aktif]["ad"]
+    for kod in sorted(katilan):
+        if kod != aktif:
+            etiket[kod], i = f"Kulüp {i}", i + 1
+    return etiket
+
+
+def _kulupler_arasi():
+    st.caption(KARS_KULUP_ACIKLAMA)
+    katilan, aktif = karsilastirma_katilimcilari(), aktif_kulup()
+    if aktif and aktif not in katilan:
+        st.info("Bu kulüp kulüpler arası karşılaştırmaya onay vermemiş; ötekilerin değerleri de gösterilmez. Onay, "
+                "Kulüpler sayfasında kulüp bilgilerinden verilir.", icon=":material/lock:")
         return
-    df = test_tablosu_duzelt(pd.read_excel(veri_yolu(TEST_DOSYA)))
-    df["Tarih_dt"] = pd.to_datetime(df["Tarih"], format="%d.%m.%Y", errors="coerce")
-    s1, s2 = st.tabs(["Sporcular arası", "Oturumlar arası"])
-    with s1:
-        _sporcular_arasi(df)
-    with s2:
-        _oturumlar_arasi(df)
+    if len(katilan) < 2:
+        st.info(f"Kulüpler arası karşılaştırma için en az iki kulübün onayı gerekli (şu an {len(katilan)}). Onay, "
+                "Kulüpler sayfasında kulüp bilgilerinden verilir.", icon=":material/info:")
+        return
+    etiket = kulup_etiketleri(katilan, aktif)
+    veriler = [(etiket[k], *kulup_verisi(k)) for k in etiket]
+    sayim = {}
+    for _, _, df_t in veriler:
+        for t in (set(df_t["Test"].dropna().astype(str)) if not df_t.empty and "Test" in df_t.columns else set()):
+            sayim[t] = sayim.get(t, 0) + 1
+    testler = sorted(t for t, n in sayim.items() if n >= 2)
+    if not testler:
+        st.info("Onaylı kulüplerin en az ikisinde ölçülmüş ortak bir test yok.")
+        return
+    st.caption("Katılan kulüpler: " + ", ".join(etiket.values()))
+    tum = pd.concat([d for _, _, d in veriler if not d.empty], ignore_index=True)
+    t1, t2 = st.columns(2)
+    test = t1.selectbox("Test (en az iki kulüpte ölçülen)", testler, key="kka_test")
+    degiskenler = sayisal_degiskenler(tum, test)
+    degisken = t2.selectbox("Değişken", degiskenler or ["—"], key="kka_degisken", disabled=not degiskenler)
+    parametre = {"test": test, "degisken": degisken, "kulupler": tuple(etiket)}
+    st.button("Karşılaştır", type="primary", key="kka_karsilastir", disabled=not degiskenler, on_click=_sakla,
+              args=("kka::sonuc", parametre))
+    saklanan, eski = _durum("kka::sonuc", parametre)
+    with st.container(border=True, key="kars-sonuc-kka"):
+        if saklanan is None:
+            _pasif(KARS_KULUP_PASIF)
+            return
+        if eski:
+            st.info(KARS_ESKI_NOTU, icon=":material/history:")
+        r = kulupler_arasi(veriler, saklanan["test"], saklanan["degisken"])
+        st.markdown(f"**{saklanan['test']} — {saklanan['degisken']}**" + (f" ({r['birim']})" if r["birim"] else ""))
+        if not r["satirlar"]:
+            st.info("Bu değişkende yaşı ve cinsiyeti bilinen ölçüm yok.")
+            return
+        st.dataframe(pd.DataFrame(r["satirlar"]), hide_index=True, width="stretch",
+                     column_config={"Ortalama": st.column_config.NumberColumn("Ortalama", format="%.2f"),
+                                    "P25": st.column_config.NumberColumn("P25", format="%.2f"),
+                                    "P75": st.column_config.NumberColumn("P75", format="%.2f")})
+
+
+def karsilastirma_sayfasi():
+    """Sonuçlar → Karşılaştırma bölümü: Genel (sporcular arası) / Oturumlar arası / Kulüpler arası (38o)."""
+    st.header("Karşılaştırma")
+    df = None
+    if os.path.exists(veri_yolu(TEST_DOSYA)):
+        df = test_tablosu_duzelt(pd.read_excel(veri_yolu(TEST_DOSYA)))
+        df["Tarih_dt"] = pd.to_datetime(df["Tarih"], format="%d.%m.%Y", errors="coerce")
+    s1, s2, s3 = st.tabs(["Genel", "Oturumlar arası", "Kulüpler arası"])
+    veri_var = df is not None and not df.empty
+    for sekme, ciz in ((s1, _sporcular_arasi), (s2, _oturumlar_arasi)):
+        with sekme:
+            if veri_var:
+                ciz(df)
+            else:
+                st.info("Kaydedilmiş test sonucu yok.")
+    with s3:
+        _kulupler_arasi()
