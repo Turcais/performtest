@@ -13,16 +13,17 @@ Kurallar: sporcu adı yok (isteğe bağlı ek hariç: ad, yaş, cinsiyet, oturum
 yüzdelik yok; normsuz testte norm kıyası yok.
 """
 import collections
+import re
 from datetime import date
 import pandas as pd
-from olcut.analiz import RAPOR_CSS
+from olcut.analiz import RAPOR_CSS, _sonuc_degiskenleri, ana_sonuc_tanimi
 from olcut.karsilastirma import (
-    KARS_ISTATISTIK_EN_AZ_N, KARS_YON_ISARETI, YAS_BANTLARI, _oturum_adi, etki_metni, oturum_testleri, oturumlar_arasi,
-    sayisal_degiskenler, sporcu_ozellikleri, wilcoxon_isaretli_sira, yas_bandi)
-from olcut.katalog_islemleri import kanonik_test
+    KARS_ISTATISTIK_EN_AZ_N, KARS_YON_ISARETI, YAS_BANTLARI, _oturum_adi, degisen_yetersiz_metni, etki_metni,
+    olcum_yasi, oturum_testleri, oturumlar_arasi, p_metni, sporcu_ozellikleri, wilcoxon_isaretli_sira, yas_bandi)
+from olcut.katalog_islemleri import kanonik_test, test_niteligi
 from olcut.kayit import oturum_secenekleri
-from olcut.norm import sporcu_z_profili
-from olcut.ortak import _e, _sayi, ad_bicimi
+from olcut.norm import degisken_yonu, ktk3_toplamlari, sporcu_z_profili
+from olcut.ortak import _e, ad_bicimi
 from olcut.raporlar import VELI_GRUPLARI, veli_aralik_konumu, veli_test_ozeti
 from olcut.tema import kimlik_html
 
@@ -36,10 +37,13 @@ KULUP_RAPOR_KONUM_NOTU = (
     "olmayan test (“norm kıyası yok”), sporcunun yaşı normun kapsamı dışında, ya da veli raporundaki gibi dayanıklılık (uzun koşu) ve vücut "
     "ölçüsü testleri. Yüzdelik kullanılmaz; sporcular sıralanmaz.")
 KULUP_RAPOR_DEGISIM_NOTU = (
-    f"İlk ve son oturumda ölçülen aynı sporcular karşılaştırılır (fark = son − ilk). 11 yaş altında yalnız "
-    f"“arttı / azaldı” yazılır. {KARS_ISTATISTIK_EN_AZ_N}'dan az sporcuda istatistik testi yapılmaz, yalnız "
-    f"tanımlayıcı değer verilir. Birden çok değişkeni olan testte “En İyi” adlı değişken, yoksa ilk sayısal "
-    f"değişken alınır.")
+    f"İlk ve son oturumda ölçülen aynı sporcular karşılaştırılır (fark = son − ilk). 11 yaş altında (son ölçüm "
+    f"günündeki yaşla) yalnız “arttı / azaldı” yazılır. Değeri değişen sporcu {KARS_ISTATISTIK_EN_AZ_N}'dan azsa "
+    f"istatistik testi yapılmaz, yalnız tanımlayıcı değer verilir. Her testte uygulamanın ana sonucu kullanılır: KTK "
+    f"toplamı, “En İyi” değer ya da denemelerin en iyisi. Vücut ölçülerinde (boy, kilo, oturma yüksekliği, kulaç) "
+    f"istatistik testi yapılmaz, yalnız ortalama fark verilir.")
+KULUP_RAPOR_COK_BILESENLI = "Çok bileşenli testler (ör. {ornek}) bu özete girmez."
+KULUP_RAPOR_VUCUT = "vücut ölçüsü: istatistik testi yok"
 CINSIYETLER = ("Kadın", "Erkek")
 
 
@@ -56,13 +60,22 @@ def _sporcu_adlari(df_sp):
     return sorted(dict.fromkeys(d["Ad"].astype(str) + " " + d["Soyad"].astype(str)))
 
 
-def yas_cinsiyet_dagilimi(df_sp):
+def _virgul(x, ondalik=2):
+    return f"{float(x):.{ondalik}f}".replace(".", ",")
+
+
+def bugunku_yas(oz, bugun=None):
+    """Paket 38p: kulüp raporunun yaş tablosu — doğum tarihinden bugünkü yaş; yoksa profil yaşı."""
+    return olcum_yasi(oz, None, (bugun or date.today()).strftime("%d.%m.%Y"))
+
+
+def yas_cinsiyet_dagilimi(df_sp, bugun=None):
     """[(bant, kadın, erkek, belirtilmemiş, toplam)] + toplam satırı; yaşı yoksa / 6'dan küçükse 'Bilinmiyor'."""
     adlar = _sporcu_adlari(df_sp)
     oz = sporcu_ozellikleri(adlar, df_sp)
     sayim = collections.Counter()
     for s in adlar:
-        bant = yas_bandi(oz[s]["yas"]) or "Bilinmiyor"
+        bant = yas_bandi(bugunku_yas(oz[s], bugun)) or "Bilinmiyor"
         cins = oz[s]["cinsiyet"] if oz[s]["cinsiyet"] in CINSIYETLER else "Belirtilmemiş"
         sayim[(bant, cins)] += 1
     bantlar = [f"{a}–{u}" if u else f"{a}+" for a, u in YAS_BANTLARI] + ["Bilinmiyor"]
@@ -118,34 +131,66 @@ def test_konum_dagilimi(df):
     return sonuc
 
 
-def _ana_degisken(df, test):
-    ds = sayisal_degiskenler(df, test)
-    return next((d for d in ds if "En İyi" in d), ds[0] if ds else None)
+def ana_sonuc(df, test):
+    """
+    Testin ana sonucu (uygulamanın kuralı): KTK toplamı (ktk3_toplamlari) varsa o; yoksa ana_sonuc_tanimi — "En İyi"
+    değişkeni, denemelerin en iyisi (testin yönüne göre) ya da tek değişken. Döner: (testin kayıtları — ana sonuç bir
+    sütunda, sütun adı, ekranda etiket) ya da çok bileşenliyse None.
+    """
+    g = df[df["Test"].map(kanonik_test) == kanonik_test(test)].copy()
+    if g.empty:
+        return None
+    toplam = {}
+    for i, r in g.iterrows():
+        for k, v in ktk3_toplamlari(kanonik_test(test), r.to_dict()).items():
+            toplam.setdefault(k, {})[i] = v
+    if toplam:
+        k = next(iter(toplam))
+        mevcut = pd.to_numeric(g[k], errors="coerce") if k in g.columns else pd.Series(index=g.index, dtype=float)
+        g[k] = mevcut.where(mevcut.notna(), pd.Series(toplam[k]))
+        return g, k, k
+    tanim = ana_sonuc_tanimi(test, _sonuc_degiskenleri(g))
+    if tanim is None:
+        return None
+    tur, d = tanim
+    if tur == "deneme":
+        sayilar = g[d].apply(pd.to_numeric, errors="coerce")
+        g[d[0]] = sayilar.min(axis=1) if degisken_yonu(test, d[0]) is True else sayilar.max(axis=1)
+        return g, d[0], re.sub(r"^Deneme \d+", "En iyi deneme", d[0])
+    return g, d, d
 
 
 def oturumlar_arasi_ozeti(df, oturumlar):
-    """İlk ↔ son oturum, her ortak test: n, yön sayıları, ortalama fark, Wilcoxon (n ≥ 6)."""
+    """
+    İlk ↔ son oturum, her ortak test (ana sonuç): n, yön sayıları, ortalama fark, Wilcoxon (değişen ≥ 6; vücut
+    ölçüsünde yok). Döner: (ilk, son), satırlar, çok bileşenli olduğu için çıkarılan testler.
+    """
     if len(oturumlar) < 2:
-        return None, []
+        return None, [], []
     ilk, son = oturumlar[0], oturumlar[-1]
-    satir = []
+    satir, disarida = [], []
     for test in oturum_testleri(df, [ilk[4]], [son[4]]):
-        deg = _ana_degisken(df, test)
-        if not deg:
+        a = ana_sonuc(df, test)
+        if a is None:
+            disarida.append(test)
             continue
-        r = oturumlar_arasi(df, test, deg, [ilk[4]], [son[4]])
+        g, deg, etiket = a
+        r = oturumlar_arasi(g, test, deg, [ilk[4]], [son[4]])
         if not r["satirlar"]:
             continue
         farklar = [x["Fark"] for x in r["satirlar"]]
         yon = collections.Counter(x["Yorum"] for x in r["satirlar"])
         yon_metni = " · ".join(f"{KARS_YON_ISARETI[y]} {y} {yon[y]}" for y in
                                ("daha iyi", "daha kötü", "arttı", "azaldı", "değişmedi") if yon[y])
-        w = wilcoxon_isaretli_sira(farklar)
-        ist = (f"n < {KARS_ISTATISTIK_EN_AZ_N}: yalnız tanımlayıcı" if w.get("yetersiz") else
-               f"p = {_sayi(w['p'], 3)}, r = {_sayi(w['r'])} ({etki_metni(w['r'])})")
-        satir.append((test, deg, len(farklar), yon_metni,
-                      f"{_sayi(sum(farklar) / len(farklar))} {r['birim']}".strip(), ist))
-    return (ilk, son), satir
+        if test_niteligi(test) == "antropometri":
+            ist = KULUP_RAPOR_VUCUT
+        else:
+            w = wilcoxon_isaretli_sira(farklar)
+            ist = (degisen_yetersiz_metni(w) if w.get("yetersiz") else
+                   f"{p_metni(w['p'])}, r = {_virgul(w['r'])} ({etki_metni(w['r'])})")
+        satir.append((test, etiket, len(farklar), yon_metni,
+                      f"{_virgul(sum(farklar) / len(farklar))} {r['birim']}".strip(), ist))
+    return (ilk, son), satir, disarida
 
 
 def kulup_raporu_html(bilgi, df_sp, df, sporcu_listesi=False, bugun=None):
@@ -165,7 +210,7 @@ def kulup_raporu_html(bilgi, df_sp, df, sporcu_listesi=False, bugun=None):
          + (f" · Branşlar: {_e(', '.join(bilgi.get('branslar') or []))}" if bilgi.get("branslar") else "") + "</div>",
          f"<p>{_e(KULUP_RAPOR_ACIKLAMA)}</p>"]
 
-    satir, toplam = yas_cinsiyet_dagilimi(df_sp)
+    satir, toplam = yas_cinsiyet_dagilimi(df_sp, bugun)
     p.append("<h2>Sporcular: yaş bandı ve cinsiyet</h2>")
     p.append(_tablo(["Yaş bandı", "Kadın", "Erkek", "Belirtilmemiş", "Toplam"], satir + [toplam]) if satir
              else "<p>Kayıtlı sporcu yok.</p>")
@@ -187,11 +232,13 @@ def kulup_raporu_html(bilgi, df_sp, df, sporcu_listesi=False, bugun=None):
     else:
         p.append("<p>Kayıtlı test sonucu yok.</p>")
 
-    cift, degisim = oturumlar_arasi_ozeti(df, oturumlar)
+    cift, degisim, cok_bilesenli = oturumlar_arasi_ozeti(df, oturumlar)
     p.append("<h2>Oturumlar arası değişim</h2>")
     if cift and degisim:
         p.append(f"<p>{_e(cift[0][0])} ({_e(cift[0][1])}) → {_e(cift[1][0])} ({_e(cift[1][1])})</p>")
         p.append(_tablo(["Test", "Değişken", "n", "Yön", "Ortalama fark", "İstatistik (Wilcoxon)"], degisim))
+        if cok_bilesenli:
+            p.append(f'<p class="kucuk">{_e(KULUP_RAPOR_COK_BILESENLI.format(ornek=", ".join(cok_bilesenli[:3])))}</p>')
         p.append(f'<p class="kucuk">{_e(KULUP_RAPOR_DEGISIM_NOTU)}</p>')
     else:
         p.append("<p>Karşılaştırmak için aynı sporcuların ölçüldüğü en az iki oturum gerekli.</p>")
@@ -206,7 +253,8 @@ def kulup_raporu_html(bilgi, df_sp, df, sporcu_listesi=False, bugun=None):
         p.append("<h2>Ek: Sporcu listesi</h2><p class=\"kucuk\">Yalnız ad, yaş, cinsiyet ve ölçüldüğü oturumlar; "
                  "değer ve sıra yoktur.</p>")
         p.append(_tablo(["Ad Soyad", "Yaş", "Cinsiyet", "Ölçüldüğü oturumlar"],
-                        [(ad_bicimi(s), "" if oz[s]["yas"] is None else int(oz[s]["yas"]), oz[s]["cinsiyet"],
+                        [(ad_bicimi(s), "" if bugunku_yas(oz[s], bugun) is None else int(bugunku_yas(oz[s], bugun)),
+                          oz[s]["cinsiyet"],
                           ", ".join(olculen.get(s, [])) or "—") for s in adlar]))
     p.append("</div></body></html>")
     return "".join(p)

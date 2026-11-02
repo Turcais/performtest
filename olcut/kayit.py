@@ -10,6 +10,7 @@ import re
 import streamlit as st
 from datetime import date
 from veri.metinler import DUNYA_REKORU
+from olcut.analiz import BILINEN_BIRIMLER
 from olcut.katalog_islemleri import CALISMA_ANAHTAR, kanonik_test, katalog_testleri
 from olcut.norm import (
     META_KOLONLAR, NORMATIF_YAS, OTURUM_ADI_KOLON, TEST_DOSYA, _STANDART_NORMAL, degisken_yonu, sifir_gecerli,
@@ -144,10 +145,15 @@ def _sayi_kisa(x):
 ONCEKI_KAT = 3          # Paket 38g: normsuz değişkende önceki ölçümün ×3'ü üstü ya da ÷3'ü altı → uyarı
 
 
+# Paket 38p: parantez içi yalnız BİLİNEN bir birimse birim sayılır ("(30 sn)", "(2 deneme)", "(doğru sektirme, maks
+# 10)" başlığa aittir → birim boş). Önce NORMATIF_YAS'taki birim kullanılır (karsilastirma.degisken_birimi).
+DEGISKEN_BIRIMLERI = BILINEN_BIRIMLER | {"puan", "adım", "sıçrama"}
+
+
 def _degisken_birimi(degisken):
-    """'Süre (sn)' → 'sn'; parantez yoksa boş."""
+    """'Süre (sn)' → 'sn'; parantez yoksa ya da içi bilinen bir birim değilse boş."""
     m = re.search(r"\(([^()]*)\)\s*$", str(degisken))
-    return m.group(1) if m else ""
+    return m.group(1) if m and m.group(1).strip() in DEGISKEN_BIRIMLERI else ""
 
 
 def normsuz_uyarilar(test_adi, degisken, x, cinsiyet, onceki=None, on=""):
@@ -347,8 +353,11 @@ def oturum_secenekleri(df):
 # oturum: None = bütün kayıtlar (eski "Bireysel"), tek kimlik (eski "Tek oturum") ya da kimlik listesi.
 
 
-def oturum_degerleri(df, test, degisken, oturum=None, tarihli=False):
-    """{sporcu: değer} — tarihli=True: {sporcu: (değer, 'gg.aa.yyyy')}. Sporcu başına son ölçüm."""
+def oturum_degerleri(df, test, degisken, oturum=None, tarihli=False, ayrintili=False):
+    """
+    {sporcu: değer} — tarihli=True: {sporcu: (değer, 'gg.aa.yyyy')}. Sporcu başına son ölçüm.
+    Paket 38p: ayrintili=True: {sporcu: {"deger", "tarih", "tarih_dt", "test_yasi"}} (ölçüm günündeki yaş için).
+    """
     d = df[df["Test"].map(kanonik_test) == kanonik_test(test)].copy()
     if oturum is not None:
         kimlikler = [str(o) for o in oturum] if isinstance(oturum, (list, tuple, set, frozenset)) else [str(oturum)]
@@ -360,6 +369,9 @@ def oturum_degerleri(df, test, degisken, oturum=None, tarihli=False):
         d["Tarih_dt"] = pd.to_datetime(d["Tarih"], format="%d.%m.%Y", errors="coerce")
     d = d.dropna(subset=["_v"]).sort_values("Tarih_dt", na_position="first")
     son = d.groupby("Sporcu", sort=True).tail(1).set_index("Sporcu").sort_index()   # değer ve tarih aynı satırdan
+    if ayrintili:
+        return {s: {"deger": float(r["_v"]), "tarih": str(r.get("Tarih", "") or ""), "tarih_dt": r.get("Tarih_dt"),
+                    "test_yasi": r.get("Test Yaşı")} for s, r in son.iterrows()}
     if tarihli:
         return {s: (float(r["_v"]), str(r.get("Tarih", "") or "")) for s, r in son.iterrows()}
     return {s: float(v) for s, v in son["_v"].items()}

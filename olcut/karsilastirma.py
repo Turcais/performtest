@@ -16,7 +16,7 @@ from olcut.analiz import GRUP_KONUM_YUZDELIK_N, VELI_KONUM_EN_AZ_YAS
 from olcut.katalog_islemleri import kanonik_test
 from olcut.kayit import _degisken_birimi, oturum_degerleri, oturum_secenekleri, oturumlar_arasi_fark
 from olcut.norm import META_KOLONLAR, NORMATIF_YAS, OTURUM_ADI_KOLON, SPORCU_DOSYA, degisken_yonu, yas_z_skoru
-from olcut.ortak import _yas_degeri, ad_bicimi, veri_yolu
+from olcut.ortak import DOGUM_KOLON, _girildi, _yas_degeri, ad_bicimi, tam_yas, veri_yolu
 
 
 KARS_YUZDELIK_EN_AZ_N = GRUP_KONUM_YUZDELIK_N    # grupta n ≥ 20: çeyrekler (P25–P75) gösterilebilir
@@ -32,10 +32,11 @@ KARS_YUZDELIK_YOK_NOTU = "Grupta 20'den az sporcu var: yüzdelik gösterilmez; o
 
 def sporcu_ozellikleri(sporcular, df_sporcu=None):
     """
-    {sporcu: {"yas": int|None, "cinsiyet": str}} — sporcular.xlsx'ten (Ad + ' ' + Soyad), bir kez okunur.
+    {sporcu: {"yas": int|None, "cinsiyet": str, "dogum": str|None}} — sporcular.xlsx'ten (Ad + ' ' + Soyad), bir kez
+    okunur. "yas" PROFİL yaşıdır (kayıtta yazılır, güncellenmez); ölçüm günündeki yaş için olcum_yasi.
     Paket 38o: df_sporcu verilirse o tablo kullanılır (kulüpler arası: her kulübün kendi tablosu).
     """
-    sonuc = {s: {"yas": None, "cinsiyet": ""} for s in sporcular}
+    sonuc = {s: {"yas": None, "cinsiyet": "", "dogum": None} for s in sporcular}
     if df_sporcu is None:
         if not sporcular or not os.path.exists(veri_yolu(SPORCU_DOSYA)):
             return sonuc
@@ -50,8 +51,25 @@ def sporcu_ozellikleri(sporcular, df_sporcu=None):
         e = df[df["_ad"] == s]
         if not e.empty:
             r = e.iloc[0]
-            sonuc[s] = {"yas": _yas_degeri(r.get("Yaş")), "cinsiyet": str(r.get("Cinsiyet", "") or "").strip()}
+            dogum = r.get(DOGUM_KOLON)
+            sonuc[s] = {"yas": _yas_degeri(r.get("Yaş")), "cinsiyet": str(r.get("Cinsiyet", "") or "").strip(),
+                        "dogum": dogum if _girildi(dogum) else None}
     return sonuc
+
+
+def olcum_yasi(oz, test_yasi=None, tarih=None):
+    """
+    Paket 38p: değerin ölçüldüğü günkü yaş — kayıttaki "Test Yaşı"; yoksa doğum tarihinden o günkü tam yaş; o da yoksa
+    profil yaşı (uygulamanın geri kalanı gibi; profil yaşı kayıtta yazılır, güncellenmez).
+    """
+    y = _yas_degeri(test_yasi)
+    if y is not None:
+        return y
+    if oz.get("dogum") and tarih:
+        y = tam_yas(oz["dogum"], tarih)
+        if y is not None:
+            return float(y)
+    return oz.get("yas")
 
 
 def ortak_testler(df, sporcular):
@@ -153,12 +171,17 @@ def sporcular_arasi(df, test, degisken, grup_a, grup_b=(), oturumlar=None, z=Fal
             "karisik": bool, "kucuk": bool, "olcumsuz": [sporcu], "birim": str}
     B boşsa karşılaştırma yalnız A içinde. Sporcu iki grupta da seçildiyse iki satırda yer alır.
     Sıralama: 11 yaş altı sporcu yoksa testin yönüne göre (en iyi önce); varsa ada göre (sıralama yok).
+    Paket 38p: Yaş, Z, 11 yaş ve karışıklık denetimi değerin ölçüldüğü günkü yaşla (olcum_yasi); ölçümü olmayan
+    sporcuda profil yaşı.
     """
     secili = list(dict.fromkeys(list(grup_a) + list(grup_b)))
     ozellik = sporcu_ozellikleri(secili)
-    degerler = oturum_degerleri(df, test, degisken, list(oturumlar) if oturumlar else None, tarihli=True)
+    degerler = oturum_degerleri(df, test, degisken, list(oturumlar) if oturumlar else None, ayrintili=True)
+    olcum = {s: dict(ozellik.get(s, {}), yas=olcum_yasi(ozellik.get(s, {}), d["test_yasi"], d["tarih"]))
+             for s, d in degerler.items()}
+    yasli = {s: olcum.get(s, ozellik.get(s, {})) for s in secili}
     birim = degisken_birimi(test, degisken)
-    kucuk = kucuk_var_mi(ozellik)
+    kucuk = kucuk_var_mi(yasli)
     yon = degisken_yonu(test, degisken)
     satirlar, olcumsuz, ozet = [], [], {}
     for grup, uyeler in (("A", grup_a), ("B", grup_b)):
@@ -167,12 +190,12 @@ def sporcular_arasi(df, test, degisken, grup_a, grup_b=(), oturumlar=None, z=Fal
             if s not in degerler:
                 olcumsuz.append(s)
                 continue
-            v, tarih = degerler[s]
-            o = ozellik.get(s, {})
+            d = degerler[s]
+            v, tarih, o = d["deger"], d["tarih"], olcum[s]
             satir = {"Grup": grup, "Sporcu": s, "Yaş": o.get("yas"), "Cinsiyet": o.get("cinsiyet") or "—",
                      "Ölçüm tarihi": tarih, "Değer": v, "Birim": birim}
             if z:
-                zs = (yas_z_skoru(test, degisken, o.get("yas"), o.get("cinsiyet"), v)
+                zs = (yas_z_skoru(test, degisken, o.get("yas"), o.get("cinsiyet"), v, o.get("dogum"), d["tarih_dt"])
                       if o.get("yas") is not None and o.get("cinsiyet") in ("Erkek", "Kadın") else None)
                 satir["Z"] = round(zs["z_performans"], 2) if zs and zs.get("z_performans") is not None else None
             g.append(satir)
@@ -183,7 +206,7 @@ def sporcular_arasi(df, test, degisken, grup_a, grup_b=(), oturumlar=None, z=Fal
         satirlar += g
         if uyeler:
             ozet[grup] = grup_ozeti([r["Değer"] for r in g])
-    return {"satirlar": satirlar, "ozet": ozet, "karisik": karisik_mi(ozellik), "kucuk": kucuk,
+    return {"satirlar": satirlar, "ozet": ozet, "karisik": karisik_mi(yasli), "kucuk": kucuk,
             "olcumsuz": sorted(set(olcumsuz)), "birim": birim}
 
 
@@ -192,18 +215,22 @@ def oturumlar_arasi(df, test, degisken, sol, sag):
     Aynı sporcu için Önce (sol oturumlar) / Sonra (sağ oturumlar) / Fark. Yorum testin yönünden (sürede düşüş iyi);
     11 yaş altı sporcunun satırında yalnız arttı / azaldı / değişmedi. Yön sütunu: simge + sözcük.
     Dönen: {"satirlar": [...], "kucuk": bool, "birim": str}
+    Paket 38p: Yaş ve 11 yaş kuralı "Sonra" ölçümünün günündeki yaşla (olcum_yasi).
     """
     ham = oturumlar_arasi_fark(df, test, degisken, list(sol), list(sag))
     ozellik = sporcu_ozellikleri([r["Sporcu"] for r in ham])
+    sonra = oturum_degerleri(df, test, degisken, list(sag), ayrintili=True)
+    yasli = {s: dict(o, yas=olcum_yasi(o, sonra.get(s, {}).get("test_yasi"), sonra.get(s, {}).get("tarih")))
+             for s, o in ozellik.items()}
     satirlar = []
     for r in ham:
-        o = ozellik.get(r["Sporcu"], {})
+        o = yasli.get(r["Sporcu"], {})
         yorum = r["Yorum"]
         if (o.get("yas") is None or o["yas"] < KARS_SIRALAMA_EN_AZ_YAS) and yorum in ("daha iyi", "daha kötü"):
             yorum = "arttı" if r["Fark"] > 0 else "azaldı"
         satirlar.append({"Sporcu": r["Sporcu"], "Yaş": o.get("yas"), "Önce": r["Önceki"], "Sonra": r["Sonraki"],
                          "Fark": r["Fark"], "Yön": f"{KARS_YON_ISARETI[yorum]} {yorum}", "Yorum": yorum})
-    return {"satirlar": satirlar, "kucuk": kucuk_var_mi(ozellik), "birim": degisken_birimi(test, degisken)}
+    return {"satirlar": satirlar, "kucuk": kucuk_var_mi(yasli), "birim": degisken_birimi(test, degisken)}
 
 
 # ── Wilcoxon işaretli sıra testi (SciPy'siz) ──
@@ -329,12 +356,25 @@ def oturumlar_arasi_disa(r, test, degisken, once="", sonra=""):
                                         "Fark": x["Fark"], "Yön": x["Yön"]} for x in r["satirlar"]]))
 
 
+# Paket 38p: Wilcoxon yapılmadığında dil — n, sıfırdan farklı (değişen) sporcu sayısıdır, ölçülen sayısı değil.
+KARS_DEGISEN_YETERSIZ = "değişen sporcu {k} < " + str(KARS_ISTATISTIK_EN_AZ_N) + ": yalnız tanımlayıcı"
+
+
+def degisen_yetersiz_metni(w):
+    return KARS_DEGISEN_YETERSIZ.format(k=w["n"])
+
+
+def p_metni(p):
+    """p < 0,001 ise "p < 0,001"; değilse "p = 0,034" (ondalık virgül, raporlarla aynı)."""
+    return "p < 0,001" if p < 0.001 else "p = " + f"{p:.3f}".replace(".", ",")
+
+
 def istatistik_disa(w):
     """Wilcoxon sonucu tek satır (ekrandaki sayılar); n küçükse yalnız n ve not."""
     if not w:
         return pd.DataFrame()
     if w.get("yetersiz"):
-        return pd.DataFrame([{"n": w["n"], "Not": f"n < {KARS_ISTATISTIK_EN_AZ_N}: yalnız tanımlayıcı; test yapılmadı"}])
+        return pd.DataFrame([{"n": w["n"], "Not": degisen_yetersiz_metni(w) + "; test yapılmadı"}])
     return pd.DataFrame([{"Test": "Wilcoxon işaretli sıra", "Yöntem": w["yontem"], "n": w["n"], "W": w["w"],
                           "p": w["p"], "Etki büyüklüğü r": w["r"], "Etki": etki_metni(w["r"])}])
 
@@ -367,31 +407,49 @@ def yas_bandi(yas):
 _BANT_SIRASI = {(f"{a}–{u}" if u else f"{a}+"): i for i, (a, u) in enumerate(YAS_BANTLARI)}
 
 
-def kulupler_arasi(veriler, test, degisken, en_az_n=KULUPLER_ARASI_EN_AZ_N):
+def normlu_degisken(test, degisken):
+    """Değişkenin yaşa/cinsiyete göre normu var mı (Z gösterilebilir mi)."""
+    return f"{kanonik_test(test)} › {degisken}" in NORMATIF_YAS
+
+
+def kulupler_arasi(veriler, test, degisken, en_az_n=KULUPLER_ARASI_EN_AZ_N, z=False):
     """
     veriler: [(etiket, df_sporcu, df_test)] — etiket ekranda görünen ad ya da kod. Her kulüpte sporcu başına son ölçüm
     (oturum_degerleri), yaş bandı × cinsiyet hücreleri, hücre özeti grup_ozeti ile. n < en_az_n ise değer yok
     ("yetersiz"); en küçük / en büyük hiç verilmez (tek sporcunun değeridir); çeyrekler yalnız n ≥ 20. Sporcu adı
     dönmez. Sıra: yaş bandı, cinsiyet, kulüp (verilen sırayla) — performansa göre sıralama yok.
-    Dönen: {"satirlar": [{Yaş bandı, Cinsiyet, Kulüp, n, Ortalama, P25, P75}], "birim": str}
+    Paket 38p: yaş bandı ve "Ort. yaş" değerin ölçüldüğü günkü yaşla; z=True: ölçüm yaşına göre Z'lerin hücre
+    ortalaması ("Ort. Z"; Z'si hesaplanabilen sporcu sayısı da en az en_az_n olmalı).
+    Dönen: {"satirlar": [{Yaş bandı, Cinsiyet, Kulüp, n, Ort. yaş, Ortalama, [Ort. Z,] P25, P75, Not}], "birim"}
     """
     satirlar = []
     for sira, (etiket, df_sp, df_t) in enumerate(veriler):
-        deg = oturum_degerleri(df_t, test, degisken) if df_t is not None and not df_t.empty else {}
+        deg = oturum_degerleri(df_t, test, degisken, ayrintili=True) if df_t is not None and not df_t.empty else {}
         oz = sporcu_ozellikleri(list(deg), df_sp)
         hucre = {}
-        for s, v in deg.items():
-            bant, cins = yas_bandi(oz[s]["yas"]), oz[s]["cinsiyet"]
-            if bant and cins in ("Erkek", "Kadın"):
-                hucre.setdefault((bant, cins), []).append(v)
-        for (bant, cins), vs in hucre.items():
-            g = grup_ozeti(vs)
+        for s, d in deg.items():
+            yas, cins = olcum_yasi(oz[s], d["test_yasi"], d["tarih"]), oz[s]["cinsiyet"]
+            bant = yas_bandi(yas)
+            if not bant or cins not in ("Erkek", "Kadın"):
+                continue
+            zp = None
+            if z:
+                zs = yas_z_skoru(test, degisken, yas, cins, d["deger"], oz[s].get("dogum"), d["tarih_dt"])
+                zp = zs.get("z_performans") if zs else None
+            hucre.setdefault((bant, cins), []).append((d["deger"], yas, zp))
+        for (bant, cins), xs in hucre.items():
+            g = grup_ozeti([x[0] for x in xs])
             yeter = g["n"] >= en_az_n
-            satirlar.append({"Yaş bandı": bant, "Cinsiyet": cins, "Kulüp": etiket, "n": g["n"],
-                             "Ortalama": round(g["ortalama"], 2) if yeter else None,
-                             "P25": round(g["p25"], 2) if yeter and g.get("p25") is not None else None,
-                             "P75": round(g["p75"], 2) if yeter and g.get("p75") is not None else None,
-                             "Not": "" if yeter else KARS_KULUP_YETERSIZ, "_sira": sira})
+            satir = {"Yaş bandı": bant, "Cinsiyet": cins, "Kulüp": etiket, "n": g["n"],
+                     "Ort. yaş": round(sum(x[1] for x in xs) / len(xs), 1) if yeter else None,
+                     "Ortalama": round(g["ortalama"], 2) if yeter else None}
+            if z:
+                zler = [x[2] for x in xs if x[2] is not None]
+                satir["Ort. Z"] = round(sum(zler) / len(zler), 2) if yeter and len(zler) >= en_az_n else None
+            satir.update({"P25": round(g["p25"], 2) if yeter and g.get("p25") is not None else None,
+                          "P75": round(g["p75"], 2) if yeter and g.get("p75") is not None else None,
+                          "Not": "" if yeter else KARS_KULUP_YETERSIZ, "_sira": sira})
+            satirlar.append(satir)
     satirlar.sort(key=lambda r: (_BANT_SIRASI[r["Yaş bandı"]], r["Cinsiyet"], r["_sira"]))
     for r in satirlar:
         del r["_sira"]

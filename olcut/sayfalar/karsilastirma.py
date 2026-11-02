@@ -13,7 +13,8 @@ from olcut.karsilastirma import (
     KARS_ISTATISTIK_EN_AZ_N, KARS_KARISIK_UYARI, KARS_KUCUK_NOTU, KARS_YUZDELIK_YOK_NOTU, csv_ile_istatistik, etki_metni,
     grup_ozeti_disa, istatistik_disa, karisik_mi, ortak_testler, oturum_adlari, oturum_etiketleri, oturum_testleri,
     oturumlar_arasi, oturumlar_arasi_disa, sayisal_degiskenler, sporcu_ozellikleri, sporcular_arasi,
-    sporcular_arasi_disa, wilcoxon_isaretli_sira, KULUPLER_ARASI_EN_AZ_N, kulupler_arasi)
+    sporcular_arasi_disa, wilcoxon_isaretli_sira, KULUPLER_ARASI_EN_AZ_N, degisen_yetersiz_metni, kulupler_arasi, normlu_degisken,
+    p_metni)
 from olcut.kulup import karsilastirma_katilimcilari, kulup_verisi
 from olcut.katalog_islemleri import ara_katla, test_tablosu_duzelt
 from olcut.norm import TEST_DOSYA
@@ -280,11 +281,11 @@ def _oturumlar_arasi_sonuc(df, p):
     w = wilcoxon_isaretli_sira(tablo["Fark"].tolist()) if p["ist"] else None
     if p["ist"]:
         if w.get("yetersiz"):
-            st.caption(f"Örneklem küçük (sıfırdan farklı fark sayısı n = {w['n']} < {KARS_ISTATISTIK_EN_AZ_N}): "
-                       "yalnız tanımlayıcı; istatistik testi yapılmadı.")
+            st.caption("D" + degisen_yetersiz_metni(w)[1:] + "; istatistik testi yapılmadı (sıfır farklar "
+                       "sayılmaz).")                          # "değişen…" → "Değişen…" (.capitalize Türkçe i/İ'yi bozar)
         else:
             st.markdown(f"**Wilcoxon işaretli sıra testi** ({w['yontem']}): n = {w['n']}, W = {_sayi(w['w'])}, "
-                        f"p = {_sayi(w['p'], 3)} · etki büyüklüğü (eşleştirilmiş sıra-iki serili) r = "
+                        f"{p_metni(w['p'])} · etki büyüklüğü (eşleştirilmiş sıra-iki serili) r = "
                         f"{_sayi(w['r'])} ({etki_metni(w['r'])})")
             st.caption("Sıfır farklar testten çıkarılır. r > 0: sonra değerleri büyük; testin iyi yönü için "
                        "tablodaki Yön sütununa bakın.")
@@ -301,6 +302,8 @@ KARS_KULUP_ACIKLAMA = (f"Yalnız toplu değerler: her kulüpte sporcu başına s
                        "yalnız 20 ve üstü sporcuda. Satırlar kulübe göre dizilir, başarıya göre sıralanmaz. Sporcu adı "
                        "yoktur; yalnız kulüp bilgilerinde karşılaştırmaya onay vermiş kulüpler katılır.")
 KARS_KULUP_PASIF = "Test ve değişkeni seçip Karşılaştır'a basın."
+KARS_KULUP_YAS_NOTU = ("Bant içinde yaş dağılımı kulüpten kulübe değişir; ham ortalamaları ortalama yaşla birlikte "
+                       "okuyun.")
 
 
 def kulup_etiketleri(katilan, aktif):
@@ -341,7 +344,11 @@ def _kulupler_arasi():
     test = t1.selectbox("Test (en az iki kulüpte ölçülen)", testler, key="kka_test")
     degiskenler = sayisal_degiskenler(tum, test)
     degisken = t2.selectbox("Değişken", degiskenler or ["—"], key="kka_degisken", disabled=not degiskenler)
-    parametre = {"test": test, "degisken": degisken, "kulupler": tuple(etiket)}
+    z = (st.checkbox("Z-skoru ile göster", key="kka_z",
+                     help="Her sporcunun Z'si değerin ölçüldüğü günkü yaşa ve cinsiyete göre normdan; hücrede Z'lerin "
+                          f"ortalaması (en az {KULUPLER_ARASI_EN_AZ_N} sporcu).")
+         if degiskenler and normlu_degisken(test, degisken) else False)
+    parametre = {"test": test, "degisken": degisken, "kulupler": tuple(etiket), "z": bool(z)}
     st.button("Karşılaştır", type="primary", key="kka_karsilastir", disabled=not degiskenler, on_click=_sakla,
               args=("kka::sonuc", parametre))
     saklanan, eski = _durum("kka::sonuc", parametre)
@@ -351,13 +358,16 @@ def _kulupler_arasi():
             return
         if eski:
             st.info(KARS_ESKI_NOTU, icon=":material/history:")
-        r = kulupler_arasi(veriler, saklanan["test"], saklanan["degisken"])
+        r = kulupler_arasi(veriler, saklanan["test"], saklanan["degisken"], z=saklanan.get("z", False))
         st.markdown(f"**{saklanan['test']} — {saklanan['degisken']}**" + (f" ({r['birim']})" if r["birim"] else ""))
         if not r["satirlar"]:
             st.info("Bu değişkende yaşı ve cinsiyeti bilinen ölçüm yok.")
             return
+        st.caption(KARS_KULUP_YAS_NOTU)
         st.dataframe(pd.DataFrame(r["satirlar"]), hide_index=True, width="stretch",
                      column_config={"Ortalama": st.column_config.NumberColumn("Ortalama", format="%.2f"),
+                                    "Ort. yaş": st.column_config.NumberColumn("Ort. yaş", format="%.1f"),
+                                    "Ort. Z": st.column_config.NumberColumn("Ort. Z", format="%.2f"),
                                     "P25": st.column_config.NumberColumn("P25", format="%.2f"),
                                     "P75": st.column_config.NumberColumn("P75", format="%.2f")})
 

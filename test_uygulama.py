@@ -5304,7 +5304,7 @@ def test_52a_kulup_raporu_icerik_ve_isim_yok(tmp_path, monkeypatch):
 def test_52b_kulup_raporu_kurallar_kucuk_n_yetiskin_ek(tmp_path, monkeypatch):
     """n < 6: yalnız tanımlayıcı. Yetişkinde 'daha iyi' olabilir. Ek açık: ad, yaş, cinsiyet, oturum — değer yok."""
     h = _kr_html(tmp_path, monkeypatch, n=4)
-    assert "n &lt; 6: yalnız tanımlayıcı" in h and "p = " not in h
+    assert "değişen sporcu 4 &lt; 6: yalnız tanımlayıcı" in h and "p = " not in h     # 38p: değişen sporcu dili
     (tmp_path / "y").mkdir()
     hy = _kr_html(tmp_path / "y", monkeypatch, yas=24, n=8)
     assert "✓ daha iyi 8" in hy
@@ -5441,3 +5441,109 @@ def test_53d_ayirt_edilemezde_veli_raporunda_fiziksel_grup_adi_yok(app):
     ah = app["antrenor_raporu_html"](ali)
     assert "Eşik 0,10." in ah and R.ANTRENOR_AYIRT_EDILEMEZ not in ah
     assert R.VELI_FIZIKSEL_AYIRT_EDILEMEZ not in app["veli_raporu_html"](ali)
+
+
+
+# ════════════════════════════════════════════════════════════
+# 54. Paket 38p-2: ölçüm yaşı, kulüpler arası yaş/Z, birim, kulüp raporu düzeltmeleri
+# ════════════════════════════════════════════════════════════
+def _p38p_yas_verisi(d):
+    """Kaan: profil yaşı bilerek 2 yıl geride (9), ölçüm günü yaşı 11 (Test Yaşı). Onur: 24."""
+    import pandas as _pd
+    _pd.DataFrame({"Ad": ["Kaan", "Onur"], "Soyad": ["Demo", "Demo"], "Yaş": [9, 24],
+                   "Cinsiyet": ["Erkek", "Erkek"]}).to_excel(d / "sporcular.xlsx", index=False)
+    satir = []
+    for oturum, tarih, ek in (("S1", "15.09.2026", 0), ("S2", "25.10.2026", 6)):
+        for s, yas, atl in (("Kaan Demo", 11, 165), ("Onur Demo", 24, 230)):
+            satir.append({"Sporcu": s, "Test": "Durarak Uzun Atlama", "Tarih": tarih, "Oturum": oturum,
+                          "Test Yaşı": yas, "Deneme 1 (cm)": atl + ek})
+    _pd.DataFrame(satir).to_excel(d / "test_sonuclari.xlsx", index=False)
+
+
+def test_54a_karsilastirma_z_olcum_yasiyla(tmp_path, monkeypatch):
+    """Profil yaşı 2 yıl geride: karşılaştırma Yaş'ı ve Z'si ölçüm günündeki yaşla — sporcunun kendi Z'siyle aynı."""
+    import pandas as _pd
+    K, N = _modul("olcut.karsilastirma"), _modul("olcut.norm")
+    monkeypatch.chdir(tmp_path)
+    _p38p_yas_verisi(tmp_path)
+    df = _pd.read_excel(tmp_path / "test_sonuclari.xlsx")
+    df["Tarih_dt"] = _pd.to_datetime(df["Tarih"], format="%d.%m.%Y")
+    r = K.sporcular_arasi(df, "Durarak Uzun Atlama", "Deneme 1 (cm)", ["Kaan Demo"], z=True)
+    kaan = r["satirlar"][0]
+    kendi = next(x for x in N.sporcu_z_profili(df, "Kaan Demo")["satirlar"] if x["Değişken"] == "Deneme 1 (cm)")
+    assert kaan["Yaş"] == 11 and kaan["Z"] == round(kendi["Z"], 2)
+    profil_z = N.yas_z_skoru("Durarak Uzun Atlama", "Deneme 1 (cm)", 9, "Erkek", 171)["z_performans"]
+    assert abs(kaan["Z"] - round(profil_z, 2)) > 0.1                  # eski (profil yaşıyla) Z farklıydı
+    assert r["kucuk"] is False                                        # ölçüm yaşı 11: 11 yaş kuralı uygulanmaz
+    o = K.oturumlar_arasi(df, "Durarak Uzun Atlama", "Deneme 1 (cm)", ["S1"], ["S2"])
+    satir = {x["Sporcu"]: x for x in o["satirlar"]}
+    assert satir["Kaan Demo"]["Yaş"] == 11 and satir["Kaan Demo"]["Yön"] == "✓ daha iyi" and o["kucuk"] is False
+    assert K.olcum_yasi({"yas": 9, "dogum": "01.01.2015"}, None, "02.01.2026") == 11.0
+    assert K.olcum_yasi({"yas": 9, "dogum": None}, None, "02.01.2026") == 9
+
+
+def test_54b_kulupler_arasi_olcum_yasi_ort_yas_ve_z():
+    """Bant ölçüm yaşına göre; n ≥ 10 hücrede 'Ort. yaş'; isteğe bağlı 'Ort. Z' (Z'si olan ≥ 10)."""
+    import pandas as _pd
+    K = _modul("olcut.karsilastirma")
+    sp = _pd.DataFrame({"Ad": [f"S{i}" for i in range(12)], "Soyad": ["K"] * 12, "Yaş": [8] * 12,
+                        "Cinsiyet": ["Erkek"] * 12})
+    ts = _pd.DataFrame([{"Sporcu": f"S{i} K", "Test": "Durarak Uzun Atlama", "Tarih": "01.10.2026", "Oturum": "S1",
+                         "Test Yaşı": 10 + (i % 2), "Deneme 1 (cm)": 140 + i} for i in range(12)])
+    r = K.kulupler_arasi([("Arslan SK", sp, ts)], "Durarak Uzun Atlama", "Deneme 1 (cm)", z=True)
+    hucre = r["satirlar"][0]
+    assert hucre["Yaş bandı"] == "9–11" and hucre["n"] == 12 and hucre["Ort. yaş"] == 10.5   # profil 8 değil
+    assert hucre["Ort. Z"] is not None and list(hucre)[:6] == ["Yaş bandı", "Cinsiyet", "Kulüp", "n", "Ort. yaş",
+                                                               "Ortalama"]
+    kucuk = K.kulupler_arasi([("A", sp.head(5), ts.head(5))], "Durarak Uzun Atlama", "Deneme 1 (cm)", z=True)
+    assert kucuk["satirlar"][0]["Ort. yaş"] is None and kucuk["satirlar"][0]["Ort. Z"] is None
+    assert K.normlu_degisken("Durarak Uzun Atlama", "Deneme 1 (cm)") and \
+        not K.normlu_degisken("Diz Üstü Şınav — 30 sn (BOT-2)", "Diz Üstü Şınav Tekrarı (30 sn)")
+
+
+def test_54c_birim_p_ve_degisen_dili():
+    """Parantez içi yalnız bilinen birimse birim; p < 0,001; 'değişen sporcu k < 6'."""
+    Ky, K = _modul("olcut.kayit"), _modul("olcut.karsilastirma")
+    assert [Ky._degisken_birimi(d) for d in ("Süre (sn)", "Diz Üstü Şınav Tekrarı (30 sn)", "Deneme 1 (puan)",
+                                              "Deneme 1 (doğru sektirme, maks 10)", "Toplam Sıçrama (2 deneme)",
+                                              "Asimetri İndeksi (%)")] == ["sn", "", "puan", "", "", "%"]
+    assert K.degisken_birimi("Diz Üstü Şınav — 30 sn (BOT-2)", "Diz Üstü Şınav Tekrarı (30 sn)") == ""
+    assert K.p_metni(0.0004) == "p < 0,001" and K.p_metni(0.0234) == "p = 0,023"
+    assert K.degisen_yetersiz_metni({"n": 4, "yetersiz": True}) == "değişen sporcu 4 < 6: yalnız tanımlayıcı"
+
+
+def test_54d_kulup_raporu_ana_sonuc_ve_vucut_olcusu(tmp_path, monkeypatch):
+    """Değişim tablosu ana sonuçla: KTK toplamı, en iyi deneme; çok bileşenli test çıkar (not); vücut ölçüsünde test
+    yok; ondalık virgül; yaş tablosu bugünkü yaşla (doğum tarihinden)."""
+    import datetime as _dt
+    import pandas as _pd
+    KR = _modul("olcut.kulup_raporu")
+    monkeypatch.chdir(tmp_path)
+    sp = _pd.DataFrame({"Ad": [f"C{i}" for i in range(8)], "Soyad": ["K"] * 8, "Yaş": [8] * 8,
+                        "Cinsiyet": ["Kadın"] * 8, "Doğum Tarihi": ["01.01.2016"] * 8})
+    sp.to_excel(tmp_path / "sporcular.xlsx", index=False)
+    ts = []
+    for oturum, tarih, ek in (("Ön", "15.09.2026", 0), ("Son", "25.10.2026", 2)):
+        for i in range(8):
+            s = f"C{i} K"
+            b = {"Sporcu": s, "Tarih": tarih, "Oturum": oturum, "Test Yaşı": 10}
+            ts += [dict(b, Test="Yana Sıçrama (Jumping Sideways)", **{"Deneme 1 (sıçrama sayısı)": 20 + i + ek,
+                                                                       "Deneme 2 (sıçrama sayısı)": 22 + i + ek}),
+                   dict(b, Test="Top Sektirme — Alternatif El (BOT-2)",
+                        **{"Deneme 1 (doğru sektirme, maks 10)": 5, "Deneme 2 (doğru sektirme, maks 10)": 6 + ek // 2}),
+                   dict(b, Test="Kulaç Uzunluğu (TSYT)", **{"Kulaç Uzunluğu (cm)": 140 + i + ek}),
+                   dict(b, Test="Boy ve Vücut Ağırlığı (TSYT)", **{"Boy (cm)": 140 + ek, "Vücut Ağırlığı (kg)": 33})]
+    df = _pd.DataFrame(ts)
+    df.to_excel(tmp_path / "test_sonuclari.xlsx", index=False)
+    df["Tarih_dt"] = _pd.to_datetime(df["Tarih"], format="%d.%m.%Y")
+    _, satir, disari = KR.oturumlar_arasi_ozeti(df, KR.oturum_ozeti(df))
+    s = {r[0]: r for r in satir}
+    assert s["Yana Sıçrama (Jumping Sideways)"][1] == "Toplam Sıçrama (2 deneme)"
+    assert s["Yana Sıçrama (Jumping Sideways)"][4] == "4,00 sıçrama"          # toplamda +4; birim normdan, "2 deneme" değil
+    assert s["Top Sektirme — Alternatif El (BOT-2)"][1].startswith("En iyi deneme")
+    assert s["Kulaç Uzunluğu (TSYT)"][5] == KR.KULUP_RAPOR_VUCUT and s["Kulaç Uzunluğu (TSYT)"][4] == "2,00 cm"
+    assert disari == ["Boy ve Vücut Ağırlığı (TSYT)"]
+    assert s["Yana Sıçrama (Jumping Sideways)"][5].startswith(("p = 0,", "p < 0,001"))
+    h = KR.kulup_raporu_html({"ad": "A"}, sp, df, bugun=_dt.date(2026, 11, 2))
+    assert "Çok bileşenli testler (ör. Boy ve Vücut Ağırlığı (TSYT)) bu özete girmez." in h
+    assert "<td>9–11</td><td>8</td>" in h                                    # 01.01.2016 → bugün 10 (profil 8)
