@@ -1,0 +1,14 @@
+# Ölçüt — Python bağımlılıkları (Paket 38q). Kurulum: python -m pip install -r requirements.txt
+# Sürümler bu bilgisayarda kurulu ve testleri yeşil olan sürümlerdir (Python 3.14).
+# Streamlit sabit: tema/grafik renkleri (38h, olcut/tema.py) ve AppTest testleri sürüme duyarlı;
+# yükseltmeden önce tam test takımını yeni sürümle çalıştırın.
+streamlit==1.58.0
+pandas==3.0.3
+numpy==2.4.6
+openpyxl==3.1.5
+plotly==6.9.0
+
+# Testler
+pytest==9.2.0
+
+# İsteğe bağlı PDF yedekleri (Edge/Chrome yoksa; olcut/disa_aktarma.py): weasyprint ya da xhtml2pdf
