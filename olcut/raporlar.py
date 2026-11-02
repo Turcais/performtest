@@ -681,7 +681,7 @@ def veli_raporu_html(v):
          f'<meta name="viewport" content="width=device-width, initial-scale=1">'
          f'<title>Veli raporu — {ad}</title>{RAPOR_CSS}</head><body class="veli">'
          f'<div class="sayfa">{kimlik_html()}']
-    p.append(f"<h1>{ad} — Spor yönlendirme bilgisi</h1>")
+    p.append(f"<h1>{ad} — Branş Keşif Raporu</h1>")
     olcum = (f"Ölçümler: {v['tarih_araligi'][0]} – {v['tarih_araligi'][1]}" if v["tarih_araligi"]
              else "Henüz fiziksel ölçüm yok")
     anket = f"İlgi anketi: {_e(v['ilgi'].get('Tarih', ''))}" if v["ilgi"] else "İlgi anketi henüz doldurulmadı"
