@@ -1,21 +1,53 @@
 # Ölçüt — devralma notu
 
-Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38r** (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
+Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38s** (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
 Kullanıcı: Ertuğrul (spor bilimleri doktora öğrencisi, Gazi Üniversitesi). **Türkçe yazın, adım adım açıklayın.**
 Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `sporcular.xlsx`, `test_sonuclari.xlsx`, `ilgi_anketi.xlsx`, `ayarlar.json`, `oturum_taslagi.json`; uygulamanın ürettiği `.streamlit/config.toml` da girmez. Kulüpler (38n): `kulupler/<kod>/` altında aynı adlı dosyalar + `kulup.json` (aşağıda).
 
 ## Yapı (Bölme Aşama 1–2 tamam; davranış bölmeden önceki v101-38f ile aynı)
 - `uygulama.py` (~550 satır): sayfa yapılandırması, tema, yan menü, sayfa yönlendirme. Uzun içe aktarma listeleri testlerin `app["ad"]` erişimi içindir.
 - `olcut/` — katmanlı modüller; her modül yalnız kendinden AŞAĞIDAKİLERİ içe aktarır (test_45a, `_OLCUT_KATMAN`). Sıra:
-  `ortak` → `disa_aktarma` (PDF / CSV / Excel baytı) → `tema` → `esik` (HFZ) → `katalog_islemleri` (son TEST_KATALOGU burada) → `gorseller/cizim` → `gorseller/hareketler` → `gorseller/sahneler` → `norm` (son NORMATIF ve NORMATIF_YAS burada) → `analiz` → `kayit` → `kulup` (kulüp yönetimi) → `raporlar` → `oneri` → `karsilastirma` → `kulup_raporu` → `bilesenler` → `sayfalar/*` (sayfalar birbirini içe aktarmaz).
+  `ortak` → `disa_aktarma` (PDF / CSV / Excel baytı) → `tema` → `esik` (HFZ) → `katalog_islemleri` (son TEST_KATALOGU burada) → `gorseller/cizim` → `gorseller/hareketler` → `gorseller/sahneler` → `norm` (son NORMATIF ve NORMATIF_YAS burada) → `analiz` → `kayit` → `duzeltme` (38s) → `kulup` (kulüp yönetimi) → `raporlar` → `oneri` → `karsilastirma` → `kulup_raporu` → `bilesenler` → `sayfalar/*` (sayfalar birbirini içe aktarmaz).
   Yeni modül önce `_OLCUT_KATMAN`'a yazılır. Hiçbir modül `uygulama`'yı içe aktarmaz.
 - `veri/` — yalnız sabit değer (test_44a): `katalog`, `normlar_yas`, `normlar_tsyt`, `normlar_kategorik` (Kademe 2 örneklemleri + künyeler), `metinler`, `brans_profilleri`. Kaynak/künye sabitleri normlarla aynı dosyada.
 - `araclar/` — `reg.py` (regresyon, 5 örnek sporcu), `yukle.py` (yükleyici), `esitlik.py` (sürüm ↔ çalışma kopyası derin eşitlik + modül tutarlılığı + akış sonrası yerinde değişiklik), `sayfa_goruntusu.py` (her sayfanın ekran öğelerini döker; sürümler arası karşılaştırma).
 
+## Uygulamada olanlar (her paketin sonunda güncellenir)
+Bir iş önermeden önce buraya ve koda bakın.
+- Sporcu kaydı (profil, doğum tarihi, antrenman süresi, grup) ve ilgi anketi — `olcut/sayfalar/sporcu_girisi.py`, `bilesenler.ilgi_anketi_formu`
+- Tek sporcu tek test girişi (görsel, protokol, SWFT özel ekranı) — `olcut/sayfalar/test_uygula.py`
+- Toplu giriş: Test Oturumu (Testler → Sporcular → Oturum bilgisi → Değerler, Sıradaki kipi, diskte taslak) — `olcut/sayfalar/test_oturumu.py`
+- Çalışmalar (tez deseni: gruplar, ölçüm zamanları ön/ara/son, sıralı testler; oturum adı "çalışma · zaman") — `bilesenler.py` (kur/düzenle), `kayit.py` (`calisma_*`)
+- Türetilen değerler (en iyi deneme, sağ-sol asimetri %, H:K oranı, KTK toplamları, VO2max, SWFT indeksi) — `norm.turetilmis_degerler`, `norm.swft_turetilmis`
+- Aykırı değer uyarısı (normlu ≈P1–P99; normsuz dünya rekoru, önceki ×3/÷3) — `kayit.makullukte_uyarilar`
+- Test sırası uyarısı (ExRx bileşen sırası) ve test arama — `katalog_islemleri.sira_uyarilari`, `test_ara`
+- Yaş/cinsiyet normları, Z, persentil, bileşik Z, HFZ eşikleri — `olcut/norm.py`, `olcut/esik.py`, `veri/normlar_*`
+- Sonuçlar: tek sporcu dört kart (gelişim, yaşıt konumu, güçlü yönler, branş) — `olcut/sayfalar/sonuclar.py`
+- Ayrıntılı analiz (7 sekme) ve grup içi konum penceresi — `olcut/sayfalar/sonuclar_genel.py`, `bilesenler.grup_konum_penceresi`
+- Karşılaştırma: Genel, Oturumlar arası (Önce/Sonra/Fark, Wilcoxon), Kulüpler arası; Excel/CSV — `olcut/karsilastirma.py`, `olcut/sayfalar/karsilastirma.py`
+- Kayıt düzelt: değer düzeltme, başka sporcuya taşıma, silme/geri alma, değişiklik kaydı, yedek (38s) — `olcut/duzeltme.py`, `olcut/sayfalar/kayit_duzelt.py`
+- Branş eşleştirmesi (Opstoel grupları, ayırt edilemez eşiği) ve ilgi × fiziksel pencere — `analiz.brans_grubu_eslestir`, `analiz.ilgi_fiziksel_pencereler`
+- Veli raporu ("Branş Keşif Raporu"), antrenör raporu — `olcut/raporlar.py`; kulüp raporu — `olcut/kulup_raporu.py`; sekmeler `olcut/sayfalar/raporlar.py`
+- PDF (Edge/Chrome → WeasyPrint → xhtml2pdf), Excel/CSV baytı — `olcut/disa_aktarma.py`
+- Ana sayfa yönlendirme ve test önerileri — `olcut/sayfalar/ana_sayfa.py`, `olcut/oneri.py`; niteliğe göre test bul — `olcut/sayfalar/nitelik.py`
+- Test görselleri (hareketli/durağan sahneler) — `olcut/gorseller/`
+- Kulüpler ve çalışma alanı, Bugün kartı, üst/sol menü, alt bilgi — `olcut/kulup.py`, `olcut/sayfalar/kulupler.py`, `olcut/bilesenler.py`
+- Kaynakça, Hakkında — `olcut/sayfalar/raporlar.py` (`kaynakca_sayfasi`), `olcut/sayfalar/hakkinda.py`
+- Açık/koyu tema, grafik renkleri, config.toml — `olcut/tema.py`
+
+## Kayıt düzelt (Paket 38s)
+- Sonuçlar'ın üstündeki segmentte üçüncü bölüm **Kayıt düzelt** (`SONUC_BOLUMLERI`): Oturum (ya da "Oturumsuz kayıtlar") → Sporcu → Kayıt; işlem: Değer düzelt · Başka sporcuya taşı · Sil · Geri al. Her işlem "Önizle ve onayla" → onay penceresi (eski/yeni tablo, aykırı değer uyarısı engel değil) → Onayla.
+- Satır kimliği = test dosyasındaki satır sırası (dosyadan satır hiç çıkmaz); yazmadan önce sporcu/test/tarih yeniden denetlenir. Değişiklik kaydındaki "Satır" Excel satırıdır (+2).
+- Düzeltmede yalnız GİRİLEN değişken (katalogdaki `degiskenler`; katalogda yoksa dolu sütunlar − türetilenler) değişir; türetilenler `turetilmis_degerler` (+ SWFT) ile yeniden hesaplanır; test yaşı doğum tarihinden (yoksa eskisi). Taşımada test yaşı yeni sporcunun doğum tarihinden (yoksa profil yaşı), kiloya bağlı türetilenler yeni kiloyla. Aykırı uyarıda düzeltilen kaydın kendisi "önceki ölçüm" sayılmaz (`onceki_olcumler(haric_satir=)`).
+- Silme: `Silindi` sütununa zaman; `katalog_islemleri.test_tablosu_duzelt` (→ `silinmemis`) her okumada bu satırları ve sütunu çıkarır — sonuç tablosunu okuyan yeni kod bu fonksiyondan geçmeli (ham okuma yalnız `duzeltme.ham_tablo`). Kapsam: tek kayıt, sporcunun oturumdaki kayıtları, bütün oturum.
+- Her işlemden önce `yedekler/test_sonuclari_<zaman>.xlsx`; değişiklik kaydı `degisiklik_kaydi.xlsx` (Zaman, İşlem, Satır, Sporcu, Test, Tarih, Oturum, Alan, Eski değer, Yeni değer, Açıklama). İkisi de `veri_yolu` ile (kulüpte kulübün klasöründe); git'e girmez.
+- Diskte çalışmalı bir taslak varsa ("çalışma · zaman") o oturum seçilemez ve işlemler hata verir; serbest seçim taslağı (kimliği kayıtta oluşur) kilitlemez.
+- Veli raporunda "Yüzme" grubunun ör. satırı "yüzme, su topu" (`veri/metinler.BRANS_ORNEK_METNI`; Opstoel dökümü değişmedi).
+
 ## Komutlar
 - Kurulum: `python -m pip install -r requirements.txt` (Streamlit 1.58.0 sabit, Paket 38q; yükseltmeden önce tam test takımını yeni sürümle çalıştırın).
 - Çalıştırma: `python -m streamlit run uygulama.py` (veri dosyalarının olduğu klasörden; başka klasörden tam yolla da çalışır). Kısa `streamlit` komutu bu bilgisayarda PATH'te değil.
-- Testler: `python -m pytest test_uygulama.py -q` (~6–8 dk; 225 test). Windows'ta Türkçe çıktı için `PYTHONUTF8=1`.
+- Testler: `python -m pytest test_uygulama.py -q` (~6–8 dk; 231 test). Windows'ta Türkçe çıktı için `PYTHONUTF8=1`.
 - Regresyon: `python araclar/reg.py <TAM YOL>\uygulama.py cikti.json` (araç çalışma klasörünü değiştirdiği için tam yol). Taban: `v101-38f` çıktısı. Raporda "Rapor tarihi" bugünün tarihidir: tabanı karşılaştırmayla AYNI GÜN alın (başka gün alınmış tabanla rapor HTML'i ve sayfa görüntüsündeki tarih alanları yalnız tarih yüzünden farklı çıkar).
 - Derin eşitlik: `python araclar/esitlik.py <git sürümü> [--akis]` · Sayfa görüntüsü: `python araclar/sayfa_goruntusu.py uygulama.py cikti.json`.
 
@@ -23,6 +55,7 @@ Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `s
 `v100-testler-yesil` (17 kırmızı → yeşil, Paket 38e) · `v101-38f` (veli raporu: en iyi deneme, yetişkin dili, sapma derecesi; regresyon tabanı) · `v102-temel`, `v103-gorseller`, `v104-cekirdek`, `v105-sayfalar` (Bölme Aşama 2 grupları) · `v106-38g` (karşılaştırma ekranı, dil, normsuz olağandışı değer) · `v107-38h` (grafik renkleri Streamlit sürümüne göre; açılış uyarısı yok).
 
 ## Çalışma kuralları
+- **Bir iş önermeden önce kodda ilgili kelimeyi arayın** (Grep); özellik varsa önermeyin, var olanı (dosyasıyla) bildirin. Her paketin sonunda aşağıdaki "Uygulamada olanlar" bölümünü ve plan belgesini (bellekteki kalan iş planı) güncelleyin.
 - Her paket kullanıcının verdiği istemle başlar; istem dışında yeni paket (ör. 38o) açılmaz, önce kullanıcıya sorulur.
 - Her değişiklikten önce git commit, sonra değişiklik. Sonra: söz dizimi, testler, regresyon (yalnız paketin dokunduğu yer değişmeli; fark varsa açıkla). Paket adlandırması sürüyor (38g'den sonra 38h…); her paket tek commit.
 - Renkler yalnızca `olcut/tema.py`'de; grafik rengi `grafik_renk()` ile (Streamlit tema yuvaları `#00000N`); 8 haneli hex veya rgba grafik rengine verilmez (kaynak-tarama testi 17d/41f).
@@ -45,7 +78,7 @@ Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `s
 - Wilcoxon yapılmadığında dil: "değişen sporcu {k} < 6: yalnız tanımlayıcı" (k = sıfırdan farklı fark sayısı); p < 0,001 ise "p < 0,001" (`p_metni`, ondalık virgül).
 
 ## Sonuçlar ve Karşılaştırma (Paket 38g, 38o)
-Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma** (`olcut/sayfalar/karsilastirma.py`, hesap `olcut/karsilastirma.py`). Sekmeler (38o): **Genel · Oturumlar arası · Kulüpler arası**.
+Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma | Kayıt düzelt** (38s) (`olcut/sayfalar/karsilastirma.py`, hesap `olcut/karsilastirma.py`). Sekmeler (38o): **Genel · Oturumlar arası · Kulüpler arası**.
 - *Genel* (eski adı Sporcular arası): iki "Sporcu seç" sütunu (Grup A / B; onay kutusu, arama, Tümünü seç / Temizle; B boşsa yalnız A içinde), oturum süzgeci (varsayılan Tüm oturumlar), ortak testler, "Karşılaştır" (basılana kadar sonuç pasif; seçim değişince "sonuç eski"). Tablo (tarih, değer, birim) + grafik + grup ortalaması/aralığı; karışık yaş/cinsiyette uyarı ve isteğe bağlı Z.
 - *Oturumlar arası*: iki "Oturum seç" sütunu (ad + tarih + sporcu sayısı); aynı sporcu için Önce / Sonra / Fark, yön testin yönünden (simge + sözcük); "İstatistik göster": n ≥ 6 Wilcoxon işaretli sıra + eşleştirilmiş sıra-iki serili r, n < 6 yalnız tanımlayıcı.
 - *Kulüpler arası* (38o): yalnız `karsilastirma_onayi` true ve arşivde olmayan kulüpler, en az iki; seçili kulüp onaysızsa kilitli (karşılıklılık). Seçili kulüp adıyla, ötekiler kod sırasıyla "Kulüp 1, 2…"; Genel çalışma alanında hepsi kodlu. Her kulüpte sporcu başına son ölçüm (`kayit.oturum_degerleri`), yaş bandı (6–8, 9–11, 12–14, 15–17, 18+) × cinsiyet hücresi, `grup_ozeti`: n ve ortalama yalnız n ≥ 10 (`KULUPLER_ARASI_EN_AZ_N`), çeyrekler yalnız n ≥ 20; en küçük/en büyük HİÇ yok (tek sporcunun değeri); sıra bant → cinsiyet → kulüp (başarıya göre değil); sporcu adı yok. 38p: n ≥ 10 hücrede "Ort. yaş" (ölçüm yaşı); normlu değişkende isteğe bağlı "Z-skoru ile göster" (ölçüm yaşına göre Z'lerin hücre ortalaması, Z'si olan ≥ 10); ekranda "Bant içinde yaş dağılımı kulüpten kulübe değişir; ham ortalamaları ortalama yaşla birlikte okuyun." Başka kulübün verisi yalnız `kulup.kulup_verisi(kod)` ile okunur (yalıtımın bilinçli tek istisnası).

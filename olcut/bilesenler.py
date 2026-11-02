@@ -15,7 +15,7 @@ from olcut.analiz import (
     ILGI_ANKET_ADI, ILGI_DOSYA, ILGI_HAKKINDA, ILGI_OLCEK, ILGI_TERCIHLERI, ILGI_UYARI, _profil_haritasi,
     gelisim_ozeti, grup_ici_konum, ilgi_son_anket, konum_metinleri, konum_seridi_svg, rapor_konum_degiskenleri)
 from olcut.katalog_islemleri import (
-    ONERI_IZ_SINIRI, kanonik_test, sira_uyarilari, test_ara, test_etiketli, test_izi_parcalari)
+    ONERI_IZ_SINIRI, kanonik_test, silinmemis, sira_uyarilari, test_ara, test_etiketli, test_izi_parcalari)
 from olcut.kayit import calisma_bos, calisma_kaydet, calisma_sil, calismalar_oku
 from olcut.kulup import calisma_alani_adi, kulupler
 from olcut.norm import SPORCU_DOSYA
@@ -317,11 +317,12 @@ def _git_sonuclar(sporcu):
 
 
 # Paket 38g: Sonuçlar sayfasının üst düzey bölümü — karşılaştırma "Ayrıntılı analiz" arkasında gizli kalmasın.
-SONUC_BOLUMLERI = ("Sonuçlar", "Karşılaştırma")
+# Paket 38s: üçüncü bölüm "Kayıt düzelt" (düzeltme, taşıma, silme, geri alma).
+SONUC_BOLUMLERI = ("Sonuçlar", "Karşılaştırma", "Kayıt düzelt")
 
 
 def sonuc_bolumu_secici():
-    """Sonuçlar sayfasının üstünde segment: Sonuçlar / Karşılaştırma. Seçim kaldırılırsa Sonuçlar."""
+    """Sonuçlar sayfasının üstünde segment: Sonuçlar / Karşılaştırma / Kayıt düzelt. Seçim kaldırılırsa Sonuçlar."""
     sec = st.segmented_control("Bölüm", SONUC_BOLUMLERI, key="sonuc_bolum", label_visibility="collapsed",
                                **({} if "sonuc_bolum" in st.session_state else {"default": SONUC_BOLUMLERI[0]}))
     return sec or SONUC_BOLUMLERI[0]
@@ -517,7 +518,7 @@ def _bugun_ozeti(zaman):
     son = None
     if os.path.exists(veri_yolu(TEST_DOSYA)):
         try:
-            df = pd.read_excel(veri_yolu(TEST_DOSYA))
+            df = silinmemis(pd.read_excel(veri_yolu(TEST_DOSYA)))          # Paket 38s
             if "Oturum" in df.columns and not df.empty:
                 etiketler = oturum_etiketleri(df)
                 son = next(iter(etiketler.values()), None)

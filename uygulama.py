@@ -525,6 +525,7 @@ from olcut.sayfalar.test_uygula import test_uygula_sayfasi   # Bölme Aşama 2: 
 
 from olcut.sayfalar.sonuclar_genel import sonuclari_goruntule_sayfasi   # Bölme Aşama 2: olcut/sayfalar/sonuclar_genel.py
 from olcut.sayfalar.karsilastirma import karsilastirma_sayfasi   # Paket 38g: olcut/sayfalar/karsilastirma.py
+from olcut.sayfalar.kayit_duzelt import kayit_duzelt_sayfasi    # Paket 38s: olcut/sayfalar/kayit_duzelt.py
 from olcut.bilesenler import SONUC_BOLUMLERI, _karsilastirmaya_git, sonuc_bolumu_secici   # Paket 38g
 from olcut.kayit import ONCEKI_KAT, normsuz_uyarilar, onceki_olcumler   # Paket 38g: normsuz olağandışı değer
 
@@ -554,8 +555,11 @@ elif sayfa == "Test Oturumu":
 
 # ── SAYFA 3: SONUÇLARI GÖRÜNTÜLE ──
 elif sayfa == "Sonuçları Görüntüle":
-    if sonuc_bolumu_secici() == "Karşılaştırma":     # Paket 38g: üst düzey bölüm (Sporcular / Oturumlar arası)
+    _bolum = sonuc_bolumu_secici()
+    if _bolum == "Karşılaştırma":                    # Paket 38g: üst düzey bölüm (Sporcular / Oturumlar arası)
         karsilastirma_sayfasi()
+    elif _bolum == "Kayıt düzelt":                   # Paket 38s
+        kayit_duzelt_sayfasi()
     elif sonuc_kart_gorunumu():
         sonuclar_sporcu_sayfasi()                    # Paket 38b: tek sporcu → dört soru kartı
     else:

@@ -21,7 +21,7 @@ from olcut.kayit import kayitlari_yaz, makullukte_uyarilar, onceki_olcumler, tes
 from olcut.norm import (
     NORMATIF, NORMATIF_KAPSAM, NORMATIF_YAS, NORMSUZ_TESTLER, NORM_YOK_METNI, ROLATIF_KUVVET, SPORCU_DOSYA,
     TURETILEN_DEGISKENLER, bant_metni, normatif_degerlendir, normatif_test_degerlendir, orneklem_disi_metni,
-    orneklem_notlari, orneklem_tablosu, orneklem_uygun, sifir_gecerli, turetilmis_degerler, yas_persentil_bul,
+    orneklem_notlari, orneklem_tablosu, orneklem_uygun, sifir_gecerli, swft_turetilmis, turetilmis_degerler, yas_persentil_bul,
     yas_z_skoru, z_durum_notu)
 from olcut.oneri import gorselsiz_metni
 from olcut.ortak import DOGUM_KOLON, ad_bicimi, guvenli_float, tam_yas, veri_yolu
@@ -182,9 +182,11 @@ def test_uygula_sayfasi():
                     hr0 = st.number_input("HR0 - Test sonu KAH (bpm)", min_value=0, max_value=250, help=ACIKLAMALAR["HR0 (bpm)"])
                     hr1 = st.number_input("HR1 - 1. dk KAH (bpm)", min_value=0, max_value=250, help=ACIKLAMALAR["HR1-dk (bpm)"])
 
-                tn_throws = p1 + p2 + p3
-                tn_bm = round(tn_throws / sporcu_kilo, 3) if sporcu_kilo > 0 else 0
-                swft_index = round((hr0 + hr1) / tn_throws * 100, 2) if tn_throws > 0 else 0
+                _swft = swft_turetilmis({"Periyot 1 Atış Sayısı": p1, "Periyot 2 Atış Sayısı": p2,
+                                         "Periyot 3 Atış Sayısı": p3, "HR0 (bpm)": hr0, "HR1-dk (bpm)": hr1},
+                                        sporcu_kilo)                    # Paket 38s: düzeltmeyle aynı formül
+                tn_throws, tn_bm, swft_index = (_swft["Toplam Atış (TnThrows)"], _swft["TnThrows/BM"],
+                                                _swft["SWFT Index"])
 
                 st.markdown("##### Otomatik hesaplanan")
                 m1, m2, m3 = st.columns(3)

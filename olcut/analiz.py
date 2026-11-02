@@ -10,7 +10,7 @@ import pandas as pd
 import re
 from datetime import date
 from veri.brans_profilleri import BILESIK_Z, BRANS_GRUBU_PROFILLERI
-from veri.metinler import GUVEN_DUZEYLERI, ILGI_MADDELERI
+from veri.metinler import BRANS_ORNEK_METNI, GUVEN_DUZEYLERI, ILGI_MADDELERI
 from veri.normlar_kategorik import NORMATIF_TEST
 from olcut.esik import NORMATIF_ESIK_YAS
 from olcut.katalog_islemleri import kanonik_test, test_tablosu_duzelt
@@ -569,6 +569,8 @@ def z_satiri_karti(r, zb, teknik=False, not_metni=None):
 
 def _brans_ornekleri(grup):
     """Opstoel grubundaki branşlar, sayılar çıkarılarak (ör. 'basketbol, korfbol, futbol, voleybol')."""
+    if grup in BRANS_ORNEK_METNI:                       # Paket 38s: ör. satırı elle (yalnız gösterim)
+        return BRANS_ORNEK_METNI[grup]
     adlar = re.sub(r"\s*\(\d+\)", "", BRANS_GRUBU_PROFILLERI["gruplar"][grup]["branslar"]).split(", ")
     return ", ".join(a for a in adlar if not a.startswith("diğer"))
 

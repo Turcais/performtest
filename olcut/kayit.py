@@ -11,7 +11,7 @@ import streamlit as st
 from datetime import date
 from veri.metinler import DUNYA_REKORU
 from olcut.analiz import BILINEN_BIRIMLER
-from olcut.katalog_islemleri import CALISMA_ANAHTAR, kanonik_test, katalog_testleri
+from olcut.katalog_islemleri import CALISMA_ANAHTAR, kanonik_test, katalog_testleri, silinmemis
 from olcut.norm import (
     META_KOLONLAR, NORMATIF_YAS, OTURUM_ADI_KOLON, TEST_DOSYA, _STANDART_NORMAL, degisken_yonu, sifir_gecerli,
     turetilmis_degerler, yas_persentil_bul)
@@ -186,10 +186,11 @@ def normsuz_uyarilar(test_adi, degisken, x, cinsiyet, onceki=None, on=""):
 _GECMIS_ONBELLEK = {}
 
 
-def onceki_olcumler(sporcu, test_adi, tarih=None):
+def onceki_olcumler(sporcu, test_adi, tarih=None, haric_satir=None):
     """
     Paket 38g: sporcunun bu testteki kayıtlı son ölçümleri {değişken: (değer, 'gg.aa.yyyy')} — test_sonuclari.xlsx.
     tarih verilirse o günden SONRAKİ kayıtlar sayılmaz. Dosya yoksa boş. Okuma dosyanın değişme zamanıyla önbellekli.
+    Paket 38s: silinmiş kayıtlar sayılmaz; haric_satir (dosyadaki satır numarası) düzeltilen kaydın kendisidir.
     """
     if not sporcu or not os.path.exists(veri_yolu(TEST_DOSYA)):
         return {}
@@ -197,13 +198,15 @@ def onceki_olcumler(sporcu, test_adi, tarih=None):
         anahtar = (os.path.abspath(veri_yolu(TEST_DOSYA)), os.path.getmtime(veri_yolu(TEST_DOSYA)))
         if anahtar not in _GECMIS_ONBELLEK:
             _GECMIS_ONBELLEK.clear()
-            df = pd.read_excel(veri_yolu(TEST_DOSYA))
+            df = silinmemis(pd.read_excel(veri_yolu(TEST_DOSYA)))
             df["_t"] = pd.to_datetime(df.get("Tarih"), format="%d.%m.%Y", errors="coerce")
             _GECMIS_ONBELLEK[anahtar] = df
         df = _GECMIS_ONBELLEK[anahtar]
     except Exception:
         return {}
     d = df[(df["Sporcu"].astype(str) == str(sporcu)) & (df["Test"].map(kanonik_test) == kanonik_test(test_adi))]
+    if haric_satir is not None:
+        d = d[d.index != haric_satir]
     if tarih is not None and not d.empty:
         try:
             d = d[~(d["_t"] > pd.Timestamp(tarih))]

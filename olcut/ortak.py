@@ -12,7 +12,7 @@ import pandas as pd
 import re
 from datetime import date
 
-SURUM = "Paket 38r"          # tek yer: Hakkında sayfası ve testler bunu okur
+SURUM = "Paket 38s"          # tek yer: Hakkında sayfası ve testler bunu okur
 
 
 def _desteklenen(fn, **secenek):

@@ -189,10 +189,24 @@ def kanonik_test(ad):
     return TEST_TAKMA_AD.get(ad, ad)
 
 
+SILINDI_KOLON = "Silindi"            # Paket 38s: silinme zamanı; doluysa kayıt hiçbir hesaba ve rapora girmez
+
+
+def silinmemis(df):
+    """Paket 38s: 'Silindi' işaretli satırlar ve sütunun kendisi çıkar (yalnız bellekte; satır numarası korunur)."""
+    if isinstance(df, pd.DataFrame) and SILINDI_KOLON in df.columns:
+        s = df[SILINDI_KOLON]
+        df = df[s.isna() | (s.astype(str).str.strip().isin(["", "nan"]))].drop(columns=[SILINDI_KOLON])
+    return df
+
+
 def test_tablosu_duzelt(df):
-    """Okunan sonuç tablosunda takma adlı kayıtları asıl ada çevirir (yalnız bellekte; dosya değişmez)."""
+    """
+    Okunan sonuç tablosunda takma adlı kayıtları asıl ada çevirir (yalnız bellekte; dosya değişmez).
+    Paket 38s: silinmiş kayıtlar da burada çıkar — sonuç tablosunu okuyan her yer bu fonksiyondan geçer.
+    """
     if isinstance(df, pd.DataFrame) and "Test" in df.columns:
-        df = df.copy()
+        df = silinmemis(df).copy()
         df["Test"] = df["Test"].map(lambda t: kanonik_test(t) if isinstance(t, str) else t)
     return df
 

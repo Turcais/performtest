@@ -4281,7 +4281,7 @@ def test_44a_veri_modulleri_yalniz_sabit(agac):
 # 45. Bölme Aşama 2: olcut/ paketinin katman sırası (döngüsel bağımlılık yok)
 # ════════════════════════════════════════════════════════════
 _OLCUT_KATMAN = ["ortak", "disa_aktarma", "tema", "esik", "katalog_islemleri", "gorseller.cizim", "gorseller.hareketler",
-                 "gorseller.sahneler", "norm", "analiz", "kayit", "kulup", "raporlar", "oneri", "karsilastirma", "kulup_raporu", "bilesenler", "sayfalar"]
+                 "gorseller.sahneler", "norm", "analiz", "kayit", "duzeltme", "kulup", "raporlar", "oneri", "karsilastirma", "kulup_raporu", "bilesenler", "sayfalar"]
 
 
 def _olcut_katmani(modul):
@@ -5037,6 +5037,7 @@ def test_50c_kulup_a_seciliyken_b_hicbir_yerde_yok(tmp_path, monkeypatch):
     durumlar = [("Ana Sayfa", {}), ("Sporcu Girişi", {}), ("Test Uygula", {}), ("Test Oturumu", {}),
                 ("Test Oturumu", {"ot_adim": 2, "ots::testler": ["Durarak Uzun Atlama"]}),
                 ("Sonuçları Görüntüle", {}), ("Sonuçları Görüntüle", {"sonuc_bolum": "Karşılaştırma"}),
+                ("Sonuçları Görüntüle", {"sonuc_bolum": "Kayıt düzelt"}),          # Paket 38s
                 ("Raporlar", {}), ("Niteliğe göre test bul", {}), ("Kulüpler", {})]
     for sayfa, ek in durumlar:
         at.session_state["sayfa"] = sayfa
@@ -5547,3 +5548,145 @@ def test_54d_kulup_raporu_ana_sonuc_ve_vucut_olcusu(tmp_path, monkeypatch):
     h = KR.kulup_raporu_html({"ad": "A"}, sp, df, bugun=_dt.date(2026, 11, 2))
     assert "Çok bileşenli testler (ör. Boy ve Vücut Ağırlığı (TSYT)) bu özete girmez." in h
     assert "<td>9–11</td><td>8</td>" in h                                    # 01.01.2016 → bugün 10 (profil 8)
+
+
+# ── Paket 38s: kayıtlı oturumu düzeltme, taşıma, silme ──
+def _p38s_veri(d):
+    """İki sporcu (doğum tarihli 10 ve 12 yaş), bir çalışmalı oturum: uzun atlama (en iyi türetilir) ve NHT."""
+    import pandas as _pd
+    _pd.DataFrame({"Ad": ["Elif", "Kaan"], "Soyad": ["Demo"] * 2, "Yaş": [10, 12], "Cinsiyet": ["Kadın", "Erkek"],
+                   "Kilo (kg)": [33, 40], "Doğum Tarihi": ["01.01.2016", "01.01.2014"]}).to_excel(
+        d / "sporcular.xlsx", index=False)
+    b = {"Sporcu": "Elif Demo", "Tarih": "15.09.2026", "Oturum": "Tez · Ön test", "Test Yaşı": 10}
+    _pd.DataFrame([
+        dict(b, Test="Durarak Uzun Atlama", **{"Deneme 1 (cm)": 128, "Deneme 2 (cm)": 131, "En İyi Değer (cm)": 131}),
+        dict(b, Test="Nordic Hamstring Kuvvet Testi — Genel (NHT)",
+             **{"Sağ Bacak Pik Kuvveti (N)": 300, "Sol Bacak Pik Kuvveti (N)": 270, "Asimetri İndeksi (%)": 10.0}),
+        dict(b, Sporcu="Kaan Demo", Test="Durarak Uzun Atlama", **{"Deneme 1 (cm)": 150, "En İyi Değer (cm)": 150,
+                                                                    "Test Yaşı": 12}),
+    ]).to_excel(d / "test_sonuclari.xlsx", index=False)
+
+
+def test_55a_duzeltme_turetilenleri_yeniden_hesaplar_kayit_ve_yedek(tmp_path, monkeypatch):
+    """Tek değer düzeltmesi: en iyi deneme ve asimetri yeniden hesaplanır, aykırı değer uyarısı çıkar (engel değil),
+    yazmadan önce yedek alınır, değişiklik kaydına satır (Excel satırı), alan, eski ve yeni değer yazılır."""
+    import os as _os
+    D = _modul("olcut.duzeltme")
+    monkeypatch.chdir(tmp_path)
+    _p38s_veri(tmp_path)
+    o = D.duzeltme_onizleme(0, "Deneme 1 (cm)", "135,5")
+    assert o["degisiklikler"] == [("Deneme 1 (cm)", 128, 135.5), ("En İyi Değer (cm)", 131, 135.5)]
+    assert not o["uyarilar"]
+    assert D.duzeltme_onizleme(0, "Deneme 1 (cm)", "900")["uyarilar"]                 # ≈P1–P99 dışı
+    with pytest.raises(D.DuzeltmeHatasi):
+        D.duzeltme_onizleme(0, "En İyi Değer (cm)", "140")                              # hesaplanan değer düzeltilmez
+    assert D.kayit_duzelt(0, "Deneme 1 (cm)", "135,5", "kâğıttan yanlış") == 2
+    df = D.ham_tablo()
+    assert df.at[0, "Deneme 1 (cm)"] == 135.5 and df.at[0, "En İyi Değer (cm)"] == 135.5
+    assert D.kayit_duzelt(1, "Sol Bacak Pik Kuvveti (N)", "240") == 2
+    assert D.ham_tablo().at[1, "Asimetri İndeksi (%)"] == 20.0                     # (300 − 240) / 300 × 100
+    log = D.degisiklik_kaydi_oku()
+    assert list(log.columns) == D.DEGISIKLIK_KOLONLARI and len(log) == 4
+    assert list(log.iloc[0][["İşlem", "Satır", "Sporcu", "Alan", "Eski değer", "Yeni değer", "Açıklama"]]) == [
+        "Düzeltme", 2, "Elif Demo", "Deneme 1 (cm)", "128", "135.5", "kâğıttan yanlış"]
+    assert len(_os.listdir(tmp_path / "yedekler")) == 2
+    # SWFT: Test Uygula ile düzeltme aynı formül
+    from olcut.norm import swft_turetilmis
+    assert swft_turetilmis({"Periyot 1 Atış Sayısı": 5, "Periyot 2 Atış Sayısı": 10, "Periyot 3 Atış Sayısı": 9,
+                            "HR0 (bpm)": 180, "HR1-dk (bpm)": 150}, 80) == {
+        "Toplam Atış (TnThrows)": 24, "TnThrows/BM": 0.3, "SWFT Index": 1375.0}
+
+
+def test_55b_tasima_test_yasini_yeni_sporcuya_gore_hesaplar(tmp_path, monkeypatch):
+    D = _modul("olcut.duzeltme")
+    monkeypatch.chdir(tmp_path)
+    _p38s_veri(tmp_path)
+    o = D.tasima_onizleme([0], "Kaan Demo")
+    assert ("Sporcu", "Elif Demo", "Kaan Demo") in o[0]["degisiklikler"]
+    assert ("Test Yaşı", 10, 12) in o[0]["degisiklikler"]                           # 01.01.2014 → 15.09.2026: 12
+    with pytest.raises(D.DuzeltmeHatasi):
+        D.tasima_onizleme([0], "Yok Demo")
+    D.kayit_tasi([0], "Kaan Demo")
+    df = D.ham_tablo()
+    assert df.at[0, "Sporcu"] == "Kaan Demo" and df.at[0, "Test Yaşı"] == 12
+    assert set(D.degisiklik_kaydi_oku()["İşlem"]) == {"Taşıma"}
+
+
+def test_55c_silme_isaretler_hesaplara_girmez_geri_alinir(tmp_path, monkeypatch):
+    """Silme kalıcı değil: satır dosyada kalır, test_tablosu_duzelt (bütün okumalar) ve önceki ölçüm çıkarır;
+    Geri al ile döner. Satır numaraları değişmez."""
+    D = _modul("olcut.duzeltme")
+    from olcut.katalog_islemleri import test_tablosu_duzelt, SILINDI_KOLON
+    from olcut.kayit import onceki_olcumler
+    monkeypatch.chdir(tmp_path)
+    _p38s_veri(tmp_path)
+    satirlar = D.oturum_satirlari(D.ham_tablo(), "Tez · Ön test", "Elif Demo")
+    assert satirlar == [0, 1]
+    assert D.kayit_sil(satirlar, "protokol dışı") == 2
+    ham = D.ham_tablo()
+    assert len(ham) == 3 and ham[SILINDI_KOLON].notna().sum() == 2
+    gor = test_tablosu_duzelt(ham)
+    assert list(gor.index) == [2] and SILINDI_KOLON not in gor.columns
+    assert onceki_olcumler("Elif Demo", "Durarak Uzun Atlama") == {}
+    with pytest.raises(D.DuzeltmeHatasi):
+        D.kayit_duzelt(0, "Deneme 1 (cm)", "130")                                     # silinmiş kayıt düzeltilmez
+    assert D.oturum_satirlari(ham, "Tez · Ön test", silinmis=True) == [0, 1]
+    assert D.kayit_geri_al([0, 1]) == 2
+    assert len(test_tablosu_duzelt(D.ham_tablo())) == 3
+    assert list(D.degisiklik_kaydi_oku()["İşlem"]) == ["Silme"] * 2 + ["Geri alma"] * 2
+
+
+def test_55d_taslagi_acik_oturum_duzenlenemez(tmp_path, monkeypatch):
+    import json as _json
+    D = _modul("olcut.duzeltme")
+    monkeypatch.chdir(tmp_path)
+    _p38s_veri(tmp_path)
+    (tmp_path / "oturum_taslagi.json").write_text(_json.dumps(
+        {"testler": ["Durarak Uzun Atlama"], "sporcular": ["Elif Demo"], "bilgi": {"calisma": "Tez", "zaman": "Ön test"},
+         "degerler": {}}), encoding="utf-8")
+    assert D.kilitli_oturum() == "Tez · Ön test"
+    for islem in (lambda: D.kayit_duzelt(0, "Deneme 1 (cm)", "130"), lambda: D.kayit_sil([2]),
+                  lambda: D.kayit_tasi([0], "Kaan Demo")):
+        with pytest.raises(D.DuzeltmeHatasi, match="taslağı"):
+            islem()
+    assert not (tmp_path / "degisiklik_kaydi.xlsx").exists() and not (tmp_path / "yedekler").exists()
+    (tmp_path / "oturum_taslagi.json").write_text(_json.dumps(
+        {"testler": ["Durarak Uzun Atlama"], "sporcular": ["Elif Demo"], "bilgi": {}}), encoding="utf-8")
+    assert D.kilitli_oturum() is None                                                 # serbest seçim taslağı
+    assert D.kayit_duzelt(0, "Deneme 1 (cm)", "130") == 1
+
+
+def test_55e_kulupte_yedek_ve_kayit_kulup_klasorunde(tmp_path, monkeypatch):
+    """Çalışma alanı yalıtımı: kulüp seçiliyken test dosyası, yedek ve değişiklik kaydı kulübün klasöründe."""
+    import olcut.ortak as O
+    D = _modul("olcut.duzeltme")
+    monkeypatch.chdir(tmp_path)
+    k = tmp_path / "kulupler" / "a-sk"
+    k.mkdir(parents=True)
+    _p38s_veri(k)
+    monkeypatch.setattr(O, "aktif_kulup", lambda: "a-sk")
+    D.kayit_sil([2])
+    assert (k / "degisiklik_kaydi.xlsx").exists() and len(list((k / "yedekler").iterdir())) == 1
+    assert not (tmp_path / "degisiklik_kaydi.xlsx").exists() and not (tmp_path / "yedekler").exists()
+
+
+def test_55f_kayit_duzelt_ekrani_onay_penceresiyle_yazar(tmp_path, monkeypatch):
+    """Sonuçlar → Kayıt düzelt: Önizle ve onayla → pencere (uyarı engel değil) → Onayla → dosya; Vazgeç yazmaz.
+    Veli raporundaki yüzme örneği 'yüzme, su topu'."""
+    from olcut.analiz import _brans_ornekleri
+    at = _apptest(tmp_path, monkeypatch, _p38s_veri)
+    at.session_state["sayfa"] = "Sonuçları Görüntüle"
+    at.session_state["sonuc_bolum"] = "Kayıt düzelt"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    yeni = next(t for t in at.text_input if str(t.key).startswith("kd_yeni"))
+    yeni.set_value("900").run()
+    at.button(key="kd_duzelt").click().run()
+    assert any("olağandışı" in w.value for w in at.warning)
+    at.button(key="kd_vazgec").click().run()
+    assert not (tmp_path / "degisiklik_kaydi.xlsx").exists()
+    at.button(key="kd_duzelt").click().run()
+    at.button(key="kd_onayla").click().run()
+    assert not at.exception and any("İşlem kaydedildi" in s.value for s in at.success)
+    assert (tmp_path / "degisiklik_kaydi.xlsx").exists()
+    assert _brans_ornekleri("Yüzme") == "yüzme, su topu"

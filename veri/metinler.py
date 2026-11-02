@@ -697,3 +697,8 @@ HAKKINDA_GIZLILIK = (
 ILETISIM_EPOSTA = "ertugrulkayisoglu@gmail.com"
 HAKKINDA_ILETISIM = "Görüş, öneri ve hata bildirimi için:"
 ALT_BILGI_METNI = "© 2026 Ölçüt · Tüm hakları saklıdır."
+
+
+# Paket 38s: veli raporunda branş grubunun "ör." satırı (Ertuğrul'un kararı). Yalnız gösterim: Opstoel örnekleminin
+# dökümü (veri/brans_profilleri.py "branslar") değişmez; o örneklemde su topu yok.
+BRANS_ORNEK_METNI = {"Yüzme": "yüzme, su topu"}

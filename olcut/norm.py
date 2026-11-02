@@ -753,6 +753,22 @@ META_KOLONLAR = ["Sporcu", "Kategori", "Batarya", "Branş", "Test", "Tarih", "No
 TEST_DOSYA = "test_sonuclari.xlsx"
 
 
+SWFT_TEST = "Special Wrestling Fitness Test (SWFT)"
+
+
+def swft_turetilmis(degerler, sporcu_kilo):
+    """
+    SWFT'nin hesaplanan üç değeri (Test Uygula ekranı ve Paket 38s düzeltmesi aynı formül): toplam atış,
+    vücut ağırlığına bölünmüş atış, SWFT indeksi = (HR0 + HR1) / toplam atış × 100.
+    """
+    p = [int(guvenli_float(degerler.get(f"Periyot {i} Atış Sayısı", 0))) for i in (1, 2, 3)]
+    hr0, hr1 = guvenli_float(degerler.get("HR0 (bpm)", 0)), guvenli_float(degerler.get("HR1-dk (bpm)", 0))
+    tn = sum(p)
+    return {"Toplam Atış (TnThrows)": tn,
+            "TnThrows/BM": round(tn / sporcu_kilo, 3) if sporcu_kilo > 0 else 0,
+            "SWFT Index": round((hr0 + hr1) / tn * 100, 2) if tn > 0 else 0}
+
+
 def turetilmis_degerler(test_adi, degerler, sporcu_satir, sporcu_kilo):
     """
     Girilen değerlerden otomatik hesaplanan değerler (en iyi deneme, KTK3+ toplamları, VO2max,
