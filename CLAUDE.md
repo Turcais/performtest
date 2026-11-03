@@ -1,6 +1,6 @@
 # Ölçüt — devralma notu
 
-Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38s** (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
+Streamlit uygulaması, sporcu performans takibi: test oturumu girişi, yaşa/cinsiyete göre norm karşılaştırma, gelişim takibi, sporcu/oturum karşılaştırması, antrenör ve veli raporu. Şu an **Paket 38t** (son etiket `v107-38h`; sürüm sabiti `olcut/ortak.py` `SURUM`).
 Kullanıcı: Ertuğrul (spor bilimleri doktora öğrencisi, Gazi Üniversitesi). **Türkçe yazın, adım adım açıklayın.**
 Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `sporcular.xlsx`, `test_sonuclari.xlsx`, `ilgi_anketi.xlsx`, `ayarlar.json`, `oturum_taslagi.json`; uygulamanın ürettiği `.streamlit/config.toml` da girmez. Kulüpler (38n): `kulupler/<kod>/` altında aynı adlı dosyalar + `kulup.json` (aşağıda).
 
@@ -34,6 +34,7 @@ Bir iş önermeden önce buraya ve koda bakın.
 - Kulüpler ve çalışma alanı, Bugün kartı, üst/sol menü, alt bilgi — `olcut/kulup.py`, `olcut/sayfalar/kulupler.py`, `olcut/bilesenler.py`
 - Kaynakça, Hakkında — `olcut/sayfalar/raporlar.py` (`kaynakca_sayfasi`), `olcut/sayfalar/hakkinda.py`
 - Açık/koyu tema, grafik renkleri, config.toml — `olcut/tema.py`
+- Tek tıkla tam yedek (çalışma alanının bütün veri dosyaları tek zip, Kulüpler sayfasının üstünde; 38t) — `kulup.calisma_alani_yedegi`, `olcut/sayfalar/kulupler.py`
 
 ## Kayıt düzelt (Paket 38s)
 - Sonuçlar'ın üstündeki segmentte üçüncü bölüm **Kayıt düzelt** (`SONUC_BOLUMLERI`): Oturum (ya da "Oturumsuz kayıtlar") → Sporcu → Kayıt; işlem: Değer düzelt · Başka sporcuya taşı · Sil · Geri al. Her işlem "Önizle ve onayla" → onay penceresi (eski/yeni tablo, aykırı değer uyarısı engel değil) → Onayla.
@@ -47,7 +48,7 @@ Bir iş önermeden önce buraya ve koda bakın.
 ## Komutlar
 - Kurulum: `python -m pip install -r requirements.txt` (Streamlit 1.58.0 sabit, Paket 38q; yükseltmeden önce tam test takımını yeni sürümle çalıştırın).
 - Çalıştırma: `python -m streamlit run uygulama.py` (veri dosyalarının olduğu klasörden; başka klasörden tam yolla da çalışır). Kısa `streamlit` komutu bu bilgisayarda PATH'te değil.
-- Testler: `python -m pytest test_uygulama.py -q` (~6–8 dk; 231 test). Windows'ta Türkçe çıktı için `PYTHONUTF8=1`.
+- Testler: `python -m pytest test_uygulama.py -q` (~6–8 dk; 233 test). Windows'ta Türkçe çıktı için `PYTHONUTF8=1`.
 - Regresyon: `python araclar/reg.py <TAM YOL>\uygulama.py cikti.json` (araç çalışma klasörünü değiştirdiği için tam yol). Taban: `v101-38f` çıktısı. Raporda "Rapor tarihi" bugünün tarihidir: tabanı karşılaştırmayla AYNI GÜN alın (başka gün alınmış tabanla rapor HTML'i ve sayfa görüntüsündeki tarih alanları yalnız tarih yüzünden farklı çıkar).
 - Derin eşitlik: `python araclar/esitlik.py <git sürümü> [--akis]` · Sayfa görüntüsü: `python araclar/sayfa_goruntusu.py uygulama.py cikti.json`.
 
@@ -96,6 +97,7 @@ Sonuçlar sayfasının üstünde segment: **Sonuçlar | Karşılaştırma | Kay�
 - Seçici: üst menünün solunda "Çalışma alanı: <ad>" (`bilesenler.calisma_alani_secici`; yalnız en az bir kulüp varsa); yanında her zaman "+ Kulüp" (Kulüpler sayfası, "Yeni kulüp" formu açık). Üst satır Streamlit üst şeridinin (60 px) altında başlar (`.st-key-ust-menu` üst boşluğu). Değişince `calisma_alanina_gec`: oturumdaki bütün seçimler silinir, Ana Sayfa, `st.cache_data.clear()`. `calisma_alani_dogrula()` her çalıştırmada veri okumadan önce: silinmiş/arşivlenmiş kulüpte kalınmaz.
 - Kulüpler sayfası (`olcut/sayfalar/kulupler.py`, alt bilgide Hakkında'nın yanında; menüde değil): liste, yeni kulüp (kod otomatik; klasör + başlık satırlı boş xlsx), düzenle, arşivle/arşivden çıkar (silmez), bu kulübe geç. Kulüp yönetimi `olcut/kulup.py` (katman: `kayit`tan sonra). Silme ve Genel veriyi kulübe taşıma yok.
 - **Kulüp raporu** (38n-2; `olcut/kulup_raporu.py`, katman `karsilastirma`dan sonra): Raporlar'da üçüncü sekme, yalnız kulüp seçiliyken; PDF bugünkü yolla (A4), dosya `Kulup_raporu_<Kulüp adı aynen>_<GGAAYYYY>.pdf`. İçerik: kulüp adı, tarih, sporcu sayısı; yaş bandı × cinsiyet; oturumlar (ad, tarih, sporcu sayısı); test başına ölçülen sporcu ve konum dağılımı (aralığın altında / içinde / üstünde KAÇ sporcu — sporcu başına `sporcu_z_profili` → `veli_test_ozeti` → `veli_aralik_konumu`, veli raporuyla aynı yol); ilk ↔ son oturum değişimi (`oturumlar_arasi` + Wilcoxon, değişen ≥ 6). 38p: değişken = testin ANA SONUCU (`kulup_raporu.ana_sonuc`: KTK toplamı → "En İyi" → en iyi deneme → tek değişken; çok bileşenliyse test tablodan çıkar ve "Çok bileşenli testler (ör. …) bu özete girmez"); vücut ölçüsünde (`test_niteligi` antropometri) istatistik testi yok, yalnız ortalama fark; ondalık virgül. "Norm kıyası yok" = hiçbir sporcuda norm satırı oluşmadı (antrenör raporundaki normsuz tanımı); dayanıklılık ve vücut ölçüsü veli raporundaki gibi konuma girmez. Sporcu adı yok; "Sporcu listesini ek olarak ekle" (varsayılan kapalı): ad, yaş, cinsiyet, ölçüldüğü oturumlar — değer/sıra yok. Örnek: `Olcut_Demo\Kulup_raporu_Demo_Kulup_A_<tarih>.pdf`.
+- **Tam yedek** (38t): Kulüpler sayfasının en üstünde "Veri yedeği · <çalışma alanı>" + "Tüm veriyi yedekle (.zip)". Zip: `YEDEK_DOSYALARI` içinden çalışma alanında olanlar (sporcular, sonuçlar, ilgi anketi, ayarlar, taslak, değişiklik kaydı, kulup.json) + `yedek_bilgisi.txt` (alan, tarih, sürüm, geri yükleme talimatı); yalnız `veri_yolu` ile, `yedekler/` girmez. Dosya `Olcut_yedek_<ad>_<GGAAYYYY>.zip`. Geri yükleme düğmesi yok (elle kopyalama).
 - Yalıtım testi 50c/50d; demo (`Olcut_Demo`) bölünerek de denetlendi: A seçiliyken B'nin ve Genel'in sporcusu hiçbir ekranda yok.
 
 ## PDF ve dışa aktarma (Paket 38i)

@@ -5690,3 +5690,48 @@ def test_55f_kayit_duzelt_ekrani_onay_penceresiyle_yazar(tmp_path, monkeypatch):
     assert not at.exception and any("İşlem kaydedildi" in s.value for s in at.success)
     assert (tmp_path / "degisiklik_kaydi.xlsx").exists()
     assert _brans_ornekleri("Yüzme") == "yüzme, su topu"
+
+
+# ── Paket 38t: tek tıkla tam yedek ──
+def test_56a_tam_yedek_yalniz_secili_calisma_alani(tmp_path, monkeypatch):
+    """Zip: çalışma alanının veri dosyaları + yedek_bilgisi.txt; yedekler/ ve başka kulübün dosyası girmez.
+    Kulüpte kulup.json da girer; dosya adı Olcut_yedek_<ad>_<GGAAYYYY>.zip."""
+    import datetime as _dt
+    import io as _io
+    import json as _json
+    import zipfile as _zip
+    import olcut.ortak as O
+    K = _modul("olcut.kulup")
+    monkeypatch.chdir(tmp_path)
+    _p38s_veri(tmp_path)
+    (tmp_path / "yedekler").mkdir()
+    (tmp_path / "yedekler" / "eski.xlsx").write_bytes(b"x")
+    a = tmp_path / "kulupler" / "a-sk"
+    a.mkdir(parents=True)
+    (a / "kulup.json").write_text(_json.dumps({"ad": "Arslan SK"}), encoding="utf-8")
+    (a / "sporcular.xlsx").write_bytes(b"a")
+    gun = _dt.datetime(2026, 11, 3, 10, 0)
+    veri, ad, dosyalar = K.calisma_alani_yedegi("", gun)
+    z = _zip.ZipFile(_io.BytesIO(veri))
+    assert ad == "Olcut_yedek_Genel_03112026.zip"
+    assert sorted(z.namelist()) == sorted(["sporcular.xlsx", "test_sonuclari.xlsx", "yedek_bilgisi.txt"])
+    assert z.read("sporcular.xlsx") == (tmp_path / "sporcular.xlsx").read_bytes()
+    assert "Çalışma alanı: Genel" in z.read("yedek_bilgisi.txt").decode("utf-8")
+    monkeypatch.setattr(O, "aktif_kulup", lambda: "a-sk")
+    veri, ad, dosyalar = K.calisma_alani_yedegi("a-sk", gun)
+    z = _zip.ZipFile(_io.BytesIO(veri))
+    assert ad == "Olcut_yedek_Arslan_SK_03112026.zip" and dosyalar == ["sporcular.xlsx", "kulup.json"]
+    assert z.read("sporcular.xlsx") == b"a"
+    monkeypatch.setattr(O, "aktif_kulup", lambda: "")
+    (tmp_path / "sporcular.xlsx").unlink()
+    (tmp_path / "test_sonuclari.xlsx").unlink()
+    assert K.calisma_alani_yedegi("", gun) == (None, None, [])
+
+
+def test_56b_kulupler_sayfasinda_yedek_dugmesi(tmp_path, monkeypatch):
+    at = _apptest(tmp_path, monkeypatch, _p38s_veri)
+    at.session_state["sayfa"] = "Kulüpler"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "Veri yedeği · Genel" in _agac_metni(at)
+    assert "Tüm veriyi yedekle (.zip)" in _agac_metni(at)

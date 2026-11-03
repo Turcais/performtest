@@ -4,17 +4,21 @@ ilgi_anketi.xlsx, oturum_taslagi.json, ayarlar.json) + kulup.json (bilgiler). Ku
 klasörü yoksa "Genel" çalışma alanı: çalışma klasöründeki bugünkü dosyalar. Silme yok; "Arşivle" listeden gizler.
 Dosya yolu: ortak.veri_yolu (os.chdir yok).
 """
+import io
 import json as _json
 import os
 import re
 import unicodedata
-from datetime import date
+import zipfile
+from datetime import date, datetime
 import pandas as pd
 from olcut.analiz import ANTRENMAN_KOLON, ANTRENMAN_TARIH_KOLON, ILGI_DOSYA
+from olcut.disa_aktarma import guvenli_dosya_adi, tarih_eki
+from olcut.duzeltme import DEGISIKLIK_DOSYA, TASLAK_DOSYA_ADI
 from olcut.katalog_islemleri import test_tablosu_duzelt
 from olcut.kayit import GRUP_KOLON
 from olcut.norm import META_KOLONLAR, SPORCU_DOSYA, TEST_DOSYA
-from olcut.ortak import DOGUM_KOLON, KULUP_KLASORU, KULUP_KODU_KALIBI, kulup_klasoru
+from olcut.ortak import AYAR_DOSYA, DOGUM_KOLON, KULUP_KLASORU, KULUP_KODU_KALIBI, SURUM, kulup_klasoru, veri_yolu
 
 KULUP_DOSYA = "kulup.json"
 GENEL_ALAN = "Genel"
@@ -135,3 +139,32 @@ def kulup_verisi(kod):
 def karsilastirma_katilimcilari():
     """Kulüpler arası karşılaştırmaya onay vermiş, arşivde olmayan kulüpler {kod: bilgi}."""
     return {k: b for k, b in kulupler().items() if b["karsilastirma_onayi"]}
+
+
+# ── Paket 38t: tek tıkla tam yedek ──
+YEDEK_DOSYALARI = (SPORCU_DOSYA, TEST_DOSYA, ILGI_DOSYA, AYAR_DOSYA, TASLAK_DOSYA_ADI, DEGISIKLIK_DOSYA, KULUP_DOSYA)
+YEDEK_BILGI_DOSYA = "yedek_bilgisi.txt"
+
+
+def calisma_alani_yedegi(kod, simdi=None):
+    """
+    Seçili çalışma alanının (kod: '' = Genel) bütün veri dosyaları tek zip. Yalnız veri_yolu ile okunur — başka
+    kulübün dosyası girmez; yedekler/ klasörü (düzeltme öncesi kopyalar) girmez. Döner: (zip baytı, dosya adı,
+    [içindeki veri dosyaları]); hiç dosya yoksa (None, None, []).
+    """
+    simdi = simdi or datetime.now()
+    var = [ad for ad in YEDEK_DOSYALARI if os.path.isfile(veri_yolu(ad))]
+    if not var:
+        return None, None, []
+    ad = calisma_alani_adi(kod)
+    bilgi = (f"Ölçüt veri yedeği\nÇalışma alanı: {ad}" + (f" ({kod})" if kod else "") +
+             f"\nTarih: {simdi:%d.%m.%Y %H:%M}\nSürüm: {SURUM}\nDosyalar: {', '.join(var)}\n\n"
+             "Geri yüklemek için: uygulamayı kapatın, bu dosyaları çalışma alanının klasörüne kopyalayın "
+             + (f"({KULUP_KLASORU}/{kod}/)" if kod else "(uygulamayı başlattığınız klasör)") +
+             " ve uygulamayı yeniden açın. Önce oradaki dosyaların bir kopyasını alın.\n")
+    tampon = io.BytesIO()
+    with zipfile.ZipFile(tampon, "w", zipfile.ZIP_DEFLATED) as z:
+        for d in var:
+            z.write(veri_yolu(d), d)
+        z.writestr(YEDEK_BILGI_DOSYA, bilgi)
+    return tampon.getvalue(), guvenli_dosya_adi("Olcut_yedek", ad, tarih_eki(simdi.date())) + ".zip", var

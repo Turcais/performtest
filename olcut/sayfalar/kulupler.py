@@ -7,7 +7,8 @@ import pandas as pd
 import streamlit as st
 from olcut.bilesenler import KULUP_YENI_AC, calisma_alanina_gec
 from olcut.kulup import (
-    GENEL_ALAN, KULUP_ALANLARI, kulup_arsivle, kulup_kaydet, kulup_olustur, kulup_oku, kulupler)
+    GENEL_ALAN, KULUP_ALANLARI, calisma_alani_adi, calisma_alani_yedegi, kulup_arsivle, kulup_kaydet, kulup_olustur,
+    kulup_oku, kulupler)
 from olcut.ortak import KULUP_KLASORU, aktif_kulup
 
 KULUP_SAYFA_ACIKLAMA = ("Her kulübün sporcuları ve sonuçları ayrı klasörde durur (kulupler/<kod>/). Üstteki "
@@ -55,9 +56,26 @@ def _liste(tumu):
                  hide_index=True, width="stretch")
 
 
+def veri_yedegi():
+    """Paket 38t: seçili çalışma alanının bütün veri dosyaları tek zip olarak indirilir."""
+    kod = aktif_kulup()
+    with st.container(border=True):
+        st.markdown(f"**Veri yedeği · {calisma_alani_adi(kod)}**")
+        veri, ad, dosyalar = calisma_alani_yedegi(kod)
+        if not veri:
+            st.caption("Bu çalışma alanında henüz veri dosyası yok.")
+            return
+        st.caption(f"Bu çalışma alanının bütün veri dosyaları ({', '.join(dosyalar)}) tek zip dosyasında; içinde geri "
+                   "yükleme açıklaması var. Başka kulübün verisi girmez. Yedeği bilgisayar dışında (USB, bulut) "
+                   "saklayın.")
+        st.download_button("Tüm veriyi yedekle (.zip)", veri, file_name=ad, mime="application/zip",
+                           icon=":material/download:", key="kl_yedek", type="primary")
+
+
 def kulupler_sayfasi():
     st.header("Kulüpler")
     st.caption(KULUP_SAYFA_ACIKLAMA)
+    veri_yedegi()
     arsiv_goster = st.toggle("Arşivdekileri de göster", key="kl_arsiv_goster")
     tumu = kulupler(arsiv=True)
     _liste({k: b for k, b in tumu.items() if arsiv_goster or not b["arsiv"]})
