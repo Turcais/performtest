@@ -13,6 +13,7 @@ import { SporcuKaydi, SporcuAnalizYaniti } from "@/lib/api-client";
 
 export default function PerformTestStudioPage() {
   const [oturumAcik, setOturumAcik] = useState<boolean>(false);
+  const [mobilMenuAcik, setMobilMenuAcik] = useState<boolean>(false);
   const [aktifSekme, setAktifSekme] = useState<SekmeTipi>("analiz");
   const [aktifKulup, setAktifKulup] = useState<string>("merkez");
   const [kulupler, setKulupler] = useState<Array<{ kod: string; ad: string }>>([
@@ -226,7 +227,7 @@ export default function PerformTestStudioPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg)] text-[var(--text)]">
+    <div className="min-h-screen flex flex-col bg-[var(--bg)] text-[var(--text)] overflow-x-hidden">
       {/* Üst Bar */}
       <Navbar
         aktifKulup={aktifKulup}
@@ -236,18 +237,24 @@ export default function PerformTestStudioPage() {
         rol={rol}
         onRolDegis={rolDegis}
         onCikisYap={cikisYap}
+        onMobilMenuAc={() => setMobilMenuAcik(true)}
       />
 
       {/* Ana Gövde */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-w-0">
         <Sidebar
           aktifSekme={aktifSekme}
           onSekmeSec={setAktifSekme}
           toplamSporcu={sporcular.length}
           rol={rol}
+          mobilMenuAcik={mobilMenuAcik}
+          onMobilMenuKapat={() => setMobilMenuAcik(false)}
+          aktifKulup={aktifKulup}
+          onKulupDegis={setAktifKulup}
+          kulupler={kulupler}
         />
 
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 min-w-0 p-3 sm:p-4 lg:p-6 pb-24 lg:pb-6 overflow-x-hidden overflow-y-auto">
           {aktifSekme === "analiz" && (
             <SporcuAnaliz
               sporcular={sporcular}

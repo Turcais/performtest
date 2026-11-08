@@ -81,19 +81,19 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex flex-col font-sans transition-colors duration-200">
       {/* ── Üst Menü / Navbar ── */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-[var(--surface)]/90 border-b border-[var(--line)] px-6 py-3.5 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-[var(--surface)]/90 border-b border-[var(--line)] px-3 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between shadow-sm gap-2">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0">
             <Activity className="w-5 h-5 animate-pulse" />
           </div>
-          <div>
-            <div className="font-extrabold text-base tracking-tight flex items-center gap-2">
-              PerformTest
-              <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-500 border border-blue-500/20">
+          <div className="min-w-0">
+            <div className="font-extrabold text-sm sm:text-base tracking-tight flex items-center gap-1.5 truncate">
+              <span>PerformTest</span>
+              <span className="text-[9px] sm:text-[10px] uppercase font-black px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-500 border border-blue-500/20">
                 Studio Next
               </span>
             </div>
-            <div className="text-[11px] text-[var(--muted)] font-medium">
+            <div className="hidden sm:block text-[11px] text-[var(--muted)] font-medium truncate">
               Biyomekanik Analiz & Yetenek Platformu
             </div>
           </div>
@@ -106,7 +106,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
           <a href="#kvkk" className="hover:text-[var(--text)] transition">KVKK & Güvenlik</a>
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             onClick={toggleTema}
             className="p-2 rounded-xl border border-[var(--line)] hover:bg-[var(--surface-2)] transition text-[var(--muted)]"
@@ -123,44 +123,44 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
           </button>
           <button
             onClick={() => setGirisModalAcik(true)}
-            className="flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25 transition hover:scale-[1.02]"
+            className="flex items-center gap-1.5 sm:gap-2 text-xs font-bold px-3 sm:px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25 transition"
           >
             <LogIn className="w-3.5 h-3.5" />
-            Panele Giriş Yap
+            <span>Giriş Yap</span>
           </button>
         </div>
       </header>
 
       {/* ── Hero Bölümü ── */}
-      <section className="relative overflow-hidden pt-16 pb-20 px-6 border-b border-[var(--line)]">
-        <div className="max-w-5xl mx-auto text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-500 text-xs font-bold shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 animate-spin" />
-            <span>PerformTest Studio 2.0 — Bilimsel Atletik Analiz & Yetenek Seçimi</span>
+      <section className="relative overflow-hidden pt-10 sm:pt-16 pb-14 sm:pb-20 px-4 sm:px-6 border-b border-[var(--line)]">
+        <div className="max-w-5xl mx-auto text-center space-y-5 sm:space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-500 text-[11px] sm:text-xs font-bold shadow-sm">
+            <Sparkles className="w-3.5 h-3.5 animate-spin shrink-0" />
+            <span className="truncate">PerformTest Studio 2.0 — Bilimsel Atletik Analiz</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
             Sporcu Performansı, Biyomekanik Analiz ve{" "}
             <span className="bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400 bg-clip-text text-transparent">
               Bilimsel Yetenek Seçimi
             </span>
           </h1>
 
-          <p className="text-sm sm:text-base text-[var(--muted)] max-w-3xl mx-auto leading-relaxed">
+          <p className="text-xs sm:text-base text-[var(--muted)] max-w-3xl mx-auto leading-relaxed">
             Cole &amp; Green (1992) LMS Z-skorları, TSYT ulusal norm tabanı, 196 testlik protokol kütüphanesi ve Opstoel (2015) 6 branş grubu eşleştirme motoruyla kulüpler, akademiler ve federasyonlar için yerli sunucu altyapısı.
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-3 pt-2 sm:pt-4 max-w-md sm:max-w-none mx-auto">
             <button
               onClick={() => onDemoGiris("admin@performtest.yerli", "PerformAdmin2026!")}
-              className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm shadow-xl shadow-blue-500/30 transition hover:scale-[1.03]"
+              className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm shadow-xl shadow-blue-500/30 transition"
             >
               <Play className="w-4 h-4 fill-current" />
               Sistemi Canlı İncele (Demo)
             </button>
             <button
               onClick={() => setGirisModalAcik(true)}
-              className="flex items-center gap-2 px-6 py-3.5 rounded-2xl border border-[var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-2)] text-xs font-extrabold transition"
+              className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl border border-[var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-2)] text-xs font-extrabold transition"
             >
               <Lock className="w-4 h-4 text-[var(--muted)]" />
               Kulüp Hesabı ile Giriş

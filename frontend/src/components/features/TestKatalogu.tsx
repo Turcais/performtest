@@ -50,10 +50,10 @@ export const TestKatalogu: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
       {/* Sol Sütun: 196 Test Kataloğu */}
-      <div className="lg:col-span-4 bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-4 flex flex-col h-[calc(100vh-7.5rem)]">
-        <div className="flex items-center justify-between mb-3">
+      <div className="lg:col-span-4 bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-3.5 sm:p-4 flex flex-col max-h-72 lg:max-h-none lg:h-[calc(100vh-7.5rem)]">
+        <div className="flex items-center justify-between mb-2.5 sm:mb-3">
           <div className="font-bold text-sm">196 Test Kataloğu</div>
           <button
             onClick={kaynakcaYukle}
@@ -63,6 +63,23 @@ export const TestKatalogu: React.FC = () => {
             191 Kaynakça
           </button>
         </div>
+
+        {/* Mobil Hızlı Test Seçici */}
+        {tumTestler.length > 0 && (
+          <div className="lg:hidden mb-2.5">
+            <select
+              value={seciliTest}
+              onChange={(e) => setSeciliTest(e.target.value)}
+              className="w-full text-xs font-bold bg-blue-500/10 border border-blue-500/30 text-[var(--text)] rounded-xl p-2.5 focus:outline-none"
+            >
+              {tumTestler.map((t) => (
+                <option key={t.test_adi} value={t.test_adi}>
+                  📋 {t.test_adi} ({t.kategori})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="relative mb-3">
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-[var(--muted)]" />

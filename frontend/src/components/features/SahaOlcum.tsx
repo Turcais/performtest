@@ -273,35 +273,35 @@ export const SahaOlcum: React.FC<SahaOlcumProps> = ({
       </div>
 
       {/* Sağ Sütun: Canlı Değerlendirme & SVG Sahnesi */}
-      <div className="lg:col-span-7 space-y-6">
+      <div className="lg:col-span-7 space-y-4 sm:space-y-6 min-w-0">
         {/* Canlı Eşik & Z-Skor Kartları */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-[var(--surface)] border border-[var(--line)] p-4 rounded-2xl shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+          <div className="bg-[var(--surface)] border border-[var(--line)] p-3.5 sm:p-4 rounded-2xl shadow-sm">
             <div className="text-[11px] text-[var(--muted)] font-bold">Yaşıt Persentili</div>
-            <div className="text-xl font-black mt-1 text-blue-500">{pct}</div>
-            <div className="text-[10px] text-[var(--muted)] mt-0.5">{seciliTest}</div>
+            <div className="text-lg sm:text-xl font-black mt-1 text-blue-500">{pct}</div>
+            <div className="text-[10px] text-[var(--muted)] mt-0.5 truncate">{seciliTest}</div>
           </div>
 
-          <div className="bg-[var(--surface)] border border-[var(--line)] p-4 rounded-2xl shadow-sm">
+          <div className="bg-[var(--surface)] border border-[var(--line)] p-3.5 sm:p-4 rounded-2xl shadow-sm">
             <div className="text-[11px] text-[var(--muted)] font-bold">Performans Z-Skoru</div>
-            <div className="text-xl font-black mt-1 text-emerald-500">{zMetin}</div>
+            <div className="text-lg sm:text-xl font-black mt-1 text-emerald-500">{zMetin}</div>
             <div className="text-[10px] text-[var(--muted)] mt-0.5">Yaş: {yas} · {cinsiyet}</div>
           </div>
 
-          <div className="bg-[var(--surface)] border border-[var(--line)] p-4 rounded-2xl shadow-sm">
+          <div className="bg-[var(--surface)] border border-[var(--line)] p-3.5 sm:p-4 rounded-2xl shadow-sm">
             <div className="text-[11px] text-[var(--muted)] font-bold">Makul Aralık</div>
-            <div className="text-base font-extrabold mt-1 text-amber-500">{makul}</div>
+            <div className="text-sm sm:text-base font-extrabold mt-1 text-amber-500">{makul}</div>
             <div className="text-[10px] text-[var(--muted)] mt-0.5">Uç değer/rekor filtresi</div>
           </div>
         </div>
 
         {/* Canlı SVG Protokol Sahnesi */}
-        <div className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 shadow-sm">
+        <div className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-3.5 sm:p-5 shadow-sm overflow-x-auto">
           <div className="text-xs font-bold mb-3 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-blue-500" />
-            {seciliTest} — Biyomekanik Protokol Sahnesi
+            <Activity className="w-4 h-4 text-blue-500 shrink-0" />
+            <span className="truncate">{seciliTest} — Biyomekanik Protokol Sahnesi</span>
           </div>
-          <div ref={svgRef} dangerouslySetInnerHTML={{ __html: svgHtml }} />
+          <div ref={svgRef} className="w-full overflow-x-auto" dangerouslySetInnerHTML={{ __html: svgHtml }} />
         </div>
       </div>
     </div>

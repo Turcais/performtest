@@ -163,10 +163,10 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
   const satirlar = analiz?.z_profili?.satirlar || [];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      {/* Sol Sütun: Sporcu Listesi */}
-      <div className="lg:col-span-4 bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-4 flex flex-col h-[calc(100vh-7.5rem)]">
-        <div className="flex items-center justify-between mb-3">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+      {/* Sol Sütun: Sporcu Listesi (Mobilde kompakt, masaüstünde tam boy) */}
+      <div className="lg:col-span-4 bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-3.5 sm:p-4 flex flex-col max-h-72 lg:max-h-none lg:h-[calc(100vh-7.5rem)]">
+        <div className="flex items-center justify-between mb-2.5 sm:mb-3">
           <div className="font-bold text-sm">
             {isVeli ? `Çocuğunuz (${filtrelenmis.length})` : `Sporcular (${filtrelenmis.length})`}
           </div>
@@ -181,37 +181,58 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
           )}
         </div>
 
-        {/* Arama & Cinsiyet Filtreleri */}
-        <div className="relative mb-2.5">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-[var(--muted)]" />
-          <input
-            type="text"
-            placeholder="İsim veya spor dalı ara..."
-            value={arama}
-            onChange={(e) => setArama(e.target.value)}
-            className="w-full text-xs pl-9 pr-3 py-2 bg-[var(--surface-2)] border border-[var(--line)] rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-
-        <div className="flex gap-1.5 mb-3">
-          {[
-            { id: "", label: "Tümü" },
-            { id: "Erkek", label: "Erkek" },
-            { id: "Kadın", label: "Kadın" },
-          ].map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setCinsiyetFiltre(f.id)}
-              className={`flex-1 text-[11px] font-semibold py-1 rounded-lg border transition ${
-                cinsiyetFiltre === f.id
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-[var(--surface-2)] border-[var(--line)] text-[var(--muted)] hover:text-[var(--text)]"
-              }`}
+        {/* Mobil Hızlı Sporcu Seçici (Telefonlarda tek dokunuşla geçiş) */}
+        {!isVeli && filtrelenmis.length > 1 && (
+          <div className="lg:hidden mb-2.5">
+            <select
+              value={seciliSporcu}
+              onChange={(e) => onSporcuSec(e.target.value)}
+              className="w-full text-xs font-bold bg-blue-500/10 border border-blue-500/30 text-[var(--text)] rounded-xl p-2.5 focus:outline-none"
             >
-              {f.label}
-            </button>
-          ))}
-        </div>
+              {filtrelenmis.map((s) => (
+                <option key={s.id} value={s.tam_ad}>
+                  🏃 {s.tam_ad} ({s.cinsiyet}, {s.yas ?? "-"} yaş — {s.olcum_sayisi} ölçüm)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Arama & Cinsiyet Filtreleri */}
+        {!isVeli && (
+          <>
+            <div className="relative mb-2">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-[var(--muted)]" />
+              <input
+                type="text"
+                placeholder="İsim veya spor dalı ara..."
+                value={arama}
+                onChange={(e) => setArama(e.target.value)}
+                className="w-full text-xs pl-9 pr-3 py-2 bg-[var(--surface-2)] border border-[var(--line)] rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex gap-1.5 mb-2.5">
+              {[
+                { id: "", label: "Tümü" },
+                { id: "Erkek", label: "Erkek" },
+                { id: "Kadın", label: "Kadın" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setCinsiyetFiltre(f.id)}
+                  className={`flex-1 text-[11px] font-semibold py-1 rounded-lg border transition ${
+                    cinsiyetFiltre === f.id
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-[var(--surface-2)] border-[var(--line)] text-[var(--muted)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Liste */}
         <div className="flex-1 overflow-y-auto space-y-2 pr-1">
@@ -227,15 +248,15 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
               <div
                 key={s.id}
                 onClick={() => onSporcuSec(s.tam_ad)}
-                className={`p-3 rounded-xl border cursor-pointer transition flex items-center justify-between ${
+                className={`p-2.5 sm:p-3 rounded-xl border cursor-pointer transition flex items-center justify-between ${
                   aktif
                     ? "bg-blue-500/10 border-blue-500 shadow-sm"
                     : "bg-[var(--surface-2)] border-[var(--line)] hover:border-blue-400/50"
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                   <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold ${
+                    className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
                       s.cinsiyet === "Kadın"
                         ? "bg-rose-500/15 text-rose-500"
                         : "bg-blue-500/15 text-blue-500"
@@ -243,15 +264,15 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
                   >
                     {basHarfler}
                   </div>
-                  <div>
-                    <div className="text-xs font-bold">{s.tam_ad}</div>
-                    <div className="text-[11px] text-[var(--muted)]">
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold truncate">{s.tam_ad}</div>
+                    <div className="text-[11px] text-[var(--muted)] truncate">
                       {s.cinsiyet} · {s.yas ?? "-"} yaş · {s.spor_dali || "Genel"}
                     </div>
                   </div>
                 </div>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--surface)] border border-[var(--line)]">
-                  {s.olcum_sayisi} ölçüm
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--surface)] border border-[var(--line)] shrink-0 ml-2">
+                  {isVeli ? "👨‍👩‍👦 Çocuğunuz" : `${s.olcum_sayisi} ölçüm`}
                 </span>
               </div>
             );
@@ -260,34 +281,34 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
       </div>
 
       {/* Sağ Sütun: Analiz, Radar ve Normatif Tablo */}
-      <div className="lg:col-span-8 space-y-6">
+      <div className="lg:col-span-8 space-y-4 sm:space-y-6 min-w-0">
         {yukleniyor ? (
-          <div className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-12 text-center text-[var(--muted)]">
+          <div className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-8 sm:p-12 text-center text-[var(--muted)]">
             Sporcu analiz motoru hesaplıyor...
           </div>
         ) : analiz ? (
           <>
             {/* Veli Bilgilendirme Portalı Rozeti */}
             {isVeli && (
-              <div className="p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl text-xs text-amber-500 font-semibold flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">👨‍👩‍👦</span>
+              <div className="p-3.5 sm:p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl text-xs text-amber-500 font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm">
+                <div className="flex items-start sm:items-center gap-2.5">
+                  <span className="text-xl sm:text-2xl shrink-0">👨‍👩‍👦</span>
                   <div>
                     <span className="font-extrabold">Veli Bilgilendirme Portalı:</span> Çocuğunuzun fiziksel gelişim profilini, Cole & Green LMS standart puanlarını ve bilimsel branş yönlendirme analizini inceliyorsunuz.
                   </div>
                 </div>
-                <span className="text-[10px] bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full font-bold uppercase tracking-wider shrink-0">
+                <span className="self-start sm:self-auto text-[10px] bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full font-bold uppercase tracking-wider shrink-0">
                   Salt Okunur
                 </span>
               </div>
             )}
 
             {/* Başlık Kartı */}
-            <div className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 shadow-sm">
+            <div className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-4 sm:p-5 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <div
-                    className={`w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-black text-white shadow-md ${
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-base sm:text-lg font-black text-white shadow-md shrink-0 ${
                       p.Cinsiyet === "Kadın" ? "bg-gradient-to-tr from-pink-500 to-rose-400" : "bg-gradient-to-tr from-blue-600 to-cyan-500"
                     }`}
                   >
@@ -298,49 +319,49 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
                       .slice(0, 2)
                       .toUpperCase()}
                   </div>
-                  <div>
-                    <h2 className="text-xl font-black tracking-tight">{seciliSporcu}</h2>
-                    <p className="text-xs text-[var(--muted)] font-medium mt-0.5">
+                  <div className="min-w-0">
+                    <h2 className="text-lg sm:text-xl font-black tracking-tight truncate">{seciliSporcu}</h2>
+                    <p className="text-[11px] sm:text-xs text-[var(--muted)] font-medium mt-0.5 leading-relaxed">
                       {p.Cinsiyet || "-"} · Branş: {p["Spor Dalı"] || "Genel Atletik Performans"} · Kulüp: {aktifKulup} · Rapor: {analiz.rapor_tarihi}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full sm:w-auto">
                   {/* Antrenör ve Yöneticiler için Hızlı Sonuç Girdi Butonu */}
                   {sonucGirebilir && (
                     <button
                       onClick={() => setOlcumModalAcik(true)}
-                      className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white shadow-md shadow-emerald-500/20 transition hover:scale-[1.02]"
+                      className="flex items-center justify-center gap-1.5 text-xs font-bold px-2.5 sm:px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white shadow-md shadow-emerald-500/20 transition"
                       title="Seçili sporcu için anlık yeni saha test ölçüm girişi yap"
                     >
-                      <Timer className="w-3.5 h-3.5" />
-                      Sonuç / Ölçüm Gir
+                      <Timer className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">Sonuç / Ölçüm Gir</span>
                     </button>
                   )}
 
                   <button
                     onClick={() => setBransModalAcik(true)}
-                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md shadow-orange-500/20 transition hover:scale-[1.02]"
+                    className="flex items-center justify-center gap-1.5 text-xs font-bold px-2.5 sm:px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md shadow-orange-500/20 transition"
                     title="Opstoel (2015) Bilimsel Branş Yönlendirme ve Yetenek Seçimi Karar Desteği"
                   >
-                    <Compass className="w-3.5 h-3.5" />
-                    Branşa Yönlendir
+                    <Compass className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Branşa Yönlendir</span>
                   </button>
                   <button
                     onClick={() => window.open(`/api/v1/sporcular/${encodeURIComponent(seciliSporcu)}/rapor?kulup_kodu=${encodeURIComponent(aktifKulup)}&tur=veli`, "_blank")}
-                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition"
+                    className="flex items-center justify-center gap-1.5 text-xs font-semibold px-2.5 sm:px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition"
                   >
-                    <FileText className="w-3.5 h-3.5" />
-                    Veli Raporu (A4)
+                    <FileText className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Veli Raporu (A4)</span>
                   </button>
                   {!isVeli && (
                     <button
                       onClick={() => window.open(`/api/v1/sporcular/${encodeURIComponent(seciliSporcu)}/rapor?kulup_kodu=${encodeURIComponent(aktifKulup)}&tur=antrenor`, "_blank")}
-                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-[var(--line)] hover:bg-[var(--surface-2)] transition"
+                      className="flex items-center justify-center gap-1.5 text-xs font-semibold px-2.5 sm:px-3 py-2 rounded-xl border border-[var(--line)] hover:bg-[var(--surface-2)] transition"
                     >
-                      <Award className="w-3.5 h-3.5 text-emerald-500" />
-                      Antrenör Raporu
+                      <Award className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span className="truncate">Antrenör Raporu</span>
                     </button>
                   )}
                 </div>

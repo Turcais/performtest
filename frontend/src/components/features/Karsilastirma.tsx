@@ -69,18 +69,18 @@ export const Karsilastirma: React.FC<KarsilastirmaProps> = ({
   }, [sporcuA, sporcuB, aktifKulup]);
 
   return (
-    <div className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-6 shadow-sm space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--line)] pb-4">
+    <div className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-4 sm:p-6 shadow-sm space-y-5 sm:space-y-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 border-b border-[var(--line)] pb-4">
         <div className="flex items-center gap-2">
-          <Scale className="w-5 h-5 text-blue-500" />
+          <Scale className="w-5 h-5 text-blue-500 shrink-0" />
           <h2 className="font-bold text-sm">Başa Baş (Head-to-Head) Sporcu Karşılaştırma Laboratuvarı</h2>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full lg:w-auto">
           <select
             value={sporcuA}
             onChange={(e) => setSporcuA(e.target.value)}
-            className="text-xs font-bold bg-[var(--surface-2)] border border-blue-500 rounded-xl px-3 py-2 text-blue-500 focus:outline-none"
+            className="text-xs font-bold bg-[var(--surface-2)] border border-blue-500 rounded-xl px-3 py-2 text-blue-500 focus:outline-none w-full sm:w-auto"
           >
             {sporcular.map((s) => (
               <option key={s.id} value={s.tam_ad}>
@@ -89,12 +89,12 @@ export const Karsilastirma: React.FC<KarsilastirmaProps> = ({
             ))}
           </select>
 
-          <span className="font-extrabold text-xs text-[var(--muted)]">VS</span>
+          <span className="font-extrabold text-xs text-[var(--muted)] text-center">VS</span>
 
           <select
             value={sporcuB}
             onChange={(e) => setSporcuB(e.target.value)}
-            className="text-xs font-bold bg-[var(--surface-2)] border border-amber-500 rounded-xl px-3 py-2 text-amber-500 focus:outline-none"
+            className="text-xs font-bold bg-[var(--surface-2)] border border-amber-500 rounded-xl px-3 py-2 text-amber-500 focus:outline-none w-full sm:w-auto"
           >
             {sporcular.map((s) => (
               <option key={s.id} value={s.tam_ad}>
@@ -105,7 +105,7 @@ export const Karsilastirma: React.FC<KarsilastirmaProps> = ({
 
           <button
             onClick={karsilastir}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition"
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 sm:py-2 rounded-xl transition w-full sm:w-auto"
           >
             Karşılaştır
           </button>
