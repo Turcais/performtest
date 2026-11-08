@@ -377,8 +377,9 @@ class TgSahne:
         w = self.genislik(metin, boy)
         x0 = x - w / 2 if hiza == "middle" else (x if hiza == "start" else x - w)
         self.yazi_kutulari.append((x0, y - boy * 0.72, x0 + w, y + boy * 0.22, metin, y, yer))   # taban, yer: baslik/not/etiket
+        kw = ' font-weight="600"' if kalin else ""
         return (f'<text x="{x:.1f}" y="{y:.1f}" font-size="{boy}" fill="{TG_RENK["olcu"]}" '
-                f'text-anchor="{hiza}"{" font-weight=\'600\'" if kalin else ""}>{_html.escape(metin)}</text>')
+                f'text-anchor="{hiza}"{kw}>{_html.escape(metin)}</text>')
 
     # ── üç yazı yeri: başlık, not, ölçü/işaret etiketi ──
     def baslik(self, metin, t=0.0):

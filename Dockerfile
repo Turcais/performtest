@@ -14,8 +14,8 @@ COPY frontend/ ./
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# 2. Aşama: Üretim Çalışma Ortamı (Python 3.11 + Node.js)
-FROM python:3.11-slim
+# 2. Aşama: Üretim Çalışma Ortamı (Python 3.12 + Node.js)
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
