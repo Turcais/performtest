@@ -43,7 +43,7 @@ export default function PerformTestStudioPage() {
 
   // İlk yüklemede varsayılan giriş yap
   useEffect(() => {
-    girisYap("admin@performtest.yerli", "Admin123!");
+    girisYap("admin@performtest.yerli", "PerformAdmin2026!");
   }, []);
 
   const girisYap = async (eposta: string, parola: string) => {

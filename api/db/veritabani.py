@@ -208,7 +208,7 @@ class YerliVeritabani:
             (
                 "usr-pt-kulup-a",
                 "kulup-a@performtest.yerli",
-                "KulupA2026!",
+                "Kulup123!",
                 "Demo Kulüp A Yöneticisi",
                 KullaniciRolu.KULUP_YONETICISI.value,
                 "demo-kulup-a",
@@ -216,7 +216,7 @@ class YerliVeritabani:
             (
                 "usr-pt-antrenor",
                 "antrenor@performtest.yerli",
-                "Antrenor2026!",
+                "Koc123!",
                 "Baş Antrenör & Ölçüm Uzmanı",
                 KullaniciRolu.ANTRENOR.value,
                 "merkez",
@@ -224,7 +224,7 @@ class YerliVeritabani:
             (
                 "usr-pt-veli",
                 "veli@performtest.yerli",
-                "Veli2026!",
+                "Veli123!",
                 "Sporcu Velisi",
                 KullaniciRolu.SPORCU_VELI.value,
                 "merkez",

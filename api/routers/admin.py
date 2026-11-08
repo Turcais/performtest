@@ -232,6 +232,7 @@ def kvkk_sporcu_anonimlestir():
 
 
 @admin_bp.post("/yedekle")
+@admin_bp.post("/yedek-al")
 @yetki_gerekli("yedek:yonet")
 def veritabani_yedekle():
     kullanici = request.kullanici  # type: ignore[attr-defined]

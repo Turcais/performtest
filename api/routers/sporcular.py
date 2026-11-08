@@ -18,6 +18,10 @@ sporcular_bp = Blueprint("sporcular", __name__, url_prefix="/api/v1")
 def sporculari_listele():
     kulup = request.args.get("kulup_kodu", "merkez").strip() or "merkez"
     with veritabani.baglanti() as con:
+        toplam_mevcut = con.execute("SELECT COUNT(*) AS n FROM sporcular WHERE silindi_mi = 0").fetchone()["n"]
+        if toplam_mevcut == 0:
+            veritabani.demo_verisini_yukle()
+
         satirlar = con.execute(
             """
             SELECT s.*,

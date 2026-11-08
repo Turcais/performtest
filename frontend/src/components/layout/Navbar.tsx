@@ -104,7 +104,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onChange={(e) => onRolDegis(e.target.value)}
             className="text-xs font-semibold bg-transparent border-0 focus:outline-none"
           >
-            <option value="admin@performtest.yerli|Admin123!">Süper Admin</option>
+            <option value="admin@performtest.yerli|PerformAdmin2026!">Süper Admin</option>
             <option value="kulup-a@performtest.yerli|Kulup123!">Kulüp Yöneticisi</option>
             <option value="antrenor@performtest.yerli|Koc123!">Ölçüm Antrenörü</option>
             <option value="veli@performtest.yerli|Veli123!">Sporcu Velisi</option>
