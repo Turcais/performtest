@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.git
+.gitignore
+.env
+.venv
+env/
+venv/
+frontend/node_modules
+frontend/.next
+mobile/node_modules
+yerel_veri/yedekler/*
+!yerel_veri/yedekler/.gitkeep
+

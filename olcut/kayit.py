@@ -1,6 +1,7 @@
 """
-Test kaydı ve oturum: kayıt sözlüğü (test_kaydi_olustur), dosyaya yazma, makullük kontrolü, sporcu formu, oturum
-sütunları ve oturumlar arası fark, çalışma (araştırma deseni) kalıcılığı ve oturum kimliği.
+Test kaydı ve oturum (Paket 10 / Paket 27): kayıt sözlüğü (test_kaydi_olustur — tekli ve toplu girişin ortak tek noktası),
+dosyaya yazma, makullük kontrolü (normlu P1-P99, normsuz dünya rekoru ve önceki ölçümün ×3/÷3'ü; engellemez, uyarır),
+sporcu formu, oturum sütunları ve oturumlar arası fark, çalışma (araştırma deseni) kalıcılığı ve oturum kimliği.
 
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """

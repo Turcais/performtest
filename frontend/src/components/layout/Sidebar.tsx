@@ -1,0 +1,137 @@
+"use client";
+
+import React from "react";
+import {
+  Users,
+  Timer,
+  Scale,
+  BookOpen,
+  ShieldCheck,
+  Server,
+  Zap,
+} from "lucide-react";
+
+export type SekmeTipi = "analiz" | "oturum" | "karsilastir" | "katalog" | "admin";
+
+interface SidebarProps {
+  aktifSekme: SekmeTipi;
+  onSekmeSec: (sekme: SekmeTipi) => void;
+  toplamSporcu: number;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({
+  aktifSekme,
+  onSekmeSec,
+  toplamSporcu,
+}) => {
+  const menuler: Array<{
+    id: SekmeTipi;
+    etiket: string;
+    alt: string;
+    ikon: React.ElementType;
+    badge?: string;
+  }> = [
+    {
+      id: "analiz",
+      etiket: "Sporcu Performans Laboratuvarı",
+      alt: "LMS Z-Skor, Radar & Profil",
+      ikon: Users,
+      badge: `${toplamSporcu}`,
+    },
+    {
+      id: "oturum",
+      etiket: "Saha Ölçüm & Canlı Değerlendirme",
+      alt: "Anlık Eşik, Hata & Rekor Filtresi",
+      ikon: Timer,
+    },
+    {
+      id: "karsilastir",
+      etiket: "Başa Baş Karşılaştırma",
+      alt: "Çift Sporcu Karşılaştırma & Fark",
+      ikon: Scale,
+    },
+    {
+      id: "katalog",
+      etiket: "196 Test Kataloğu & Biyomekanik",
+      alt: "SVG Animasyon & 191 Kaynakça",
+      ikon: BookOpen,
+      badge: "196",
+    },
+    {
+      id: "admin",
+      etiket: "PerformTest Yönetim & KVKK",
+      alt: "Tenant, RBAC & Denetim İzi",
+      ikon: ShieldCheck,
+    },
+  ];
+
+  return (
+    <aside className="w-72 border-r border-[var(--line)] bg-[var(--surface)] flex flex-col justify-between shrink-0 p-4 min-h-[calc(100vh-4rem)]">
+      <div>
+        <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] px-3 mb-3">
+          Performans & Saha Modülleri
+        </div>
+
+        <nav className="space-y-1.5">
+          {menuler.map((m) => {
+            const Ikon = m.ikon;
+            const aktif = aktifSekme === m.id;
+            return (
+              <button
+                key={m.id}
+                onClick={() => onSekmeSec(m.id)}
+                className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
+                  aktif
+                    ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20"
+                    : "hover:bg-[var(--surface-2)] text-[var(--text)] font-medium"
+                }`}
+              >
+                <Ikon className={`w-5 h-5 shrink-0 mt-0.5 ${aktif ? "text-white" : "text-blue-500"}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs truncate flex items-center justify-between">
+                    <span>{m.etiket}</span>
+                    {m.badge && (
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                          aktif ? "bg-white/20 text-white" : "bg-[var(--surface-2)] text-[var(--muted)]"
+                        }`}
+                      >
+                        {m.badge}
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className={`text-[11px] truncate mt-0.5 ${
+                      aktif ? "text-blue-100 font-normal" : "text-[var(--muted)]"
+                    }`}
+                  >
+                    {m.alt}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Yerli Sunucu & KVKK Durum Rozeti */}
+      <div className="p-3.5 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] space-y-2 mt-6">
+        <div className="flex items-center gap-2 text-xs font-bold text-emerald-500">
+          <Server className="w-4 h-4" />
+          <span>Yerli Sunucu (On-Premise)</span>
+        </div>
+        <p className="text-[11px] text-[var(--muted)] leading-relaxed">
+          6698 Sayılı KVKK Madde 7 & 11 uyumlu. Tüm biyometrik test verileri kurum içi sunucuda saklanmaktadır.
+        </p>
+        <div className="flex items-center justify-between text-[10px] pt-1 border-t border-[var(--line)] text-[var(--muted)] font-mono">
+          <span>Sürüm: v2.4 (Next.js)</span>
+          <span className="text-emerald-500 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+            Canlı
+          </span>
+        </div>
+      </div>
+    </aside>
+  );
+};
+

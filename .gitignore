@@ -1,10 +1,37 @@
-*.xlsx
+# Çalışma alanı veri dosyaları (git'e girmez)
+sporcular.xlsx
+test_sonuclari.xlsx
+ilgi_anketi.xlsx
+degisiklik_kaydi.xlsx
 ayarlar.json
 oturum_taslagi.json
-__pycache__/
-.pytest_cache/
-*.pdf
-calis_*/
-.streamlit/
+kulup.json
 kulupler/
 yedekler/
+yerel_veri/
+*.db
+*.db-shm
+*.db-wal
+node_modules/
+.next/
+.env
+.env.*
+!.env.example
+
+
+# Streamlit otomatik üretilen yapılandırma
+.streamlit/config.toml
+config.toml
+
+# Python derleme, sanal ortam ve test önbellekleri
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+build/
+dist/
+*.egg-info/

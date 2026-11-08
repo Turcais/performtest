@@ -1,6 +1,8 @@
 """
-Sporcu analizi: Z profili kullanan branş grubu eşleştirmesi (Opstoel ve ark., 2015), ilgi anketi puanları ve
-iki pencere, sporcu profili ve antrenman bilgisi, grup içi konum ve gelişim (Paket 36), rapor verisi.
+Sporcu analizi: Z profili kullanan branş grubu eşleştirmesi (Opstoel ve ark., 2015; havuzlanmış grup içi SD ile
+ortalama standart uzaklık, 9-11 yaş, antropometri hariç), ilgi anketi puanları (I2- önekli, 6 branş grubu × 4 madde)
+ve iki pencere, sporcu profili ve antrenman bilgisi, grup içi konum ve gelişim (Paket 36; n < 20 ve 11 yaş altı
+koruma kuralları), rapor verisi.
 
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """

@@ -1,5 +1,6 @@
 """
-Test Oturumu sayfası — adım adım (Paket 38b): taslak, sıra, değer girişi, aykırı değer uyarısı, kayıt.
+Test Oturumu sayfası — adım adım (Paket 38b): Testler → Sporcular → Oturum bilgisi → Değerler (SIRADAKİ ve TABLO kipi),
+diskte taslak (oturum_taslagi.json), sıra, değer girişi, aykırı değer uyarısı, kayıt. Ölçüm sırasında karşılaştırma gösterilmez.
 
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """

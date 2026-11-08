@@ -1,6 +1,7 @@
 """
 Raporlar: veli raporu (sonuç kutuları, aralık dili, gelişim, yaşıtlarına göre konum) ve antrenör raporu HTML'i,
-şablonlu yorumlar, şeritler ve gelişim grafikleri.
+şablonlu yorumlar (Paket 12: çocuğu değil sonucu tarif eder, gelecek yordaması yok, 6 kategori × 4 test grubu = 24 şablon),
+şeritler, gelişim grafikleri ve kaynakça sınıflandırması (SCImago SJR 2025 Best Quartile).
 
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """

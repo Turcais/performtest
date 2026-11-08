@@ -1,5 +1,6 @@
 """
-Sonuçlar — tek sporcu dört soru kartı (Paket 38b): süzgeçler, özet kutuları, gelişim, yaşıt kartı, nitelik çubukları.
+Sonuçlar — tek sporcu dört soru kartı (Paket 38b: Nasıl gelişiyor? · Yaşıtlarına göre nerede? · Güçlü ve geliştirilecek
+yönler · Hangi branşa uygun?): süzgeçler, özet kutuları, gelişim, yaşıt kartı, nitelik çubukları ve ayrıntılı analiz geçişi.
 
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """

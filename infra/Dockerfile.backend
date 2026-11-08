@@ -1,0 +1,31 @@
+# PerformTest — Yerli Sunucu (On-Premise) Production Dockerfile
+FROM python:3.14-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONUTF8=1 \
+    PERFORMTEST_ORTAM=production
+
+WORKDIR /app
+
+# Bağımlılıkları yükle
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt flask
+
+# Kaynak kodları kopyala
+COPY veri /app/veri
+COPY olcut /app/olcut
+COPY araclar /app/araclar
+COPY api /app/api
+COPY uygulama.py /app/uygulama.py
+
+# Yerel veri ve yedekleme dizinini oluştur
+RUN mkdir -p /app/yerel_veri/yedekler
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')" || exit 1
+
+CMD ["python", "-m", "api.main"]
+

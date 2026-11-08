@@ -3,6 +3,11 @@ Norm motoru: son NORMATIF (Kademe 2 Aydos/Morassutti eklenmiş) ve son NORMATIF_
 persentil ve Z skoru, kategorik ve teste özgü değerlendirme, örneklem karşılaştırması, genel norm kapsamı,
 türetilmiş değerler ve değişken yönü.
 
+- Z-Skor Motoru (Paket 3): persentil tabanlı sıra dönüşümü (ham skordan (değer − ortalama) / SD alınmaz; bantlar
+  arasında doğrusal ara değer → ters normal). Düşük-iyi testlerde işaret çevrilir (+ = akranlarından iyi);
+  antropometrik (nötr) ölçüler tanımlayıcıdır, bileşik skorlara girmez.
+- Kademe 2 Örneklem Karşılaştırması (Paket 35): yüzdelik norm değil, örneklem ortalaması ± SD (Aydos 2004, Morassutti 2025).
+
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """
 import os
@@ -13,7 +18,7 @@ from veri.brans_profilleri import BILESIK_Z
 from veri.normlar_kategorik import (
     NORMATIF, NORMATIF_TEST, ORNEKLEM_KAYNAK_AYDOS_2004, ORNEKLEM_KAYNAK_MORASSUTTI_2025,
     ORNEKLEM_KUNYE_AYDOS_2004, ORNEKLEM_KUNYE_MORASSUTTI_2025, _AYDOS_2004)
-from veri.normlar_tsyt import TSYT_NORMLARI
+from veri.normlar_tsyt import TSYT_KAYNAK, TSYT_NORMLARI
 from veri.normlar_yas import NORMATIF_YAS
 from olcut.esik import NORMATIF_ESIK_YAS
 from olcut.katalog_islemleri import TEST_KATALOGU, kanonik_test

@@ -1,6 +1,10 @@
 """
-Görsel sistem (Paket 11): renk, yazı ve boşluk kararlarının tek kaynağı — açık/koyu palet, CSS değişkenleri,
-Plotly tema yuvaları (grafik_renk), kategori rozetleri, logo, Streamlit config.toml ve tasarimi_uygula.
+Görsel sistem (Paket 11 / Paket 34): TÜM renk, yazı ve boşluk kararlarının tek kaynağı — açık/koyu palet, CSS
+değişkenleri, Plotly tema yuvaları (grafik_renk), kategori rozetleri, logo, Streamlit config.toml ve tasarimi_uygula.
+
+Sayfalar, sonuç kartı, grafikler, raporlar ve .streamlit/config.toml yalnızca bu simgelerden beslenir; başka yerde renk
+kodu yazılmaz. İki palet (açık / koyu): hangi paletin kullanıldığını YALNIZ palet(tema) söyler; kod RENK'e doğrudan
+bakmaz. Uygulama içindeki HTML/SVG renkleri CSS değişkeni (yedekli) olarak yazılır, tarayıcı temaya göre çözer.
 
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """

@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "olcut"
+version = "1.0.38"
+description = "Ölçüt — Sporcu performans takibi, norm karşılaştırması, branş keşfi ve raporlama uygulaması"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "streamlit==1.58.0",
+    "pandas==3.0.3",
+    "numpy==2.4.6",
+    "openpyxl==3.1.5",
+    "plotly==6.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.2.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["olcut*", "veri*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]
+

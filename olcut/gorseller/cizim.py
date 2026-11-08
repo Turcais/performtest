@@ -1,6 +1,8 @@
 """
 Test görselleri — çizim motoru (Paket 13-14): TgSahne (SVG sahne, animasyon kareleri, yazı kutuları), figür ve
 eklem yardımcıları, renk/ölçek sabitleri. Uygulamanın kendi çizimleri; dışarıdan görsel yok.
+Üç katman: (1) Çizim takımı (cizim.py), (2) Hareket kitaplığı (hareketler.py), (3) Sahneler (sahneler.py).
+Hareket bir kez oynar ve ölçüm anında durur (fill="freeze"); hareket azaltıldığında son kare gösterilir.
 
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """

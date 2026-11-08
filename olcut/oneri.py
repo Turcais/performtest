@@ -1,6 +1,7 @@
 """
-Öneri motoru (Paket 33, Streamlit'siz): ana sayfanın 'şimdi şunu yap' önerileri, çalışma durumu, yarım
-batarya, sıra birleştirme, özet kartları.
+Öneri motoru (Paket 16 / Paket 33, Streamlit'siz): kural tabanlı açılış yönlendirmesi ve ana sayfanın 'şimdi şunu yap'
+önerileri (0 aktif çalışma · 1 yarım batarya · 2 yaşa uygun tarama bataryası · 3 dalına özgü batarya · 4 en eski ölçümü
+tekrar), çalışma durumu, sıra birleştirme, özet kartları. Dış servis yok, internet gerekmez, tahmin üretmez.
 
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """

@@ -5,7 +5,8 @@ Kullanıcı: Ertuğrul (spor bilimleri doktora öğrencisi, Gazi Üniversitesi).
 Veri dosyaları çalışma klasöründen okunur, git'e girmez (`.gitignore`): `sporcular.xlsx`, `test_sonuclari.xlsx`, `ilgi_anketi.xlsx`, `ayarlar.json`, `oturum_taslagi.json`; uygulamanın ürettiği `.streamlit/config.toml` da girmez. Kulüpler (38n): `kulupler/<kod>/` altında aynı adlı dosyalar + `kulup.json` (aşağıda).
 
 ## Yapı (Bölme Aşama 1–2 tamam; davranış bölmeden önceki v101-38f ile aynı)
-- `uygulama.py` (~550 satır): sayfa yapılandırması, tema, yan menü, sayfa yönlendirme. Uzun içe aktarma listeleri testlerin `app["ad"]` erişimi içindir.
+- `uygulama.py` (~120 satır): sayfa yapılandırması, tema, yan menü, sayfa yönlendirme (yalnızca giriş noktası ve yönlendirme içe aktarmalarını barındırır; test ve regresyon yükleyicisi `araclar/yukle.py` modülleri katman sırasına göre yükler).
+- `tests/` — modüler test paketi (233 test, 7 alan dosyası + `conftest.py`); kök dizindeki `test_uygulama.py` geriye dönük uyumlu cephedir (`pytest` ve `pytest test_uygulama.py -q` aynı 233 testi çalıştırır).
 - `olcut/` — katmanlı modüller; her modül yalnız kendinden AŞAĞIDAKİLERİ içe aktarır (test_45a, `_OLCUT_KATMAN`). Sıra:
   `ortak` → `disa_aktarma` (PDF / CSV / Excel baytı) → `tema` → `esik` (HFZ) → `katalog_islemleri` (son TEST_KATALOGU burada) → `gorseller/cizim` → `gorseller/hareketler` → `gorseller/sahneler` → `norm` (son NORMATIF ve NORMATIF_YAS burada) → `analiz` → `kayit` → `duzeltme` (38s) → `kulup` (kulüp yönetimi) → `raporlar` → `oneri` → `karsilastirma` → `kulup_raporu` → `bilesenler` → `sayfalar/*` (sayfalar birbirini içe aktarmaz).
   Yeni modül önce `_OLCUT_KATMAN`'a yazılır. Hiçbir modül `uygulama`'yı içe aktarmaz.
@@ -115,7 +116,7 @@ Gerçek veriye dokunmadan denemek için uygulamayı bu klasörden başlatın:
 ## Şimdi yapılacaklar (sırayla)
 1. **Elle deneme** (demo verisiyle): Sonuçlar → Karşılaştırma (iki sekme, pasif/eski durumu, 11 yaş altı ve karışık uyarıları, Wilcoxon), Test Oturumu'nda normsuz testte ×3 uyarısı, yaşıt kartı ve veli raporunda "Değer doğru mu?" (sabit not yok). Telefon genişliğinde iki sütunun alt alta dizildiğine bak.
 2. **v100/38d'nin kalan doğrulaması**: oturum adı alanı, Sonuçlar'da oturum süzgeci, odak çerçevesi tek çerçeve (dış kutuda).
-3. Temizlik (davranışa dokunmadan): testler `olcut` modüllerinden doğrudan içe aktarırsa `uygulama.py`'deki uzun içe aktarma listeleri kısalır.
+3. (Tamamlandı) Temizlik (davranışa dokunmadan): `uygulama.py`'deki uzun içe aktarma listeleri temizlendi; `test_uygulama.py` `tests/` altına 7 modüler dosyaya bölündü ve `pyproject.toml` eklendi.
 
 ## Tasarım referansı
 Arayüz taslağı (Adım 1–4, Sıradaki kipi, Sonuçlar, Veli kartı): https://claude.ai/artifact/GX76RBE4t77hFPoFrDYuaZ

@@ -2,6 +2,9 @@
 Yaşa göre eşik (kriter) normları — FitnessGram Sağlıklı Uygunluk Zonu (HFZ): eşik tabloları, değerlendirme ve
 protokol metnine eklenen HFZ bölümü (_katalog_hfz_ekle). Katalog işlemlerinden ÖNCE gelir: son TEST_KATALOGU buna dayanır.
 
+Format: "Test Adı › Değişken" → yaş → cinsiyet → (alt, tavan) kaynağın birimiyle (inç ya da tekrar).
+Persentil değildir: değer eşiğin üstündeyse "Sağlıklı Uygunluk Zonu", altındaysa "Gelişim Gerekli".
+
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """
 from olcut.tema import kategori_rengi

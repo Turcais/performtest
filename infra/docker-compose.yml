@@ -1,0 +1,74 @@
+# PerformTest — Yerli Sunucu (On-Premise) Docker Compose Orkestrasyonu
+# Tüm servisler (Next.js Frontend, Python/Flask API, PostgreSQL, Redis, Nginx) tek komutla ayağa kalkar.
+# Nginx 8080 portundan tek giriş kapısı olarak sunulur; api ve frontend dahili bridge ağında haberleşir.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: performtest-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-performtest_kullanici}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-performtest_gizli_parola}
+      POSTGRES_DB: ${POSTGRES_DB:-performtest_db}
+    volumes:
+      - performtest_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-performtest_kullanici} -d ${POSTGRES_DB:-performtest_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: performtest-redis
+    restart: unless-stopped
+
+  performtest-api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    container_name: performtest-api
+    restart: unless-stopped
+    environment:
+      PERFORMTEST_ORTAM: production
+      PERFORMTEST_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-performtest_kullanici}:${POSTGRES_PASSWORD:-performtest_gizli_parola}@postgres:5432/${POSTGRES_DB:-performtest_db}
+      PERFORMTEST_JWT_SECRET: ${PERFORMTEST_JWT_SECRET:-performtest-yerli-sunucu-gizli-anahtar-256bit-2026}
+    volumes:
+      - ../yerel_veri:/app/yerel_veri
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    expose:
+      - "8000"
+
+  performtest-frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: performtest-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    depends_on:
+      - performtest-api
+    expose:
+      - "3000"
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: performtest-nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - performtest-api
+      - performtest-frontend
+
+volumes:
+  performtest_pgdata:

@@ -1,5 +1,5 @@
 """
-Niteliğe göre test bul sayfası (Paket 38b).
+Niteliğe göre test bul sayfası (Paket 38b): kullanıcıya 9 sade nitelik kartı + Diğer kartı.
 
 Bölme Aşama 2: uygulama.py'den birebir taşındı (davranış değişmedi).
 """
