@@ -14,9 +14,27 @@ from api.services.motor_servisi import OlcutMotorServisi
 sporcular_bp = Blueprint("sporcular", __name__, url_prefix="/api/v1")
 
 
+def _kulup_coz(istenen_kulup: str | None = None) -> str:
+    """
+    Sunucu taraflı çok-kiracılı (multi-tenant) kulüp güvenliği:
+    - Kullanıcı oturum açmışsa ve rolü 'super_admin' değilse, kullanıcının JWT belirtecindeki
+      kulüp kodu zorunlu kılınır (istenen kulüp parametresi ezilir).
+    - 'super_admin' tüm kulüpleri gezebilir.
+    - Oturumsuz isteklerde (test uyumluluğu için) istenen kulüp veya 'merkez' döner.
+    """
+    kullanici = istek_kullanicisi()
+    if not kullanici:
+        return (istenen_kulup or "merkez").strip()
+    rol = kullanici.get("role", "")
+    token_kulup = kullanici.get("club", "merkez")
+    if rol == "super_admin":
+        return (istenen_kulup or token_kulup).strip()
+    return token_kulup.strip()
+
+
 @sporcular_bp.get("/sporcular")
 def sporculari_listele():
-    kulup = request.args.get("kulup_kodu", "merkez").strip() or "merkez"
+    kulup = _kulup_coz(request.args.get("kulup_kodu"))
     with veritabani.baglanti() as con:
         toplam_mevcut = con.execute("SELECT COUNT(*) AS n FROM sporcular WHERE silindi_mi = 0").fetchone()["n"]
         if toplam_mevcut == 0:
@@ -47,7 +65,7 @@ def sporculari_listele():
 def sporcu_ekle():
     veri = request.get_json(silent=True) or {}
     kullanici = request.kullanici  # type: ignore[attr-defined]
-    kulup = str(veri.get("kulup_kodu") or kullanici.get("club") or "merkez").strip()
+    kulup = _kulup_coz(str(veri.get("kulup_kodu") or kullanici.get("club") or "merkez"))
     ad = str(veri.get("ad") or "").strip()
     soyad = str(veri.get("soyad") or "").strip()
     cinsiyet = str(veri.get("cinsiyet") or "Erkek").strip()
@@ -102,14 +120,14 @@ def sporcu_ekle():
 
 @sporcular_bp.get("/sporcular/<sporcu_adi>/analiz")
 def sporcu_analiz(sporcu_adi: str):
-    kulup = request.args.get("kulup_kodu", "merkez").strip() or "merkez"
+    kulup = _kulup_coz(request.args.get("kulup_kodu"))
     analiz = OlcutMotorServisi.sporcu_kapsamli_analiz(kulup, sporcu_adi)
     return json_yanit(analiz)
 
 
 @sporcular_bp.get("/sporcular/<sporcu_adi>/rapor")
 def sporcu_rapor(sporcu_adi: str):
-    kulup = request.args.get("kulup_kodu", "merkez").strip() or "merkez"
+    kulup = _kulup_coz(request.args.get("kulup_kodu"))
     tur = request.args.get("tur", "veli").strip().lower()
     html_icerik = OlcutMotorServisi.sporcu_raporu_html(kulup, sporcu_adi, rapor_turu=tur)
     if request.args.get("format") == "json":
@@ -119,16 +137,17 @@ def sporcu_rapor(sporcu_adi: str):
 
 @sporcular_bp.get("/kulupler/<kulup_kodu>/rapor")
 def kulup_rapor(kulup_kodu: str):
+    guvenli_kulup = _kulup_coz(kulup_kodu)
     liste_ekle = request.args.get("sporcu_listesi", "1") != "0"
-    html_icerik = OlcutMotorServisi.kulup_raporu_html(kulup_kodu, sporcu_listesi=liste_ekle)
+    html_icerik = OlcutMotorServisi.kulup_raporu_html(guvenli_kulup, sporcu_listesi=liste_ekle)
     if request.args.get("format") == "json":
-        return json_yanit({"kulup_kodu": kulup_kodu, "html": html_icerik})
+        return json_yanit({"kulup_kodu": guvenli_kulup, "html": html_icerik})
     return Response(html_icerik, mimetype="text/html; charset=utf-8")
 
 
 @sporcular_bp.get("/karsilastir")
 def sporcu_karsilastir_uc_noktasi():
-    kulup = request.args.get("kulup_kodu", "merkez").strip() or "merkez"
+    kulup = _kulup_coz(request.args.get("kulup_kodu"))
     sporcu_a = request.args.get("sporcu_a", "").strip()
     sporcu_b = request.args.get("sporcu_b", "").strip()
     if not sporcu_a or not sporcu_b:
@@ -142,7 +161,7 @@ def sporcu_karsilastir_uc_noktasi():
 def olcum_kaydet():
     veri = request.get_json(silent=True) or {}
     kullanici = request.kullanici  # type: ignore[attr-defined]
-    kulup = str(veri.get("kulup_kodu") or kullanici.get("club") or "merkez").strip()
+    kulup = _kulup_coz(str(veri.get("kulup_kodu") or kullanici.get("club") or "merkez"))
     sporcu_adi = str(veri.get("sporcu_adi") or "").strip()
     test_adi = str(veri.get("test_adi") or "").strip()
     olcumler = veri.get("olcumler") or {}

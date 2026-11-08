@@ -10,6 +10,7 @@ import {
   FileText,
   Building2,
   Lock,
+  LogOut,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -19,6 +20,7 @@ interface NavbarProps {
   kullaniciAdi: string;
   rol: string;
   onRolDegis: (epostaParola: string) => void;
+  onCikisYap?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -28,6 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   kullaniciAdi,
   rol,
   onRolDegis,
+  onCikisYap,
 }) => {
   const [tema, setTema] = useState<"dark" | "light">("dark");
 
@@ -119,6 +122,18 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           {tema === "dark" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-600" />}
         </button>
+
+        {/* Çıkış Yap / Vitrine Dön */}
+        {onCikisYap && (
+          <button
+            onClick={onCikisYap}
+            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-500 transition"
+            title="Oturumu Kapat ve Vitrin Sitesine Dön"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Vitrine Dön</span>
+          </button>
+        )}
       </div>
     </header>
   );

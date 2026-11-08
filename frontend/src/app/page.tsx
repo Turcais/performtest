@@ -8,9 +8,11 @@ import { SahaOlcum } from "@/components/features/SahaOlcum";
 import { Karsilastirma } from "@/components/features/Karsilastirma";
 import { TestKatalogu } from "@/components/features/TestKatalogu";
 import { AdminYonetim } from "@/components/features/AdminYonetim";
+import { Vitrin } from "@/components/landing/Vitrin";
 import { SporcuKaydi, SporcuAnalizYaniti } from "@/lib/api-client";
 
 export default function PerformTestStudioPage() {
+  const [oturumAcik, setOturumAcik] = useState<boolean>(false);
   const [aktifSekme, setAktifSekme] = useState<SekmeTipi>("analiz");
   const [aktifKulup, setAktifKulup] = useState<string>("merkez");
   const [kulupler, setKulupler] = useState<Array<{ kod: string; ad: string }>>([
@@ -41,9 +43,25 @@ export default function PerformTestStudioPage() {
   const [yeniKilo, setYeniKilo] = useState(36);
   const [yeniBrans, setYeniBrans] = useState("Genel Atletik Performans");
 
-  // İlk yüklemede varsayılan giriş yap
+  // Sayfa ilk yüklendiğinde kayıtlı oturum kontrolü (yoksa Vitrin sitesi görüntülenir)
   useEffect(() => {
-    girisYap("admin@performtest.yerli", "PerformAdmin2026!");
+    if (typeof window !== "undefined") {
+      const kayitliToken = localStorage.getItem("performtest_jwt");
+      const kayitliKullanici = localStorage.getItem("performtest_user");
+      if (kayitliToken && kayitliKullanici) {
+        try {
+          const u = JSON.parse(kayitliKullanici);
+          setJwtToken(kayitliToken);
+          setKullaniciAdi(u.ad_soyad || u.sub || "Kullanıcı");
+          setRol(u.rol || u.role || "kullanici");
+          if (u.kulup || u.club) setAktifKulup(u.kulup || u.club);
+          setOturumAcik(true);
+        } catch {
+          localStorage.removeItem("performtest_jwt");
+          localStorage.removeItem("performtest_user");
+        }
+      }
+    }
   }, []);
 
   const girisYap = async (eposta: string, parola: string) => {
@@ -58,8 +76,51 @@ export default function PerformTestStudioPage() {
         setJwtToken(d.access_token);
         setKullaniciAdi(d.kullanici.ad_soyad);
         setRol(d.kullanici.rol);
+        if (d.kullanici.kulup) {
+          setAktifKulup(d.kullanici.kulup);
+        }
+        setOturumAcik(true);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("performtest_jwt", d.access_token);
+          localStorage.setItem("performtest_user", JSON.stringify(d.kullanici));
+        }
+        return true;
       }
-    } catch (e) {}
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleGirisBasarili = (token: string, kullanici: any) => {
+    setJwtToken(token);
+    setKullaniciAdi(kullanici.ad_soyad || kullanici.sub || "Kullanıcı");
+    setRol(kullanici.rol || kullanici.role || "kullanici");
+    if (kullanici.kulup || kullanici.club) {
+      setAktifKulup(kullanici.kulup || kullanici.club);
+    }
+    setOturumAcik(true);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("performtest_jwt", token);
+      localStorage.setItem("performtest_user", JSON.stringify(kullanici));
+    }
+  };
+
+  const handleDemoGiris = async (rolEposta?: string, parola?: string) => {
+    const ep = rolEposta || "admin@performtest.yerli";
+    const pw = parola || "PerformAdmin2026!";
+    await girisYap(ep, pw);
+  };
+
+  const cikisYap = () => {
+    setJwtToken("");
+    setOturumAcik(false);
+    setKullaniciAdi("");
+    setRol("");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("performtest_jwt");
+      localStorage.removeItem("performtest_user");
+    }
   };
 
   const rolDegis = (epostaParola: string) => {
@@ -70,30 +131,42 @@ export default function PerformTestStudioPage() {
   // Sporcuları yükle
   const sporculariYukle = async () => {
     try {
-      const r = await fetch(`/api/v1/sporcular?kulup_kodu=${encodeURIComponent(aktifKulup)}`);
+      const headers: Record<string, string> = {};
+      if (jwtToken) {
+        headers["Authorization"] = `Bearer ${jwtToken}`;
+      }
+      const r = await fetch(`/api/v1/sporcular?kulup_kodu=${encodeURIComponent(aktifKulup)}`, { headers });
       const d = await r.json();
       const liste = d.sporcular || [];
       setSporcular(liste);
       if (liste.length > 0 && (!seciliSporcu || !liste.some((s: any) => s.tam_ad === seciliSporcu))) {
         setSeciliSporcu(liste[0].tam_ad);
       }
-    } catch (e) {}
+    } catch {}
   };
 
   useEffect(() => {
-    sporculariYukle();
-  }, [aktifKulup]);
+    if (oturumAcik) {
+      sporculariYukle();
+    }
+  }, [aktifKulup, oturumAcik, jwtToken]);
 
   // Seçili sporcu analizi yükle
   useEffect(() => {
-    if (!seciliSporcu) return;
+    if (!seciliSporcu || !oturumAcik) return;
     setAnalizYukleniyor(true);
-    fetch(`/api/v1/sporcular/${encodeURIComponent(seciliSporcu)}/analiz?kulup_kodu=${encodeURIComponent(aktifKulup)}`)
+    const headers: Record<string, string> = {};
+    if (jwtToken) {
+      headers["Authorization"] = `Bearer ${jwtToken}`;
+    }
+    fetch(`/api/v1/sporcular/${encodeURIComponent(seciliSporcu)}/analiz?kulup_kodu=${encodeURIComponent(aktifKulup)}`, {
+      headers,
+    })
       .then((r) => r.json())
       .then((d) => setAnaliz(d))
       .catch(() => {})
       .finally(() => setAnalizYukleniyor(false));
-  }, [seciliSporcu, aktifKulup]);
+  }, [seciliSporcu, aktifKulup, oturumAcik, jwtToken]);
 
   const svgProtokolAc = (testAdi: string) => {
     setModalSvgTest(testAdi);
@@ -128,8 +201,17 @@ export default function PerformTestStudioPage() {
         setYeniSoyad("");
         sporculariYukle();
       }
-    } catch (e) {}
+    } catch {}
   };
+
+  if (!oturumAcik) {
+    return (
+      <Vitrin
+        onGirisBasarili={handleGirisBasarili}
+        onDemoGiris={handleDemoGiris}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg)] text-[var(--text)]">
@@ -141,6 +223,7 @@ export default function PerformTestStudioPage() {
         kullaniciAdi={kullaniciAdi}
         rol={rol}
         onRolDegis={rolDegis}
+        onCikisYap={cikisYap}
       />
 
       {/* Ana Gövde */}

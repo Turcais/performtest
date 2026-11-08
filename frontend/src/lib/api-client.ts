@@ -42,6 +42,16 @@ export interface SporcuKaydi {
   olcum_sayisi: number;
 }
 
+export interface BransEslestirme {
+  ayirt_edilemez: boolean;
+  pencere: string[];
+  siralama: Array<[string, number]>;
+  katki?: Record<string, Record<string, number>>;
+  neden?: string | null;
+  uygun?: boolean;
+  yayilim?: number;
+}
+
 export interface SporcuAnalizYaniti {
   sporcu: string;
   kulup_kodu: string;
@@ -52,6 +62,7 @@ export interface SporcuAnalizYaniti {
   };
   bilesik_z: Record<string, unknown>;
   fiziksel_pencere: string[] | null;
+  brans_eslestirme?: BransEslestirme;
   kayitli_testler: Array<{ Test: string; "Ölçüm sayısı": number; "Son ölçüm": string }>;
   radar_svg: string;
   rapor_tarihi: string;
