@@ -1,17 +1,21 @@
-# Çalışma alanı veri dosyaları (git'e girmez)
-sporcular.xlsx
-test_sonuclari.xlsx
-ilgi_anketi.xlsx
-degisiklik_kaydi.xlsx
-ayarlar.json
-oturum_taslagi.json
-kulup.json
-kulupler/
-yedekler/
-yerel_veri/
+# Çalışma alanı veri dosyaları (kök dizindeki yerel oturum dosyaları)
+/sporcular.xlsx
+/test_sonuclari.xlsx
+/ilgi_anketi.xlsx
+/degisiklik_kaydi.xlsx
+/ayarlar.json
+/oturum_taslagi.json
+/kulup.json
+/kulupler/
+/yedekler/
+/yerel_veri/
 *.db
 *.db-shm
 *.db-wal
+
+# Tohum demo verileri git'e dahil edilir
+!tohum_veri/
+!tohum_veri/**
 node_modules/
 .next/
 .env

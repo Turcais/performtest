@@ -492,12 +492,13 @@ class YerliVeritabani:
         """`Olcut_Demo` klasöründeki merkez ve alt kulüp verilerini veritabanına aktarır."""
         aday_yollar = [
             demo_kok_yolu,
+            os.path.join(_KOK_DIZIN, "tohum_veri"),
             os.path.join(os.path.dirname(_KOK_DIZIN), "Olcut_Demo"),
             os.path.join(_KOK_DIZIN, "Olcut_Demo"),
         ]
         secilen_yol = next((y for y in aday_yollar if y and os.path.isdir(y)), None)
         if not secilen_yol:
-            return {"yuklendi": False, "neden": "Olcut_Demo klasörü bulunamadı."}
+            return {"yuklendi": False, "neden": "Olcut_Demo veya tohum_veri klasörü bulunamadı."}
 
         ozet: dict[str, Any] = {"yuklendi": True, "kulupler": {}}
         ozet["kulupler"]["merkez"] = self.klasorden_kulup_yukle(

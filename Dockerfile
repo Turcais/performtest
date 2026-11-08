@@ -39,6 +39,7 @@ COPY veri ./veri
 COPY olcut ./olcut
 COPY araclar ./araclar
 COPY api ./api
+COPY tohum_veri ./tohum_veri
 COPY uygulama.py ./uygulama.py
 RUN mkdir -p yerel_veri/yedekler
 

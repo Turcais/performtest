@@ -8,3 +8,4 @@ services:
     envVars:
       - key: PERFORMTEST_ORTAM
         value: production
+

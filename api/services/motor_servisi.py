@@ -29,7 +29,15 @@ class OlcutMotorServisi:
     @classmethod
     def baglam(cls) -> dict[str, Any]:
         if cls._baglam is None:
-            cls._baglam = yukle(_UYGULAMA_YOLU)
+            try:
+                from araclar.yukle import modulleri_yukle
+                ns = modulleri_yukle(_KOK_DIZIN)
+                if ns and "TEST_KATALOGU" in ns:
+                    cls._baglam = ns
+                else:
+                    cls._baglam = yukle(_UYGULAMA_YOLU)
+            except Exception:
+                cls._baglam = yukle(_UYGULAMA_YOLU)
         return cls._baglam
 
     @classmethod

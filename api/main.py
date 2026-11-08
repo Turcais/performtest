@@ -72,6 +72,13 @@ def uygulama_olustur(demo_yukle_otomatik: bool = True) -> Flask:
     def saglik():
         return json_yanit(uygulama_bilgisi())
 
+    @app.errorhandler(Exception)
+    def sunucu_hatasi(hata):
+        import traceback
+        tb = traceback.format_exc()
+        app.logger.error("API Hatası: %s", tb)
+        return json_yanit({"hata": str(hata), "detay": tb}, 500)
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(katalog_bp)
     app.register_blueprint(sporcular_bp)
