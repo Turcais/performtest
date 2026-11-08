@@ -7,12 +7,30 @@ import { SporcuKaydi } from "@/lib/api-client";
 interface KarsilastirmaProps {
   sporcular: SporcuKaydi[];
   aktifKulup: string;
+  rol?: string;
 }
 
 export const Karsilastirma: React.FC<KarsilastirmaProps> = ({
   sporcular,
   aktifKulup,
+  rol = "super_admin",
 }) => {
+  const isVeli = rol === "sporcu_veli" || rol === "veli";
+
+  if (isVeli) {
+    return (
+      <div className="bg-[var(--surface)] border border-amber-500/20 rounded-3xl p-12 text-center max-w-xl mx-auto space-y-4 shadow-sm">
+        <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center mx-auto text-3xl">
+          ⚖️
+        </div>
+        <h3 className="text-lg font-black text-[var(--text)]">Sporcu Karşılaştırma Yetki Sınırı</h3>
+        <p className="text-xs text-[var(--muted)] leading-relaxed">
+          Başa baş sporcu karşılaştırma modülü yalnızca antrenör ve kulüp yöneticilerinin kullanımına açıktır.
+          Veli hesabınızla yalnızca kendi çocuğunuzun atletik gelişim karnesini inceleyebilirsiniz.
+        </p>
+      </div>
+    );
+  }
   const [sporcuA, setSporcuA] = useState<string>(sporcular[0]?.tam_ad || "");
   const [sporcuB, setSporcuB] = useState<string>(sporcular[1]?.tam_ad || "");
   const [karsilastirma, setKarsilastirma] = useState<any>(null);

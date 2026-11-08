@@ -15,7 +15,7 @@ import os
 import uuid
 from flask import Blueprint, request
 
-from api.core.http_yardimci import json_yanit, yetki_gerekli
+from api.core.http_yardimci import istek_kullanicisi, json_yanit, yetki_gerekli
 from api.core.security import KullaniciRolu, parola_hashle
 from api.db import veritabani
 
@@ -264,6 +264,11 @@ def demo_yukle():
 @admin_bp.get("/disa-aktar/<kulup_kodu>")
 def kulup_excel_disa_aktar(kulup_kodu: str):
     """Kulübün verilerini (`sporcular.xlsx`, `test_sonuclari.xlsx`, `ilgi_anketi.xlsx`) ZIP paketi olarak indirir."""
+    kullanici = istek_kullanicisi()
+    if kullanici and kullanici.get("role") in ("sporcu_veli", "veli"):
+        return json_yanit({"hata": "Veli hesabı toplu veri indirme yetkisine sahip değildir."}, 403)
+    if kullanici and kullanici.get("role") == "kulup_yoneticisi" and kullanici.get("club") != kulup_kodu:
+        kulup_kodu = kullanici.get("club", kulup_kodu)
     import io
     import zipfile
     from flask import Response

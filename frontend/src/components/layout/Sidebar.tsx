@@ -17,59 +17,78 @@ interface SidebarProps {
   aktifSekme: SekmeTipi;
   onSekmeSec: (sekme: SekmeTipi) => void;
   toplamSporcu: number;
+  rol?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   aktifSekme,
   onSekmeSec,
   toplamSporcu,
+  rol = "super_admin",
 }) => {
-  const menuler: Array<{
+  const isVeli = rol === "sporcu_veli" || rol === "veli";
+  const isAntrenor = rol === "antrenor";
+  const isKulupAdmin = rol === "kulup_yoneticisi";
+
+  const tumMenuler: Array<{
     id: SekmeTipi;
     etiket: string;
     alt: string;
     ikon: React.ElementType;
     badge?: string;
+    roller: string[]; // Boş ise herkes görebilir
   }> = [
     {
       id: "analiz",
-      etiket: "Sporcu Performans Laboratuvarı",
-      alt: "LMS Z-Skor, Radar & Profil",
+      etiket: isVeli ? "Sporcu Gelişim Raporu & Karne" : "Sporcu Performans Laboratuvarı",
+      alt: isVeli ? "LMS Z-Skor & Biyomotor Profil" : "LMS Z-Skor, Radar & Profil",
       ikon: Users,
       badge: `${toplamSporcu}`,
+      roller: ["super_admin", "kulup_yoneticisi", "antrenor", "sporcu_veli", "veli"],
     },
     {
       id: "oturum",
-      etiket: "Saha Ölçüm & Canlı Değerlendirme",
+      etiket: "Saha Ölçüm & Sonuç Girdisi",
       alt: "Anlık Eşik, Hata & Rekor Filtresi",
       ikon: Timer,
+      roller: ["super_admin", "kulup_yoneticisi", "antrenor"], // Veli sonuç giremez!
     },
     {
       id: "karsilastir",
       etiket: "Başa Baş Karşılaştırma",
       alt: "Çift Sporcu Karşılaştırma & Fark",
       ikon: Scale,
+      roller: ["super_admin", "kulup_yoneticisi", "antrenor"], // Veli diğer sporcuları karşılaştıramaz!
     },
     {
       id: "katalog",
-      etiket: "196 Test Kataloğu & Biyomekanik",
-      alt: "SVG Animasyon & 191 Kaynakça",
+      etiket: isVeli ? "196 Test & Hareket Kataloğu" : "196 Test Kataloğu & Biyomekanik",
+      alt: isVeli ? "Test Protokolleri & Bilgilendirme" : "SVG Animasyon & 191 Kaynakça",
       ikon: BookOpen,
       badge: "196",
+      roller: ["super_admin", "kulup_yoneticisi", "antrenor", "sporcu_veli", "veli"],
     },
     {
       id: "admin",
-      etiket: "PerformTest Yönetim & KVKK",
-      alt: "Tenant, RBAC & Denetim İzi",
+      etiket: isKulupAdmin ? "Kulüp Yönetimi & KVKK" : "PerformTest Yönetim & KVKK",
+      alt: isKulupAdmin ? "Kulüp İçi Sporcu & İzin Kayıtları" : "Tenant, RBAC & Denetim İzi",
       ikon: ShieldCheck,
+      roller: ["super_admin", "kulup_yoneticisi"], // Antrenör ve veli sistem adminini göremez!
     },
   ];
+
+  const menuler = tumMenuler.filter((m) => m.roller.includes(rol));
 
   return (
     <aside className="w-72 border-r border-[var(--line)] bg-[var(--surface)] flex flex-col justify-between shrink-0 p-4 min-h-[calc(100vh-4rem)]">
       <div>
-        <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] px-3 mb-3">
-          Performans & Saha Modülleri
+        <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] px-3 mb-3 flex items-center justify-between">
+          <span>{isVeli ? "Veli Portalı Modülleri" : isAntrenor ? "Antrenör & Ölçüm Modülleri" : "Performans & Saha Modülleri"}</span>
+          {isVeli && (
+            <span className="text-[10px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold">
+              Veli Erişimi
+            </span>
+          )}
         </div>
 
         <nav className="space-y-1.5">

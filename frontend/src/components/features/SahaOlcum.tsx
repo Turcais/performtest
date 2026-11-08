@@ -15,6 +15,7 @@ interface SahaOlcumProps {
   sporcular: SporcuKaydi[];
   aktifKulup: string;
   jwtToken: string;
+  rol?: string;
   onOlcumKaydedildi: () => void;
 }
 
@@ -22,8 +23,24 @@ export const SahaOlcum: React.FC<SahaOlcumProps> = ({
   sporcular,
   aktifKulup,
   jwtToken,
+  rol = "super_admin",
   onOlcumKaydedildi,
 }) => {
+  const isVeli = rol === "sporcu_veli" || rol === "veli";
+
+  if (isVeli) {
+    return (
+      <div className="bg-[var(--surface)] border border-amber-500/20 rounded-3xl p-12 text-center max-w-xl mx-auto space-y-4 shadow-sm">
+        <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center mx-auto text-3xl">
+          🔒
+        </div>
+        <h3 className="text-lg font-black text-[var(--text)]">Saha Ölçüm & Sonuç Girdisi Yetki Sınırı</h3>
+        <p className="text-xs text-[var(--muted)] leading-relaxed">
+          Saha ölçüm testi kaydetme ve sonuç girdisi yapma yetkisi yalnızca antrenör ve kulüp yöneticilerine tanımlıdır. Veli hesabı ile sonuç girişi yapılamaz. Çocuğunuzun test sonuçlarını <strong>Sporcu Gelişim Raporu</strong> sekmesinden inceleyebilirsiniz.
+        </p>
+      </div>
+    );
+  }
   const [seciliSporcu, setSeciliSporcu] = useState<string>(
     sporcular[0]?.tam_ad || ""
   );
@@ -145,9 +162,14 @@ export const SahaOlcum: React.FC<SahaOlcumProps> = ({
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* Sol Sütun: Ölçüm Giriş Formu */}
       <div className="lg:col-span-5 bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b border-[var(--line)] pb-3">
-          <Timer className="w-5 h-5 text-blue-500" />
-          <h2 className="font-bold text-sm">Saha Test Ölçüm Girişi (Canlı Kontrol)</h2>
+        <div className="flex items-center justify-between border-b border-[var(--line)] pb-3">
+          <div className="flex items-center gap-2">
+            <Timer className="w-5 h-5 text-emerald-500" />
+            <h2 className="font-bold text-sm">Saha Test Ölçüm & Sonuç Girdisi</h2>
+          </div>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+            ✓ Sonuç Girişi Aktif
+          </span>
         </div>
 
         {mesaj && (

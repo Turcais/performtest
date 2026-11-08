@@ -17,14 +17,32 @@ import { AdminOzetYaniti, SporcuKaydi } from "@/lib/api-client";
 interface AdminYonetimProps {
   jwtToken: string;
   sporcular: SporcuKaydi[];
+  rol?: string;
   onVeriGuncellendi: () => void;
 }
 
 export const AdminYonetim: React.FC<AdminYonetimProps> = ({
   jwtToken,
   sporcular,
+  rol = "super_admin",
   onVeriGuncellendi,
 }) => {
+  const yetkisiz = rol === "sporcu_veli" || rol === "veli" || rol === "antrenor";
+
+  if (yetkisiz) {
+    return (
+      <div className="bg-[var(--surface)] border border-red-500/20 rounded-3xl p-12 text-center max-w-xl mx-auto space-y-4 shadow-sm">
+        <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-2xl flex items-center justify-center mx-auto text-3xl">
+          🛡️
+        </div>
+        <h3 className="text-lg font-black text-[var(--text)]">Erişim Yetkisi Sınırı (403)</h3>
+        <p className="text-xs text-[var(--muted)] leading-relaxed">
+          PerformTest Sistem ve Tenant Yönetim Paneli yalnızca Süper Admin ve Kulüp Yöneticisi erişimine açıktır.
+          Mevcut hesabınız ({rol}) bu modüle erişim yetkisine sahip değildir.
+        </p>
+      </div>
+    );
+  }
   const [ozet, setOzet] = useState<AdminOzetYaniti | null>(null);
   const [kullanicilar, setKullanicilar] = useState<any[]>([]);
   const [denetimKayitlari, setDenetimKayitlari] = useState<any[]>([]);

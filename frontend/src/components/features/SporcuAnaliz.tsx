@@ -13,6 +13,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   X,
+  Timer,
+  Save,
+  PlusCircle,
 } from "lucide-react";
 import { SporcuKaydi, SporcuAnalizYaniti } from "@/lib/api-client";
 
@@ -25,6 +28,9 @@ interface SporcuAnalizProps {
   onYeniSporcuModal: () => void;
   onSvgProtokolAc: (testAdi: string) => void;
   aktifKulup: string;
+  rol?: string;
+  jwtToken?: string;
+  onOlcumKaydedildi?: () => void;
 }
 
 export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
@@ -36,10 +42,109 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
   onYeniSporcuModal,
   onSvgProtokolAc,
   aktifKulup,
+  rol = "super_admin",
+  jwtToken = "",
+  onOlcumKaydedildi,
 }) => {
+  const isVeli = rol === "sporcu_veli" || rol === "veli";
+  const sonucGirebilir = !isVeli; // super_admin, kulup_yoneticisi, antrenor
+
   const [arama, setArama] = useState("");
   const [cinsiyetFiltre, setCinsiyetFiltre] = useState<string>("");
   const [bransModalAcik, setBransModalAcik] = useState(false);
+
+  // Hızlı Sonuç / Ölçüm Giriş Modalı
+  const [olcumModalAcik, setOlcumModalAcik] = useState(false);
+  const [olcumTesti, setOlcumTesti] = useState("20m Sprint");
+  const [olcumDegiskeni, setOlcumDegiskeni] = useState("En İyi Süre (sn)");
+  const [olcumDegeri, setOlcumDegeri] = useState<number>(3.65);
+  const [olcumOturum, setOlcumOturum] = useState("2026 Güz Saha Taraması");
+  const [canliZSonuc, setCanliZSonuc] = useState<any>(null);
+  const [olcumKaydediliyor, setOlcumKaydediliyor] = useState(false);
+  const [olcumMesaj, setOlcumMesaj] = useState<string | null>(null);
+
+  const hizliTestler = [
+    { ad: "20m Sprint", deg: "En İyi Süre (sn)", varsayilan: 3.65, birim: "sn" },
+    { ad: "Durarak Uzun Atlama", deg: "Deneme 1 (cm)", varsayilan: 150, birim: "cm" },
+    { ad: "El Kavrama Kuvveti (Baskın El)", deg: "Değer (kg)", varsayilan: 18, birim: "kg" },
+    { ad: "Flamingo Denge Testi", deg: "Düşüş Sayısı", varsayilan: 5, birim: "adet" },
+    { ad: "Mekik Testi (30 sn)", deg: "Tekrar Sayısı", varsayilan: 22, birim: "tekrar" },
+    { ad: "Otur-Uzan Esneklik", deg: "Uzanma Mesafesi (cm)", varsayilan: 19, birim: "cm" },
+    { ad: "Sağlık Topu Fırlatma (1 kg)", deg: "Mesafe (m)", varsayilan: 4.8, birim: "m" },
+    { ad: "Çeviklik T-Testi", deg: "Süre (sn)", varsayilan: 11.2, birim: "sn" },
+    { ad: "10x5m Mekik Koşusu", deg: "Süre (sn)", varsayilan: 21.4, birim: "sn" },
+    { ad: "20m Mekik Koşusu (Yo-Yo/Beep)", deg: "Tamamlanan Mekik", varsayilan: 35, birim: "mekik" },
+  ];
+
+  const testSecildi = (tAd: string) => {
+    setOlcumTesti(tAd);
+    const bul = hizliTestler.find((x) => x.ad === tAd);
+    if (bul) {
+      setOlcumDegiskeni(bul.deg);
+      setOlcumDegeri(bul.varsayilan);
+    }
+  };
+
+  const p = (analiz?.profil as Record<string, string>) || {};
+  const sporcuYasi = parseFloat(p["Yaş"] || "10");
+  const sporcuCinsiyet = p.Cinsiyet || "Erkek";
+
+  // Canlı Z-skoru anlık hesaplama
+  useEffect(() => {
+    if (!olcumModalAcik || !olcumTesti || isNaN(olcumDegeri)) return;
+    fetch("/api/v1/analiz/degerlendir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        test_adi: olcumTesti,
+        degisken: olcumDegiskeni,
+        deger: olcumDegeri,
+        yas: sporcuYasi,
+        cinsiyet: sporcuCinsiyet,
+      }),
+    })
+      .then((r) => r.json())
+      .then((d) => setCanliZSonuc(d))
+      .catch(() => {});
+  }, [olcumModalAcik, olcumTesti, olcumDegiskeni, olcumDegeri, sporcuYasi, sporcuCinsiyet]);
+
+  const hizliOlcumKaydet = async () => {
+    if (!seciliSporcu) return;
+    setOlcumKaydediliyor(true);
+    setOlcumMesaj(null);
+    try {
+      const res = await fetch("/api/v1/oturumlar/olcum-kaydet", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: jwtToken ? `Bearer ${jwtToken}` : "",
+        },
+        body: JSON.stringify({
+          kulup_kodu: aktifKulup,
+          sporcu_adi: seciliSporcu,
+          test_adi: olcumTesti,
+          test_yasi: sporcuYasi,
+          oturum: olcumOturum,
+          olcumler: { [olcumDegiskeni]: olcumDegeri },
+        }),
+      });
+      if (res.ok) {
+        setOlcumMesaj("✓ Ölçüm başarıyla kaydedildi! Analiz profili güncelleniyor...");
+        if (onOlcumKaydedildi) onOlcumKaydedildi();
+        setTimeout(() => {
+          setOlcumModalAcik(false);
+          setOlcumMesaj(null);
+        }, 1200);
+      } else {
+        const err = await res.json();
+        setOlcumMesaj(`✕ Hata: ${err.hata || "Kayıt başarısız"}`);
+      }
+    } catch {
+      setOlcumMesaj("✕ Sunucu iletişim hatası.");
+    } finally {
+      setOlcumKaydediliyor(false);
+    }
+  };
 
   const filtrelenmis = sporcular.filter((s) => {
     if (cinsiyetFiltre && s.cinsiyet !== cinsiyetFiltre) return false;
@@ -52,7 +157,6 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
     return true;
   });
 
-  const p = (analiz?.profil as Record<string, string>) || {};
   const boy = parseFloat(p["Boy (cm)"] || "0");
   const kilo = parseFloat(p["Kilo (kg)"] || "0");
   const vki = boy > 0 && kilo > 0 ? (kilo / Math.pow(boy / 100, 2)).toFixed(1) : "—";
@@ -63,14 +167,18 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
       {/* Sol Sütun: Sporcu Listesi */}
       <div className="lg:col-span-4 bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-4 flex flex-col h-[calc(100vh-7.5rem)]">
         <div className="flex items-center justify-between mb-3">
-          <div className="font-bold text-sm">Sporcular ({filtrelenmis.length})</div>
-          <button
-            onClick={onYeniSporcuModal}
-            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-sm transition"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            Yeni Kayıt
-          </button>
+          <div className="font-bold text-sm">
+            {isVeli ? `Çocuğunuz (${filtrelenmis.length})` : `Sporcular (${filtrelenmis.length})`}
+          </div>
+          {!isVeli && (
+            <button
+              onClick={onYeniSporcuModal}
+              className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-sm transition"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              Yeni Kayıt
+            </button>
+          )}
         </div>
 
         {/* Arama & Cinsiyet Filtreleri */}
@@ -159,6 +267,21 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
           </div>
         ) : analiz ? (
           <>
+            {/* Veli Bilgilendirme Portalı Rozeti */}
+            {isVeli && (
+              <div className="p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl text-xs text-amber-500 font-semibold flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">👨‍👩‍👦</span>
+                  <div>
+                    <span className="font-extrabold">Veli Bilgilendirme Portalı:</span> Çocuğunuzun fiziksel gelişim profilini, Cole & Green LMS standart puanlarını ve bilimsel branş yönlendirme analizini inceliyorsunuz.
+                  </div>
+                </div>
+                <span className="text-[10px] bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full font-bold uppercase tracking-wider shrink-0">
+                  Salt Okunur
+                </span>
+              </div>
+            )}
+
             {/* Başlık Kartı */}
             <div className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -184,6 +307,18 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  {/* Antrenör ve Yöneticiler için Hızlı Sonuç Girdi Butonu */}
+                  {sonucGirebilir && (
+                    <button
+                      onClick={() => setOlcumModalAcik(true)}
+                      className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white shadow-md shadow-emerald-500/20 transition hover:scale-[1.02]"
+                      title="Seçili sporcu için anlık yeni saha test ölçüm girişi yap"
+                    >
+                      <Timer className="w-3.5 h-3.5" />
+                      Sonuç / Ölçüm Gir
+                    </button>
+                  )}
+
                   <button
                     onClick={() => setBransModalAcik(true)}
                     className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md shadow-orange-500/20 transition hover:scale-[1.02]"
@@ -199,13 +334,15 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
                     <FileText className="w-3.5 h-3.5" />
                     Veli Raporu (A4)
                   </button>
-                  <button
-                    onClick={() => window.open(`/api/v1/sporcular/${encodeURIComponent(seciliSporcu)}/rapor?kulup_kodu=${encodeURIComponent(aktifKulup)}&tur=antrenor`, "_blank")}
-                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-[var(--line)] hover:bg-[var(--surface-2)] transition"
-                  >
-                    <Award className="w-3.5 h-3.5 text-emerald-500" />
-                    Antrenör Raporu
-                  </button>
+                  {!isVeli && (
+                    <button
+                      onClick={() => window.open(`/api/v1/sporcular/${encodeURIComponent(seciliSporcu)}/rapor?kulup_kodu=${encodeURIComponent(aktifKulup)}&tur=antrenor`, "_blank")}
+                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-[var(--line)] hover:bg-[var(--surface-2)] transition"
+                    >
+                      <Award className="w-3.5 h-3.5 text-emerald-500" />
+                      Antrenör Raporu
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -505,6 +642,141 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
               >
                 <FileText className="w-3.5 h-3.5" />
                 Veli Yetenek Raporunu İndir (A4)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hızlı Saha Ölçüm & Test Sonuç Girdisi Modalı (Antrenör & Admin) */}
+      {olcumModalAcik && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setOlcumModalAcik(false)}
+        >
+          <div
+            className="bg-[var(--surface)] border border-[var(--line)] rounded-3xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[var(--line)] pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+                  <Timer className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base tracking-tight">Hızlı Test Sonuç Girdisi</h3>
+                  <p className="text-xs text-[var(--muted)] font-medium">
+                    {seciliSporcu} · {sporcuCinsiyet} · {sporcuYasi} Yaş · {aktifKulup}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setOlcumModalAcik(false)}
+                className="p-1.5 rounded-xl border border-[var(--line)] hover:bg-[var(--surface-2)] text-[var(--muted)]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {olcumMesaj && (
+              <div
+                className={`p-3 text-xs font-semibold rounded-xl border flex items-center gap-2 ${
+                  olcumMesaj.startsWith("✓")
+                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                    : "bg-red-500/10 text-red-500 border-red-500/20"
+                }`}
+              >
+                <span>{olcumMesaj}</span>
+              </div>
+            )}
+
+            <div className="space-y-3.5 text-xs font-medium">
+              <div>
+                <label className="text-[11px] text-[var(--muted)] font-bold block mb-1">
+                  Uygulanan Saha Test Protokolü
+                </label>
+                <select
+                  value={olcumTesti}
+                  onChange={(e) => testSecildi(e.target.value)}
+                  className="w-full bg-[var(--surface-2)] border border-[var(--line)] rounded-xl p-2.5 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                >
+                  {hizliTestler.map((t) => (
+                    <option key={t.ad} value={t.ad}>
+                      {t.ad} ({t.deg})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-[var(--muted)] font-bold block mb-1">
+                    Ölçülen Değişken Adı
+                  </label>
+                  <input
+                    value={olcumDegiskeni}
+                    onChange={(e) => setOlcumDegiskeni(e.target.value)}
+                    className="w-full bg-[var(--surface-2)] border border-[var(--line)] rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-[var(--muted)] font-bold block mb-1">
+                    Ham Ölçüm Değeri
+                  </label>
+                  <input
+                    type="number"
+                    step="0.05"
+                    value={olcumDegeri}
+                    onChange={(e) => setOlcumDegeri(parseFloat(e.target.value) || 0)}
+                    className="w-full font-black text-base bg-[var(--surface-2)] border border-[var(--line)] rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Anlık Canlı Norm & Z-Skor Geri Bildirimi */}
+              <div className="p-3.5 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-2xl space-y-2">
+                <div className="text-[11px] font-bold text-emerald-500 flex items-center justify-between">
+                  <span>⚡ Canlı Biyomotor Norm Değerlendirmesi</span>
+                  <span className="text-[10px] font-mono bg-emerald-500/20 px-2 py-0.5 rounded-full">
+                    LMS Box-Cox
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-500/20">
+                  <div>
+                    <span className="text-[10px] text-[var(--muted)] block">Yaşıt Persentili</span>
+                    <span className="text-sm font-black text-emerald-500">
+                      {canliZSonuc?.persentil?.persentil_aralik || canliZSonuc?.persentil || "Hesaplanıyor..."}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[var(--muted)] block">Performans Z-Skoru</span>
+                    <span className="text-sm font-black font-mono">
+                      {canliZSonuc?.z_skoru?.z_performans !== undefined
+                        ? `${canliZSonuc.z_skoru.z_performans >= 0 ? "+" : ""}${Number(canliZSonuc.z_skoru.z_performans).toFixed(2)} SD`
+                        : "Norm değerlendiriliyor"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] text-[var(--muted)] font-bold block mb-1">
+                  Ölçüm Oturumu / Tarama Adı
+                </label>
+                <input
+                  value={olcumOturum}
+                  onChange={(e) => setOlcumOturum(e.target.value)}
+                  className="w-full bg-[var(--surface-2)] border border-[var(--line)] rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <button
+                onClick={hizliOlcumKaydet}
+                disabled={olcumKaydediliyor}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 rounded-xl shadow-md transition disabled:opacity-50 mt-2"
+              >
+                <Save className="w-4 h-4" />
+                {olcumKaydediliyor ? "Kaydediliyor..." : "Ölçümü Sisteme Kaydet & Analizi Güncelle"}
               </button>
             </div>
           </div>

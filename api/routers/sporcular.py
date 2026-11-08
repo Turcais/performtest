@@ -34,23 +34,51 @@ def _kulup_coz(istenen_kulup: str | None = None) -> str:
 
 @sporcular_bp.get("/sporcular")
 def sporculari_listele():
+    kullanici = istek_kullanicisi()
     kulup = _kulup_coz(request.args.get("kulup_kodu"))
     with veritabani.baglanti() as con:
         toplam_mevcut = con.execute("SELECT COUNT(*) AS n FROM sporcular WHERE silindi_mi = 0").fetchone()["n"]
         if toplam_mevcut == 0:
             veritabani.demo_verisini_yukle()
 
-        satirlar = con.execute(
-            """
-            SELECT s.*,
-                   (SELECT COUNT(*) FROM test_sonuclari t
-                    WHERE t.kulup_kodu = s.kulup_kodu AND t.sporcu_adi = s.tam_ad AND t.silindi_mi = 0) AS olcum_sayisi
-            FROM sporcular s
-            WHERE s.kulup_kodu = ? AND s.silindi_mi = 0
-            ORDER BY s.ad, s.soyad
-            """,
-            (kulup,),
-        ).fetchall()
+        # Veli rolü: yalnızca kendi çocuğunu görebilir (demo için 'Ali Demo' veya ilk sporcu)
+        if kullanici and kullanici.get("role") in ("sporcu_veli", "veli"):
+            satirlar = con.execute(
+                """
+                SELECT s.*,
+                       (SELECT COUNT(*) FROM test_sonuclari t
+                        WHERE t.kulup_kodu = s.kulup_kodu AND t.sporcu_adi = s.tam_ad AND t.silindi_mi = 0) AS olcum_sayisi
+                FROM sporcular s
+                WHERE s.kulup_kodu = ? AND s.silindi_mi = 0 AND s.tam_ad = 'Ali Demo'
+                ORDER BY s.ad, s.soyad
+                """,
+                (kulup,),
+            ).fetchall()
+            if not satirlar:
+                satirlar = con.execute(
+                    """
+                    SELECT s.*,
+                           (SELECT COUNT(*) FROM test_sonuclari t
+                            WHERE t.kulup_kodu = s.kulup_kodu AND t.sporcu_adi = s.tam_ad AND t.silindi_mi = 0) AS olcum_sayisi
+                    FROM sporcular s
+                    WHERE s.kulup_kodu = ? AND s.silindi_mi = 0
+                    ORDER BY s.ad, s.soyad
+                    LIMIT 1
+                    """,
+                    (kulup,),
+                ).fetchall()
+        else:
+            satirlar = con.execute(
+                """
+                SELECT s.*,
+                       (SELECT COUNT(*) FROM test_sonuclari t
+                        WHERE t.kulup_kodu = s.kulup_kodu AND t.sporcu_adi = s.tam_ad AND t.silindi_mi = 0) AS olcum_sayisi
+                FROM sporcular s
+                WHERE s.kulup_kodu = ? AND s.silindi_mi = 0
+                ORDER BY s.ad, s.soyad
+                """,
+                (kulup,),
+            ).fetchall()
     return json_yanit(
         {
             "kulup_kodu": kulup,
@@ -137,6 +165,9 @@ def sporcu_rapor(sporcu_adi: str):
 
 @sporcular_bp.get("/kulupler/<kulup_kodu>/rapor")
 def kulup_rapor(kulup_kodu: str):
+    kullanici = istek_kullanicisi()
+    if kullanici and kullanici.get("role") in ("sporcu_veli", "veli"):
+        return json_yanit({"hata": "Veli hesabı kulüp geneli raporu görüntüleme yetkisine sahip değildir."}, 403)
     guvenli_kulup = _kulup_coz(kulup_kodu)
     liste_ekle = request.args.get("sporcu_listesi", "1") != "0"
     html_icerik = OlcutMotorServisi.kulup_raporu_html(guvenli_kulup, sporcu_listesi=liste_ekle)
@@ -147,6 +178,9 @@ def kulup_rapor(kulup_kodu: str):
 
 @sporcular_bp.get("/karsilastir")
 def sporcu_karsilastir_uc_noktasi():
+    kullanici = istek_kullanicisi()
+    if kullanici and kullanici.get("role") in ("sporcu_veli", "veli"):
+        return json_yanit({"hata": "Veli hesabı sporcu karşılaştırma modülü yetkisine sahip değildir."}, 403)
     kulup = _kulup_coz(request.args.get("kulup_kodu"))
     sporcu_a = request.args.get("sporcu_a", "").strip()
     sporcu_b = request.args.get("sporcu_b", "").strip()

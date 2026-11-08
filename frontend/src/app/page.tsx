@@ -176,6 +176,18 @@ export default function PerformTestStudioPage() {
       .catch(() => {});
   };
 
+  // Rol yetki sınırlarına göre aktif sekmeyi koru
+  useEffect(() => {
+    const isVeli = rol === "sporcu_veli" || rol === "veli";
+    const isAntrenor = rol === "antrenor";
+    if (isVeli && (aktifSekme === "admin" || aktifSekme === "oturum" || aktifSekme === "karsilastir")) {
+      setAktifSekme("analiz");
+    }
+    if (isAntrenor && aktifSekme === "admin") {
+      setAktifSekme("analiz");
+    }
+  }, [rol, aktifSekme]);
+
   const yeniSporcuKaydet = async () => {
     try {
       const r = await fetch("/api/v1/sporcular", {
@@ -232,6 +244,7 @@ export default function PerformTestStudioPage() {
           aktifSekme={aktifSekme}
           onSekmeSec={setAktifSekme}
           toplamSporcu={sporcular.length}
+          rol={rol}
         />
 
         <main className="flex-1 p-6 overflow-y-auto">
@@ -245,6 +258,9 @@ export default function PerformTestStudioPage() {
               onYeniSporcuModal={() => setYeniSporcuModal(true)}
               onSvgProtokolAc={svgProtokolAc}
               aktifKulup={aktifKulup}
+              rol={rol}
+              jwtToken={jwtToken}
+              onOlcumKaydedildi={sporculariYukle}
             />
           )}
 
@@ -253,12 +269,13 @@ export default function PerformTestStudioPage() {
               sporcular={sporcular}
               aktifKulup={aktifKulup}
               jwtToken={jwtToken}
+              rol={rol}
               onOlcumKaydedildi={sporculariYukle}
             />
           )}
 
           {aktifSekme === "karsilastir" && (
-            <Karsilastirma sporcular={sporcular} aktifKulup={aktifKulup} />
+            <Karsilastirma sporcular={sporcular} aktifKulup={aktifKulup} rol={rol} />
           )}
 
           {aktifSekme === "katalog" && <TestKatalogu />}
@@ -267,6 +284,7 @@ export default function PerformTestStudioPage() {
             <AdminYonetim
               jwtToken={jwtToken}
               sporcular={sporcular}
+              rol={rol}
               onVeriGuncellendi={sporculariYukle}
             />
           )}
