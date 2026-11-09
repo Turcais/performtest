@@ -186,6 +186,42 @@ class YerliVeritabani:
                     veri_json TEXT NOT NULL,
                     islenme_zamani TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS ozel_testler (
+                    test_adi TEXT PRIMARY KEY,
+                    kisa_ad TEXT DEFAULT '',
+                    kategori TEXT NOT NULL,
+                    batarya TEXT DEFAULT 'Özel Protokol',
+                    brans TEXT DEFAULT 'Genel',
+                    nitelik TEXT DEFAULT 'Genel',
+                    bilesen TEXT DEFAULT 'Atletik Performans',
+                    hareket_tipi TEXT DEFAULT 'otomatik',
+                    alanlar_json TEXT DEFAULT '[["Değer", "sayısal"]]',
+                    aciklama TEXT DEFAULT '',
+                    protokol_adimlari TEXT DEFAULT '',
+                    kritik_ayrinti TEXT DEFAULT '',
+                    yon TEXT DEFAULT 'yuksek_iyi',
+                    norm_medyan REAL,
+                    norm_s REAL,
+                    norm_l REAL DEFAULT 1.0,
+                    olusturma_zamani TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS silinen_testler (
+                    test_adi TEXT PRIMARY KEY,
+                    silinme_zamani TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS ozel_kaynakcalar (
+                    anahtar TEXT PRIMARY KEY,
+                    metin TEXT NOT NULL,
+                    olusturma_zamani TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS silinen_kaynakcalar (
+                    anahtar TEXT PRIMARY KEY,
+                    silinme_zamani TEXT NOT NULL
+                );
                 """
             )
         self._varsayilan_kullanicilari_hazirla()

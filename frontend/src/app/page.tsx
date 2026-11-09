@@ -30,6 +30,21 @@ export default function PerformTestStudioPage() {
   const [analiz, setAnaliz] = useState<SporcuAnalizYaniti | null>(null);
   const [analizYukleniyor, setAnalizYukleniyor] = useState<boolean>(false);
 
+  // Dinamik Katalog Sayıları (Varsayılan 196 test, 191 kaynakça)
+  const [toplamTest, setToplamTest] = useState<number>(196);
+  const [toplamKaynakca, setToplamKaynakca] = useState<number>(191);
+
+  const katalogOzetYukle = async () => {
+    try {
+      const r = await fetch("/api/v1/katalog/ozet");
+      const d = await r.json();
+      if (d && typeof d.toplam_test === "number") {
+        setToplamTest(d.toplam_test);
+        setToplamKaynakca(d.toplam_kaynakca ?? 191);
+      }
+    } catch {}
+  };
+
   // SVG Sahne Modalı
   const [modalSvgTest, setModalSvgTest] = useState<string | null>(null);
   const [modalSvgHtml, setModalSvgHtml] = useState<string>("");
@@ -149,6 +164,7 @@ export default function PerformTestStudioPage() {
   useEffect(() => {
     if (oturumAcik) {
       sporculariYukle();
+      katalogOzetYukle();
     }
   }, [aktifKulup, oturumAcik, jwtToken]);
 
@@ -246,6 +262,8 @@ export default function PerformTestStudioPage() {
           aktifSekme={aktifSekme}
           onSekmeSec={setAktifSekme}
           toplamSporcu={sporcular.length}
+          toplamTest={toplamTest}
+          toplamKaynakca={toplamKaynakca}
           rol={rol}
           mobilMenuAcik={mobilMenuAcik}
           onMobilMenuKapat={() => setMobilMenuAcik(false)}
@@ -285,14 +303,27 @@ export default function PerformTestStudioPage() {
             <Karsilastirma sporcular={sporcular} aktifKulup={aktifKulup} rol={rol} />
           )}
 
-          {aktifSekme === "katalog" && <TestKatalogu />}
+          {aktifSekme === "katalog" && (
+            <TestKatalogu
+              rol={rol}
+              jwtToken={jwtToken}
+              toplamTest={toplamTest}
+              toplamKaynakca={toplamKaynakca}
+              onKatalogGuncellendi={katalogOzetYukle}
+            />
+          )}
 
           {aktifSekme === "admin" && (
             <AdminYonetim
               jwtToken={jwtToken}
               sporcular={sporcular}
               rol={rol}
-              onVeriGuncellendi={sporculariYukle}
+              toplamTest={toplamTest}
+              toplamKaynakca={toplamKaynakca}
+              onVeriGuncellendi={() => {
+                sporculariYukle();
+                katalogOzetYukle();
+              }}
             />
           )}
         </main>

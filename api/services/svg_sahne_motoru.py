@@ -768,30 +768,109 @@ def _en_benzer_sahne(test_adi: str) -> str | None:
     return en_iyi if en_puan >= 1 else None
 
 
-def gelismis_test_sahnesi_uret(b: dict[str, Any], test_adi: str) -> dict[str, Any]:
+_HAREKET_TIPI_SAHNE_HARITASI: dict[str, str] = {
+    "sprint": "20m Sprint (Latorre)",
+    "dikey_sicrama": "Dikey Sıçrama (CMJ)",
+    "uzun_atlama": "Durarak Uzun Atlama (Latorre)",
+    "ceviklik": "T-Testi (Çeviklik)",
+    "kavrama": "El Kavrama Kuvveti (Latorre)",
+    "kuvvet": "1RM Squat (Arka Çömelme)",
+    "sinav": "Şınav (Push-Up) — Maksimum Tekrar (Genel)",
+    "mekik_karin": "Mekik (Sit-Up) — 1 Dakika (Genel)",
+    "denge": "Tek Ayak Denge Testi (Latorre)",
+    "esneklik": "Jimnastik Esneklik Profili",
+    "firlatma": "Top Fırlatma Testi (Latorre)",
+    "dayaniklilik": "20m Mekik Koşusu (Beep Test)",
+    "antropometri": "Boy ve Vücut Ağırlığı (TSYT)",
+    "yuzme": "Critical Swimming Speed (CSS) Testi",
+    "ergometre": "Wingate 30sn Bisiklet Testi",
+}
+
+_NITELIK_SAHNE_HARITASI: dict[str, str] = {
+    "sürat": "20m Sprint (Latorre)",
+    "hız": "20m Sprint (Latorre)",
+    "patlayıcı kuvvet": "Durarak Uzun Atlama (Latorre)",
+    "güç": "Dikey Sıçrama (CMJ)",
+    "çeviklik": "T-Testi (Çeviklik)",
+    "kuvvet": "1RM Squat (Arka Çömelme)",
+    "kas dayanıklılığı": "Şınav (Push-Up) — Maksimum Tekrar (Genel)",
+    "denge": "Tek Ayak Denge Testi (Latorre)",
+    "esneklik": "Jimnastik Esneklik Profili",
+    "koordinasyon": "Top Fırlatma Testi (Latorre)",
+    "dayanıklılık": "20m Mekik Koşusu (Beep Test)",
+    "aerobik": "20m Mekik Koşusu (Beep Test)",
+    "antropometri": "Boy ve Vücut Ağırlığı (TSYT)",
+}
+
+
+def gelismis_test_sahnesi_uret(
+    b: dict[str, Any], test_adi: str, ozel_test: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """
     Bir test için anatomik sporcu modelli, ekipmanlarla tam senkronize, yüksek okunabilirlikli
-    SVG sahneyi ve etkileşimli kontrol çubuğunu üretir.
+    SVG sahneyi ve etkileşimli kontrol çubuğunu üretir. Yeni eklenen özel testler için
+    hareket arketipi ve nitelik bazlı otomatik SVG sahnesi sentezler.
     """
-    bilgi = b["test_bilgisi"](test_adi) or {}
-    nitelik = b["test_niteligi"](test_adi) or "Genel"
-    protokol_metni = str(bilgi.get("protokol") or bilgi.get("aciklama") or "")
-    adimlar_md = b["protokol_ozet_cikar"](protokol_metni) if "protokol_ozet_cikar" in b and protokol_metni else ""
+    bilgi = ozel_test or b["test_bilgisi"](test_adi) or {}
+    nitelik = (ozel_test.get("nitelik") if ozel_test else None) or b["test_niteligi"](test_adi) or "Genel"
+    protokol_metni = str(
+        (ozel_test.get("protokol_adimlari") if ozel_test else None)
+        or bilgi.get("protokol")
+        or bilgi.get("aciklama")
+        or ""
+    )
+    adimlar_md = (
+        ozel_test.get("protokol_adimlari")
+        if ozel_test and ozel_test.get("protokol_adimlari")
+        else (b["protokol_ozet_cikar"](protokol_metni) if "protokol_ozet_cikar" in b and protokol_metni else "")
+    )
 
     if test_adi not in TEST_GORSELLERI:
-        neden = TEST_GORSELSIZ.get(test_adi, "Bu protokol çok bileşenli veya laboratuvar tabanlıdır.")
+        hareket_tipi = str((ozel_test or {}).get("hareket_tipi") or "otomatik").lower().strip()
         ad_kucuk = test_adi.lower()
+        nitelik_kucuk = nitelik.lower().strip()
         benzer = _en_benzer_sahne(test_adi)
-        if benzer:
+
+        if hareket_tipi in _HAREKET_TIPI_SAHNE_HARITASI and _HAREKET_TIPI_SAHNE_HARITASI[hareket_tipi] in TEST_GORSELLERI:
+            yedek_anahtar = _HAREKET_TIPI_SAHNE_HARITASI[hareket_tipi]
+        elif benzer:
             yedek_anahtar = benzer
-        elif any(k in ad_kucuk for k in ("kompozisyon", "deri", "bia", "dexa", "tartım", "bel çevresi")):
+        elif any(k in ad_kucuk for k in ("sprint", "koşu", "kosu", "hız", "flying", "dash")):
+            yedek_anahtar = "20m Sprint (Latorre)"
+        elif any(k in ad_kucuk for k in ("dikey", "cmj", "sj", "sıçra", "sicra", "jump")):
+            yedek_anahtar = "Dikey Sıçrama (CMJ)"
+        elif any(k in ad_kucuk for k in ("uzun atlama", "yatay", "broad")):
+            yedek_anahtar = "Durarak Uzun Atlama (Latorre)"
+        elif any(k in ad_kucuk for k in ("çeviklik", "ceviklik", "slalom", "parkur", "pro-agility", "illinois", "t-test")):
+            yedek_anahtar = "T-Testi (Çeviklik)"
+        elif any(k in ad_kucuk for k in ("denge", "balance", "flamingo", "stork", "y-balance")):
+            yedek_anahtar = "Tek Ayak Denge Testi (Latorre)"
+        elif any(k in ad_kucuk for k in ("esneklik", "otur", "uzan", "split", "sit and reach")):
+            yedek_anahtar = "Jimnastik Esneklik Profili"
+        elif any(k in ad_kucuk for k in ("kavrama", "grip", "dinamometre", "izometrik")):
+            yedek_anahtar = "El Kavrama Kuvveti (Latorre)"
+        elif any(k in ad_kucuk for k in ("fırlatma", "firlatma", "atış", "atis", "sağlık topu", "medicine")):
+            yedek_anahtar = "Top Fırlatma Testi (Latorre)"
+        elif any(k in ad_kucuk for k in ("mekik koşu", "yo-yo", "beep", "dayanıklılık", "cooper", "ift")):
+            yedek_anahtar = "20m Mekik Koşusu (Beep Test)"
+        elif any(k in ad_kucuk for k in ("squat", "çömelme", "bench", "1rm", "halter", "kuvvet")):
+            yedek_anahtar = "1RM Squat (Arka Çömelme)"
+        elif any(k in ad_kucuk for k in ("yüzme", "yuzme", "havuz", "swim")):
+            yedek_anahtar = "Critical Swimming Speed (CSS) Testi"
+        elif any(k in ad_kucuk for k in ("kompozisyon", "deri", "bia", "dexa", "tartım", "bel çevresi", "boy", "kilo")):
             yedek_anahtar = "Boy ve Vücut Ağırlığı (TSYT)"
-        elif any(k in ad_kucuk for k in ("vo2", "laktat", "cpet", "kardiyo")):
+        elif any(k in ad_kucuk for k in ("vo2", "laktat", "cpet", "kardiyo", "wingate", "bisiklet")):
             yedek_anahtar = "Wingate 30sn Bisiklet Testi"
+        elif nitelik_kucuk in _NITELIK_SAHNE_HARITASI and _NITELIK_SAHNE_HARITASI[nitelik_kucuk] in TEST_GORSELLERI:
+            yedek_anahtar = _NITELIK_SAHNE_HARITASI[nitelik_kucuk]
         else:
             yedek_anahtar = "Durarak Uzun Atlama"
-        sahne_fn, _ = TEST_GORSELLERI[yedek_anahtar]
-        kritik_ayrinti = f"Laboratuvar / Çok Bileşenli Protokol ({neden})"
+        sahne_fn, varsayilan_kritik = TEST_GORSELLERI[yedek_anahtar]
+        if ozel_test:
+            kritik_ayrinti = str(ozel_test.get("kritik_ayrinti") or ozel_test.get("aciklama") or varsayilan_kritik)
+        else:
+            neden = TEST_GORSELSIZ.get(test_adi, "Bu protokol çok bileşenli veya laboratuvar tabanlıdır.")
+            kritik_ayrinti = f"Laboratuvar / Çok Bileşenli Protokol ({neden})"
     else:
         sahne_fn, kritik_ayrinti = TEST_GORSELLERI[test_adi]
     S = sahne_fn()
@@ -809,6 +888,10 @@ def gelismis_test_sahnesi_uret(b: dict[str, Any], test_adi: str) -> dict[str, An
                 baslik_metni = metin
             elif yer == "not" and not not_metni:
                 not_metni = metin
+    if ozel_test:
+        baslik_metni = test_adi
+        if ozel_test.get("kritik_ayrinti") or ozel_test.get("aciklama"):
+            not_metni = str(ozel_test.get("kritik_ayrinti") or ozel_test.get("aciklama"))
 
     yeni_ogeler: list[str] = []
     figur_indeks = 0

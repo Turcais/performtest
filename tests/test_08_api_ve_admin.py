@@ -256,3 +256,79 @@ def test_api_08_performtest_karsilastirma_kulup_raporu_ve_excel_ihraci(api_istem
     assert r_zip.status_code == 200
     assert r_zip.mimetype == "application/zip"
     assert len(r_zip.data) > 1000
+
+
+def test_api_09_super_admin_katalog_ekle_cikar_ve_otomatik_svg(api_istemci):
+    pt_token = _token_al(api_istemci, "admin@performtest.yerli", "PerformAdmin2026!")
+    baslik = {"Authorization": f"Bearer {pt_token}"}
+
+    # 1. Yeni bilimsel test ekle -> toplam_test 196'dan 197'ye çıkmalı ve otomatik SVG üretilmeli
+    r_ekle = api_istemci.post(
+        "/api/v1/admin/katalog/testler",
+        headers=baslik,
+        json={
+            "test_adi": "30m Flying Sprint Testi (Özel)",
+            "kategori": "Sürat ve Çabukluk",
+            "nitelik": "sürat",
+            "hareket_tipi": "sprint",
+            "degisken_adi": "Uçarak 30m Süresi (sn)",
+            "birim": "sn",
+            "yon": "dusuk_iyi",
+            "norm_medyan": 3.85,
+            "norm_s": 0.10,
+            "aciklama": "Sporcu 10m ivmelenme sonrası 30m fotosel kapısından maksimum hızla geçer.",
+        },
+    )
+    assert r_ekle.status_code == 201
+    ekle_veri = r_ekle.get_json()
+    assert ekle_veri["toplam_test"] == 197
+    assert "<svg" in ekle_veri["svg_html"]
+    assert "30m Flying Sprint Testi (Özel)" in ekle_veri["svg_html"]
+
+    # 2. Vitrin ve Katalog özet uç noktasında sayı 197 olarak güncellenmeli
+    r_ozet = api_istemci.get("/api/v1/katalog/ozet")
+    assert r_ozet.status_code == 200
+    assert r_ozet.get_json()["toplam_test"] == 197
+
+    # 3. Yeni eklenen testin SVG uç noktası ve LMS Z-skoru çalışmalı
+    r_svg = api_istemci.get("/api/v1/katalog/svg?test_adi=30m%20Flying%20Sprint%20Testi%20(%C3%96zel)")
+    assert r_svg.status_code == 200
+    assert "<svg" in r_svg.get_json()["svg_html"]
+
+    r_deg = api_istemci.post(
+        "/api/v1/analiz/degerlendir",
+        json={
+            "test_adi": "30m Flying Sprint Testi (Özel)",
+            "degisken": "Uçarak 30m Süresi (sn)",
+            "deger": 3.55,
+            "yas": 12,
+            "cinsiyet": "Erkek",
+        },
+    )
+    assert r_deg.status_code == 200
+    assert r_deg.get_json()["z_skoru"]["z_performans"] > 0
+
+    # 4. Yeni kaynakça ekle -> 191'den 192'ye çıkmalı
+    r_kay_ekle = api_istemci.post(
+        "/api/v1/admin/katalog/kaynakca",
+        headers=baslik,
+        json={
+            "anahtar": "Morin_2025",
+            "metin": "Morin, J. B. et al. (2025). Biomechanics of Sprint Acceleration. Sports Medicine.",
+        },
+    )
+    assert r_kay_ekle.status_code == 201
+    assert r_kay_ekle.get_json()["toplam_kaynakca"] == 192
+
+    # 5. Testi ve kaynakçayı sil -> 196 ve 191'e geri dönmeli
+    r_sil = api_istemci.delete(
+        "/api/v1/admin/katalog/testler/30m%20Flying%20Sprint%20Testi%20(%C3%96zel)",
+        headers=baslik,
+    )
+    assert r_sil.status_code == 200
+    assert r_sil.get_json()["toplam_test"] == 196
+
+    r_kay_sil = api_istemci.delete("/api/v1/admin/katalog/kaynakca/Morin_2025", headers=baslik)
+    assert r_kay_sil.status_code == 200
+    assert r_kay_sil.get_json()["toplam_kaynakca"] == 191
+

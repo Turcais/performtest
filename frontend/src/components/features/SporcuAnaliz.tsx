@@ -16,6 +16,7 @@ import {
   Timer,
   Save,
   PlusCircle,
+  Trash2,
 } from "lucide-react";
 import { SporcuKaydi, SporcuAnalizYaniti } from "@/lib/api-client";
 
@@ -48,6 +49,23 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
 }) => {
   const isVeli = rol === "sporcu_veli" || rol === "veli";
   const sonucGirebilir = !isVeli; // super_admin, kulup_yoneticisi, antrenor
+  const sporcuSilebilir = rol === "super_admin" || rol === "kulup_yoneticisi";
+
+  const sporcuSil = async (tamAd: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!confirm(`"${tamAd}" isimli sporcuyu ve tüm ölçüm geçmişini silmek istediğinize emin misiniz?`)) return;
+    try {
+      const r = await fetch(`/api/v1/admin/sporcular/${encodeURIComponent(tamAd)}?kulup_kodu=${encodeURIComponent(aktifKulup)}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: jwtToken ? `Bearer ${jwtToken}` : "",
+        },
+      });
+      if (r.ok && onOlcumKaydedildi) {
+        onOlcumKaydedildi();
+      }
+    } catch {}
+  };
 
   const [arama, setArama] = useState("");
   const [cinsiyetFiltre, setCinsiyetFiltre] = useState<string>("");
@@ -271,9 +289,20 @@ export const SporcuAnaliz: React.FC<SporcuAnalizProps> = ({
                     </div>
                   </div>
                 </div>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--surface)] border border-[var(--line)] shrink-0 ml-2">
-                  {isVeli ? "👨‍👩‍👦 Çocuğunuz" : `${s.olcum_sayisi} ölçüm`}
-                </span>
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--surface)] border border-[var(--line)]">
+                    {isVeli ? "👨‍👩‍👦 Çocuğunuz" : `${s.olcum_sayisi} ölçüm`}
+                  </span>
+                  {sporcuSilebilir && (
+                    <button
+                      onClick={(e) => sporcuSil(s.tam_ad, e)}
+                      title="Sporcuyu Sil"
+                      className="p-1 rounded-lg hover:bg-red-500/15 text-[var(--muted)] hover:text-red-500 transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}

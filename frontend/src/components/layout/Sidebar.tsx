@@ -20,6 +20,8 @@ interface SidebarProps {
   aktifSekme: SekmeTipi;
   onSekmeSec: (sekme: SekmeTipi) => void;
   toplamSporcu: number;
+  toplamTest?: number;
+  toplamKaynakca?: number;
   rol?: string;
   mobilMenuAcik?: boolean;
   onMobilMenuKapat?: () => void;
@@ -32,6 +34,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   aktifSekme,
   onSekmeSec,
   toplamSporcu,
+  toplamTest = 196,
+  toplamKaynakca = 191,
   rol = "super_admin",
   mobilMenuAcik = false,
   onMobilMenuKapat,
@@ -80,11 +84,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: "katalog",
-      etiket: isVeli ? "196 Test & Hareket Kataloğu" : "196 Test Kataloğu & Biyomekanik",
+      etiket: isVeli ? `${toplamTest} Test & Hareket Kataloğu` : `${toplamTest} Test Kataloğu & Biyomekanik`,
       kisaEtiket: "Katalog",
-      alt: isVeli ? "Test Protokolleri & Bilgilendirme" : "SVG Animasyon & 191 Kaynakça",
+      alt: isVeli ? "Test Protokolleri & Bilgilendirme" : `SVG Animasyon & ${toplamKaynakca} Kaynakça`,
       ikon: BookOpen,
-      badge: "196",
+      badge: `${toplamTest}`,
       roller: ["super_admin", "kulup_yoneticisi", "antrenor", "sporcu_veli", "veli"],
     },
     {

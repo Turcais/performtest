@@ -63,30 +63,118 @@ class OlcutMotorServisi:
             os.chdir(eski_dizin)
 
     @classmethod
+    def _ozel_test_getir(cls, test_adi: str) -> dict[str, Any] | None:
+        import json as _json
+
+        try:
+            with veritabani.baglanti() as con:
+                r = con.execute("SELECT * FROM ozel_testler WHERE test_adi = ?", (test_adi,)).fetchone()
+                if not r:
+                    return None
+                d = dict(r)
+                try:
+                    d["alanlar"] = _json.loads(d.get("alanlar_json") or '[["Değer", "sayısal"]]')
+                except Exception:
+                    d["alanlar"] = [["Değer", "sayısal"]]
+                return d
+        except Exception:
+            return None
+
+    @classmethod
     def katalog_ozeti(cls) -> dict[str, Any]:
         b = cls.baglam()
         katalog = b["TEST_KATALOGU"]
-        testler = b["katalog_testleri"]()
+        tum = cls.tum_testler()
+        kaynaklar = cls.kaynakca_listesi()
+        kategoriler = list(
+            dict.fromkeys(list(katalog.keys()) + [t["kategori"] for t in tum if t.get("kategori")])
+        )
+        gruplar = list(b["BRANS_GRUBU_PROFILLERI"]["gruplar"].keys())
         return {
             "surum": b.get("SURUM", "1.0"),
-            "kategoriler": list(katalog.keys()),
-            "toplam_kategori": len(katalog),
-            "toplam_test": len(testler),
-            "brans_gruplari": list(b["BRANS_GRUBU_PROFILLERI"]["gruplar"].keys()),
-            "toplam_kaynakca": len(b["KAYNAKCA"]),
+            "kategoriler": kategoriler,
+            "toplam_kategori": len(kategoriler),
+            "toplam_test": len(tum),
+            "brans_gruplari": gruplar,
+            "toplam_brans_grubu": len(gruplar),
+            "toplam_kaynakca": len(kaynaklar),
         }
 
     @classmethod
     def tum_testler(cls, arama: str = "", kategori: str = "") -> list[dict[str, Any]]:
+        import json as _json
+
         b = cls.baglam()
+        silinen_set: set[str] = set()
+        ozel_satirlar: list[dict[str, Any]] = []
+        try:
+            with veritabani.baglanti() as con:
+                silinen_set = {
+                    r["test_adi"] for r in con.execute("SELECT test_adi FROM silinen_testler").fetchall()
+                }
+                ozel_satirlar = [
+                    dict(r)
+                    for r in con.execute("SELECT * FROM ozel_testler ORDER BY olusturma_zamani DESC").fetchall()
+                ]
+        except Exception:
+            pass
+
+        ozel_adlar = {o["test_adi"] for o in ozel_satirlar}
         sonuc = []
-        for t in b["katalog_testleri"]():
-            test_adi = t["ad"]
-            kat = t.get("kategori", "")
-            yol = t.get("yol") or ("", "", "")
+
+        # 1. Süper Admin tarafından eklenen özel testler
+        for o in ozel_satirlar:
+            test_adi = o["test_adi"]
+            if test_adi in silinen_set:
+                continue
+            kat = o.get("kategori") or "Özel Protokoller"
+            nitelik = o.get("nitelik") or "Genel"
             if kategori and kat != kategori:
                 continue
-            if arama and arama.lower() not in test_adi.lower() and arama.lower() not in kat.lower():
+            if (
+                arama
+                and arama.lower() not in test_adi.lower()
+                and arama.lower() not in kat.lower()
+                and arama.lower() not in nitelik.lower()
+            ):
+                continue
+            try:
+                alanlar = _json.loads(o.get("alanlar_json") or '[["Değer", "sayısal"]]')
+            except Exception:
+                alanlar = [["Değer", "sayısal"]]
+            sonuc.append(
+                {
+                    "test_adi": test_adi,
+                    "kisa_ad": o.get("kisa_ad") or test_adi[:22],
+                    "kategori": kat,
+                    "batarya": o.get("batarya") or "Özel Protokol",
+                    "brans": o.get("brans") or "Genel",
+                    "nitelik": nitelik,
+                    "bilesen": o.get("bilesen") or "Atletik Performans",
+                    "hareket_tipi": o.get("hareket_tipi") or "otomatik",
+                    "norm_var_mi": o.get("norm_medyan") is not None,
+                    "alanlar": alanlar,
+                    "aciklama": o.get("aciklama") or "",
+                    "ozel_mi": True,
+                }
+            )
+
+        # 2. Yerleşik katalog testleri (silinenler hariç)
+        for t in b["katalog_testleri"]():
+            test_adi = t["ad"]
+            if test_adi in silinen_set or test_adi in ozel_adlar:
+                continue
+            kat = t.get("kategori", "")
+            yol = t.get("yol") or ("", "", "")
+            nitelik = b["test_niteligi"](test_adi) or ""
+            if kategori and kat != kategori:
+                continue
+            if (
+                arama
+                and arama.lower() not in test_adi.lower()
+                and arama.lower() not in kat.lower()
+                and arama.lower() not in nitelik.lower()
+            ):
                 continue
             bilgi = b["test_bilgisi"](test_adi) or {}
             batarya = yol[1] if len(yol) > 1 and yol[1] else ""
@@ -97,11 +185,12 @@ class OlcutMotorServisi:
                     "kategori": kat,
                     "batarya": batarya,
                     "brans": yol[2] if len(yol) > 2 and yol[2] else "",
-                    "nitelik": b["test_niteligi"](test_adi),
+                    "nitelik": nitelik,
                     "bilesen": b["test_bileseni"](test_adi),
                     "norm_var_mi": bool(b["test_norm_var_mi"](test_adi)),
                     "alanlar": bilgi.get("alanlar", []),
                     "aciklama": bilgi.get("aciklama", ""),
+                    "ozel_mi": False,
                 }
             )
         return sonuc
@@ -111,20 +200,94 @@ class OlcutMotorServisi:
         from api.services.svg_sahne_motoru import gelismis_test_sahnesi_uret
 
         b = cls.baglam()
-        return gelismis_test_sahnesi_uret(b, test_adi)
+        ozel = cls._ozel_test_getir(test_adi)
+        return gelismis_test_sahnesi_uret(b, test_adi, ozel_test=ozel)
 
     @classmethod
     def kaynakca_listesi(cls) -> list[dict[str, Any]]:
         b = cls.baglam()
         kaynakca = b["KAYNAKCA"]
+        silinen_set: set[str] = set()
+        ozel_satirlar: list[dict[str, Any]] = []
+        try:
+            with veritabani.baglanti() as con:
+                silinen_set = {
+                    r["anahtar"] for r in con.execute("SELECT anahtar FROM silinen_kaynakcalar").fetchall()
+                }
+                ozel_satirlar = [
+                    dict(r)
+                    for r in con.execute(
+                        "SELECT * FROM ozel_kaynakcalar ORDER BY olusturma_zamani DESC"
+                    ).fetchall()
+                ]
+        except Exception:
+            pass
+
+        liste: list[dict[str, Any]] = []
+        for o in ozel_satirlar:
+            if o["anahtar"] not in silinen_set:
+                liste.append(
+                    {
+                        "anahtar": o["anahtar"],
+                        "metin": o["metin"],
+                        "kaynak": o["metin"],
+                        "ozel_mi": True,
+                    }
+                )
+
         if isinstance(kaynakca, dict):
-            return [{"anahtar": k, **(v if isinstance(v, dict) else {"metin": str(v)})} for k, v in kaynakca.items()]
-        return [{"indeks": i + 1, "kaynak": k} for i, k in enumerate(kaynakca)]
+            for k, v in kaynakca.items():
+                if str(k) in silinen_set:
+                    continue
+                if isinstance(v, dict):
+                    liste.append({"anahtar": str(k), **v, "ozel_mi": False})
+                else:
+                    liste.append({"anahtar": str(k), "metin": str(v), "kaynak": str(v), "ozel_mi": False})
+        else:
+            for i, k in enumerate(kaynakca):
+                anahtar = f"ref-{i + 1}"
+                if anahtar in silinen_set or str(k) in silinen_set:
+                    continue
+                liste.append({"anahtar": anahtar, "indeks": i + 1, "metin": str(k), "kaynak": str(k), "ozel_mi": False})
+        return liste
 
     @classmethod
     def test_degerlendir(
         cls, test_adi: str, degisken: str, deger: float, yas: float, cinsiyet: str
     ) -> dict[str, Any]:
+        import math as _math
+
+        ozel = cls._ozel_test_getir(test_adi)
+        if ozel and ozel.get("norm_medyan") is not None and ozel.get("norm_s"):
+            m = float(ozel["norm_medyan"])
+            s = max(float(ozel["norm_s"]), 0.01)
+            l_val = float(ozel.get("norm_l") if ozel.get("norm_l") is not None else 1.0)
+            yon = str(ozel.get("yon") or "yuksek_iyi")
+            if m > 0 and deger > 0:
+                if abs(l_val) > 1e-6:
+                    z_ham = (((deger / m) ** l_val) - 1.0) / (l_val * s)
+                else:
+                    z_ham = _math.log(deger / m) / s
+            else:
+                z_ham = (deger - m) / (m * s if m else s)
+            z_perf = -z_ham if yon == "dusuk_iyi" else z_ham
+            z_perf = round(max(-4.0, min(4.0, z_perf)), 2)
+            pct_sayi = round(0.5 * (1.0 + _math.erf(z_perf / _math.sqrt(2.0))) * 100.0, 1)
+            alt_sinir = round(max(0.0, m * (1.0 - 3.0 * s)), 2)
+            ust_sinir = round(m * (1.0 + 3.0 * s), 2)
+            return {
+                "test_adi": test_adi,
+                "degisken": degisken,
+                "deger": deger,
+                "yas": yas,
+                "cinsiyet": cinsiyet,
+                "persentil": {"persentil": pct_sayi, "persentil_aralik": f"P{int(round(pct_sayi))}"},
+                "z_skoru": {"z": round(z_ham, 2), "z_performans": z_perf, "yontem": "Cole & Green LMS (Özel Norm)"},
+                "norm_sonuc": {"durum": "Normal" if abs(z_perf) <= 2.0 else "Uç Değer"},
+                "esik_kontrolu": {"uyari_var_mi": abs(z_perf) > 3.0},
+                "makul_aralik": [alt_sinir, ust_sinir],
+            }
+
         b = cls.baglam()
         persentil = b["yas_persentil_bul"](test_adi, degisken, yas, cinsiyet, deger)
         z_skor = b["yas_z_skoru"](test_adi, degisken, yas, cinsiyet, deger)

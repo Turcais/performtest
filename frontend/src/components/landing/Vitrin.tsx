@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Activity,
   Award,
@@ -41,6 +41,30 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
   const [hata, setHata] = useState<string | null>(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [tema, setTema] = useState<"light" | "dark">("dark");
+  const [katalogOzet, setKatalogOzet] = useState<{
+    toplam_test: number;
+    toplam_kaynakca: number;
+    toplam_brans_grubu: number;
+  }>({
+    toplam_test: 196,
+    toplam_kaynakca: 191,
+    toplam_brans_grubu: 6,
+  });
+
+  useEffect(() => {
+    fetch("/api/v1/katalog/ozet")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && typeof d.toplam_test === "number") {
+          setKatalogOzet({
+            toplam_test: d.toplam_test,
+            toplam_kaynakca: d.toplam_kaynakca ?? 191,
+            toplam_brans_grubu: d.toplam_brans_grubu ?? 6,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const toggleTema = () => {
     const yeni = tema === "dark" ? "light" : "dark";
@@ -102,7 +126,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
         <nav className="hidden lg:flex items-center gap-6 text-xs font-semibold text-[var(--muted)]">
           <a href="#ozellikler" className="hover:text-[var(--text)] transition">Özellikler</a>
           <a href="#metodoloji" className="hover:text-[var(--text)] transition">Bilimsel LMS Metodu</a>
-          <a href="#katalog" className="hover:text-[var(--text)] transition">196 Test Kataloğu</a>
+          <a href="#katalog" className="hover:text-[var(--text)] transition">{katalogOzet.toplam_test} Test Kataloğu</a>
           <a href="#kvkk" className="hover:text-[var(--text)] transition">KVKK & Güvenlik</a>
         </nav>
 
@@ -147,7 +171,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
           </h1>
 
           <p className="text-xs sm:text-base text-[var(--muted)] max-w-3xl mx-auto leading-relaxed">
-            Cole &amp; Green (1992) LMS Z-skorları, TSYT ulusal norm tabanı, 196 testlik protokol kütüphanesi ve Opstoel (2015) 6 branş grubu eşleştirme motoruyla kulüpler, akademiler ve federasyonlar için yerli sunucu altyapısı.
+            Cole &amp; Green (1992) LMS Z-skorları, TSYT ulusal norm tabanı, {katalogOzet.toplam_test} testlik protokol kütüphanesi ve Opstoel (2015) {katalogOzet.toplam_brans_grubu} branş grubu eşleştirme motoruyla kulüpler, akademiler ve federasyonlar için yerli sunucu altyapısı.
           </p>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-3 pt-2 sm:pt-4 max-w-md sm:max-w-none mx-auto">
@@ -170,15 +194,15 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
           {/* İstatistik Göstergeleri */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-12 max-w-4xl mx-auto">
             <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--line)] shadow-sm">
-              <div className="text-2xl sm:text-3xl font-black text-blue-500">196</div>
+              <div className="text-2xl sm:text-3xl font-black text-blue-500">{katalogOzet.toplam_test}</div>
               <div className="text-xs font-bold text-[var(--muted)] mt-1">Bilimsel Test Protokolü</div>
             </div>
             <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--line)] shadow-sm">
-              <div className="text-2xl sm:text-3xl font-black text-emerald-500">191</div>
+              <div className="text-2xl sm:text-3xl font-black text-emerald-500">{katalogOzet.toplam_kaynakca}</div>
               <div className="text-xs font-bold text-[var(--muted)] mt-1">Uluslararası Kaynakça</div>
             </div>
             <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--line)] shadow-sm">
-              <div className="text-2xl sm:text-3xl font-black text-amber-500">6 Branş</div>
+              <div className="text-2xl sm:text-3xl font-black text-amber-500">{katalogOzet.toplam_brans_grubu} Branş</div>
               <div className="text-xs font-bold text-[var(--muted)] mt-1">Opstoel Yetenek Grubu</div>
             </div>
             <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--line)] shadow-sm">
@@ -238,9 +262,9 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
               <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold">
                 <Compass className="w-6 h-6" />
               </div>
-              <h3 className="font-extrabold text-base">196 Test Kataloğu & 191 Kaynakça</h3>
+              <h3 className="font-extrabold text-base">{katalogOzet.toplam_test} Test Kataloğu & {katalogOzet.toplam_kaynakca} Kaynakça</h3>
               <p className="text-xs text-[var(--muted)] leading-relaxed">
-                TSYT, Eurofit, ALPHA, BOT-2 bataryaları; her testin uygulama protokolü, birimi, izometrik çizimi ve hakemli bilimsel makale atıfları.
+                TSYT, Eurofit, ALPHA, BOT-2 bataryaları; her testin uygulama protokolü, birimi, otomatik sentezlenen 3D/vektör SVG biyomekanik sahnesi ve hakemli bilimsel makale atıfları.
               </p>
             </div>
 
