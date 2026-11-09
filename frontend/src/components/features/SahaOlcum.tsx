@@ -8,6 +8,8 @@ import {
   Save,
   Activity,
   Layers,
+  Search,
+  X,
 } from "lucide-react";
 import { SporcuKaydi } from "@/lib/api-client";
 
@@ -47,6 +49,7 @@ export const SahaOlcum: React.FC<SahaOlcumProps> = ({
   const [yas, setYas] = useState<number>(10);
   const [cinsiyet, setCinsiyet] = useState<string>("Erkek");
   const [tumTestler, setTumTestler] = useState<any[]>([]);
+  const [testArama, setTestArama] = useState<string>("");
   const [seciliTest, setSeciliTest] = useState<string>("Durarak Uzun Atlama");
   const [seciliDegisken, setSeciliDegisken] = useState<string>("Deneme 1 (cm)");
   const [deger, setDeger] = useState<number>(145);
@@ -158,6 +161,16 @@ export const SahaOlcum: React.FC<SahaOlcumProps> = ({
     ? `${canliSonuc.makul_aralik[0]} – ${canliSonuc.makul_aralik[1]}`
     : "Genel Aralık";
 
+  const arananTest = testArama.trim().toLocaleLowerCase("tr-TR");
+  const filtrelenenTestler = arananTest
+    ? tumTestler.filter((t) =>
+        [t.test_adi, t.kategori, t.nitelik, t.batarya, t.brans]
+          .filter(Boolean)
+          .some((alan) => String(alan).toLocaleLowerCase("tr-TR").includes(arananTest))
+      )
+    : tumTestler;
+  const seciliTestObj = tumTestler.find((x) => x.test_adi === seciliTest);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* Sol Sütun: Ölçüm Giriş Formu */}
@@ -218,14 +231,96 @@ export const SahaOlcum: React.FC<SahaOlcumProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="text-[11px] text-[var(--muted)] font-bold block mb-1">Uygulanan Test Protokolü</label>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] text-[var(--muted)] font-bold">Uygulanan Test Protokolü</label>
+              <span className="text-[10px] font-bold text-blue-500">
+                {arananTest ? `${filtrelenenTestler.length} eşleşme` : `${tumTestler.length} test`}
+              </span>
+            </div>
+
+            {/* Hızlı Test Arama Kutucuğu */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-[var(--muted)] pointer-events-none" />
+              <input
+                type="text"
+                value={testArama}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setTestArama(v);
+                  const kucuk = v.trim().toLocaleLowerCase("tr-TR");
+                  if (kucuk) {
+                    const eslesen = tumTestler.find((t) =>
+                      [t.test_adi, t.kategori, t.nitelik, t.batarya, t.brans]
+                        .filter(Boolean)
+                        .some((alan) => String(alan).toLocaleLowerCase("tr-TR").includes(kucuk))
+                    );
+                    if (eslesen && eslesen.test_adi !== seciliTest) {
+                      setSeciliTest(eslesen.test_adi);
+                    }
+                  }
+                }}
+                placeholder="Test adı, branş, batarya veya nitelik ara..."
+                className="w-full text-xs pl-8 pr-8 py-2 bg-[var(--surface-2)] border border-[var(--line)] rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              {testArama && (
+                <button
+                  type="button"
+                  onClick={() => setTestArama("")}
+                  title="Aramayı Temizle"
+                  className="absolute right-2.5 top-2 text-[var(--muted)] hover:text-[var(--text)] p-0.5 rounded"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Arama Yapıldığında Hızlı Tıklanabilir Sonuç Listesi */}
+            {arananTest && (
+              <div className="max-h-44 overflow-y-auto rounded-xl border border-blue-500/30 bg-[var(--surface-2)] divide-y divide-[var(--line)] shadow-sm">
+                {filtrelenenTestler.length > 0 ? (
+                  filtrelenenTestler.map((t) => {
+                    const aktif = t.test_adi === seciliTest;
+                    return (
+                      <button
+                        key={t.test_adi}
+                        type="button"
+                        onClick={() => {
+                          setSeciliTest(t.test_adi);
+                          setTestArama("");
+                        }}
+                        className={`w-full text-left px-3 py-2 flex items-center justify-between gap-2 transition ${
+                          aktif
+                            ? "bg-blue-500/15 text-blue-500 font-bold"
+                            : "hover:bg-[var(--surface)] text-[var(--text)]"
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold truncate">{t.test_adi}</div>
+                          <div className="text-[10px] text-[var(--muted)] truncate">
+                            {t.kategori} · {t.nitelik || "Genel"}
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 shrink-0">
+                          Seç
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="p-3 text-center text-[11px] text-[var(--muted)]">
+                    &quot;{testArama}&quot; ile eşleşen test protokolü bulunamadı.
+                  </div>
+                )}
+              </div>
+            )}
+
             <select
               value={seciliTest}
               onChange={(e) => setSeciliTest(e.target.value)}
               className="w-full bg-[var(--surface-2)] border border-[var(--line)] rounded-xl p-2.5 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
-              {tumTestler.map((t) => (
+              {(filtrelenenTestler.length > 0 ? filtrelenenTestler : tumTestler).map((t) => (
                 <option key={t.test_adi} value={t.test_adi}>
                   {t.test_adi} ({t.kategori})
                 </option>
@@ -235,6 +330,24 @@ export const SahaOlcum: React.FC<SahaOlcumProps> = ({
 
           <div>
             <label className="text-[11px] text-[var(--muted)] font-bold block mb-1">Ölçülen Değişken / Deneme</label>
+            {seciliTestObj?.alanlar && seciliTestObj.alanlar.length > 1 && (
+              <div className="flex flex-wrap gap-1.5 mb-1.5">
+                {seciliTestObj.alanlar.map((a: any, i: number) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setSeciliDegisken(a[0])}
+                    className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition ${
+                      seciliDegisken === a[0]
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-[var(--surface-2)] text-[var(--muted)] border-[var(--line)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    {a[0]}
+                  </button>
+                ))}
+              </div>
+            )}
             <input
               value={seciliDegisken}
               onChange={(e) => setSeciliDegisken(e.target.value)}

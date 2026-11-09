@@ -599,7 +599,8 @@ WEB_VE_ADMIN_HTML = """<!DOCTYPE html>
               </div>
             </div>
 
-            <label>Test Seçin (196 Test Kataloğu)</label>
+            <label>Test Seçin (Hızlı Arama + Katalog Listesi)</label>
+            <input id="otTestArama" placeholder="🔍 Test adı, branş, batarya veya nitelik ara..." oninput="otTestFiltrele()" style="margin-bottom:8px;" />
             <select id="otTestSecici" onchange="otTestDegisti()"></select>
 
             <div class="two-col" style="gap:12px;">
@@ -1111,10 +1112,25 @@ WEB_VE_ADMIN_HTML = """<!DOCTYPE html>
         const d = await r.json();
         tumTestler = d.testler || [];
       }
-      const tSel = document.getElementById("otTestSecici");
-      tSel.innerHTML = tumTestler.map(t => `<option value="${t.test_adi}" ${t.test_adi === 'Durarak Uzun Atlama' ? 'selected' : ''}>${t.test_adi} (${t.kategori})</option>`).join("");
-      await otTestDegisti();
+      otTestFiltrele("Durarak Uzun Atlama");
       await canliDegerlendir();
+    }
+
+    async function otTestFiltrele(varsayilanSecim) {
+      const aranan = (document.getElementById("otTestArama")?.value || "").trim().toLocaleLowerCase("tr-TR");
+      const tSel = document.getElementById("otTestSecici");
+      const mevcut = varsayilanSecim || tSel.value || "Durarak Uzun Atlama";
+      const liste = aranan
+        ? tumTestler.filter(t =>
+            [t.test_adi, t.kategori, t.nitelik, t.batarya, t.brans]
+              .filter(Boolean)
+              .some(a => String(a).toLocaleLowerCase("tr-TR").includes(aranan))
+          )
+        : tumTestler;
+      const gosterilecek = liste.length > 0 ? liste : tumTestler;
+      const secilecek = gosterilecek.some(t => t.test_adi === mevcut) ? mevcut : gosterilecek[0]?.test_adi;
+      tSel.innerHTML = gosterilecek.map(t => `<option value="${t.test_adi}" ${t.test_adi === secilecek ? 'selected' : ''}>${t.test_adi} (${t.kategori})</option>`).join("");
+      await otTestDegisti();
     }
 
     function otSporcuDegisti() {
