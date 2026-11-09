@@ -84,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: "katalog",
-      etiket: isVeli ? `${toplamTest} Test & Hareket Kataloğu` : `${toplamTest} Test Kataloğu & Biyomekanik`,
+      etiket: isVeli ? `${toplamTest} Test & Hareket Kataloğu` : `${toplamTest} Test & Performans Ölçme Kataloğu`,
       kisaEtiket: "Katalog",
       alt: isVeli ? "Test Protokolleri & Bilgilendirme" : `SVG Animasyon & ${toplamKaynakca} Kaynakça`,
       ikon: BookOpen,
@@ -93,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: "admin",
-      etiket: isKulupAdmin ? "Kulüp Yönetimi & KVKK" : "PerformTest Yönetim & KVKK",
+      etiket: isKulupAdmin ? "Kulüp Yönetimi & KVKK" : "Performetre Yönetim & KVKK",
       kisaEtiket: "Yönetim",
       alt: isKulupAdmin ? "Kulüp İçi Sporcu & İzin Kayıtları" : "Tenant, RBAC & Denetim İzi",
       ikon: ShieldCheck,
@@ -171,7 +171,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>Yerli Sunucu (On-Premise)</span>
           </div>
           <p className="text-[11px] text-[var(--muted)] leading-relaxed">
-            6698 Sayılı KVKK Madde 7 & 11 uyumlu. Tüm biyometrik test verileri kurum içi sunucuda saklanmaktadır.
+            6698 Sayılı KVKK Madde 7 & 11 uyumlu. Tüm performans ölçüm verileri kurum içi sunucuda saklanmaktadır.
           </p>
           <div className="flex items-center justify-between text-[10px] pt-1 border-t border-[var(--line)] text-[var(--muted)] font-mono">
             <span>Sürüm: v2.4 (Next.js)</span>
@@ -195,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[var(--line)]">
-                <div className="font-extrabold text-sm">PerformTest Menü</div>
+                <div className="font-extrabold text-sm">Performetre Menü</div>
                 <button
                   onClick={onMobilMenuKapat}
                   className="p-1.5 rounded-xl border border-[var(--line)] hover:bg-[var(--surface-2)]"

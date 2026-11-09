@@ -299,7 +299,7 @@ export const SahaOlcum: React.FC<SahaOlcumProps> = ({
         <div className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-3.5 sm:p-5 shadow-sm overflow-x-auto">
           <div className="text-xs font-bold mb-3 flex items-center gap-2">
             <Activity className="w-4 h-4 text-blue-500 shrink-0" />
-            <span className="truncate">{seciliTest} — Biyomekanik Protokol Sahnesi</span>
+            <span className="truncate">{seciliTest} — Performans Ölçme ve Değerlendirme Protokol Sahnesi</span>
           </div>
           <div key={seciliTest} ref={svgRef} className="w-full overflow-x-auto" dangerouslySetInnerHTML={{ __html: svgHtml }} />
         </div>

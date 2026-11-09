@@ -228,16 +228,48 @@ class YerliVeritabani:
 
     def _varsayilan_kullanicilari_hazirla(self) -> None:
         varsayilan_kulupler = [
-            ("merkez", "PerformTest Merkez Performans Laboratuvarı", "Ankara", ["Genel Atletik Performans"]),
+            ("merkez", "Performetre Merkez Performans Laboratuvarı", "Ankara", ["Genel Atletik Performans"]),
             ("demo-kulup-a", "Demo Kulüp A", "Ankara", ["Çocuk sporları"]),
             ("demo-kulup-b", "Demo Kulüp B", "İstanbul", ["Çocuk sporları", "Atletizm"]),
         ]
         varsayilan_kullanicilar = [
             (
+                "usr-pm-super-admin",
+                "admin@performetre.yerli",
+                "PerformAdmin2026!",
+                "Performetre Sistem Yöneticisi (Süper Admin)",
+                KullaniciRolu.SUPER_ADMIN.value,
+                "merkez",
+            ),
+            (
+                "usr-pm-kulup-a",
+                "kulup-a@performetre.yerli",
+                "Kulup123!",
+                "Demo Kulüp A Yöneticisi",
+                KullaniciRolu.KULUP_YONETICISI.value,
+                "demo-kulup-a",
+            ),
+            (
+                "usr-pm-antrenor",
+                "antrenor@performetre.yerli",
+                "Koc123!",
+                "Baş Antrenör & Ölçüm Uzmanı",
+                KullaniciRolu.ANTRENOR.value,
+                "merkez",
+            ),
+            (
+                "usr-pm-veli",
+                "veli@performetre.yerli",
+                "Veli123!",
+                "Sporcu Velisi",
+                KullaniciRolu.SPORCU_VELI.value,
+                "merkez",
+            ),
+            (
                 "usr-pt-super-admin",
                 "admin@performtest.yerli",
                 "PerformAdmin2026!",
-                "PerformTest Sistem Yöneticisi (Süper Admin)",
+                "Performetre Sistem Yöneticisi (Süper Admin)",
                 KullaniciRolu.SUPER_ADMIN.value,
                 "merkez",
             ),

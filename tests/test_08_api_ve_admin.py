@@ -83,7 +83,7 @@ def test_api_02_saglik_ve_katalog_uc_noktalari(api_istemci):
     assert "<svg" in svg_yanit["svg_html"]
     assert "pt-anatomik-figur" in svg_yanit["svg_html"]
     assert "pt-mocap-node" in svg_yanit["svg_html"]
-    assert "BİYOMEKANİK SAHNE" in svg_yanit["svg_html"]
+    assert "PERFORMANS ÖLÇME VE DEĞERLENDİRME" in svg_yanit["svg_html"]
 
 
 def test_api_03_canli_norm_ve_z_skoru_degerlendirme(api_istemci):
@@ -226,10 +226,10 @@ def test_api_07_kvkk_anonimlestirme_ve_web_arayuzu(api_istemci):
     assert r_anon.status_code == 200
     assert r_anon.get_json()["durum"] == "anonimlestirildi"
 
-    # Web Frontend ve Admin SPA ekranları (PerformTest markasıyla)
+    # Web Frontend ve Admin SPA ekranları (Performetre markasıyla)
     r_ana = api_istemci.get("/")
     assert r_ana.status_code == 200
-    assert "PerformTest" in r_ana.get_data(as_text=True)
+    assert "Performetre" in r_ana.get_data(as_text=True)
     assert api_istemci.get("/admin").status_code == 200
 
 

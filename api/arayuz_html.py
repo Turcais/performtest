@@ -16,7 +16,7 @@ WEB_VE_ADMIN_HTML = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PerformTest — Atletik Performans, Yetenek Seçimi ve Yönetim Platformu</title>
+  <title>Performetre — Performans Ölçme ve Değerlendirme & Yetenek Seçimi Platformu</title>
   <style>
     :root, [data-theme="light"] {
       --bg: #f1f5f9;
@@ -440,8 +440,8 @@ WEB_VE_ADMIN_HTML = """<!DOCTYPE html>
         </svg>
       </div>
       <div>
-        <div class="brand-title">PerformTest</div>
-        <div class="brand-sub">Atletik Analiz & Yetenek Studio</div>
+        <div class="brand-title">Performetre</div>
+        <div class="brand-sub">Performans Ölçme ve Değerlendirme</div>
       </div>
     </div>
 
@@ -480,7 +480,7 @@ WEB_VE_ADMIN_HTML = """<!DOCTYPE html>
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:12.5px;font-weight:700;color:var(--muted);">AKTİF KULÜP:</span>
           <select id="kulupSecici" style="width:270px;margin:0;font-weight:600;" onchange="kulupDegisti()">
-            <option value="merkez">merkez — PerformTest Merkez Lab</option>
+            <option value="merkez">merkez — Performetre Merkez Lab</option>
             <option value="demo-kulup-a">demo-kulup-a — Demo Kulüp A (Ankara)</option>
             <option value="demo-kulup-b">demo-kulup-b — Demo Kulüp B (İstanbul)</option>
           </select>
@@ -636,7 +636,7 @@ WEB_VE_ADMIN_HTML = """<!DOCTYPE html>
           <div>
             <div class="card">
               <div class="card-header">
-                <h3 class="card-title">📊 Anlık Biyomekanik & Normatif Değerlendirme</h3>
+                <h3 class="card-title">📊 Anlık Performans Ölçme ve Değerlendirme</h3>
                 <span id="canliDurumRozet" class="badge">Hazır</span>
               </div>
               <div id="canliSonucKartlari">
@@ -1056,7 +1056,7 @@ WEB_VE_ADMIN_HTML = """<!DOCTYPE html>
     async function kaynakcaModalAc() {
       const r = await fetch("/api/v1/katalog/kaynakca");
       const d = await r.json();
-      document.getElementById("genelModalBaslik").textContent = `PerformTest Bilimsel Kütüphane (${d.toplam} Kaynak)`;
+      document.getElementById("genelModalBaslik").textContent = `Performetre Bilimsel Kütüphane (${d.toplam} Kaynak)`;
       const liste = (d.kaynakca || []).map((k, i) => `
         <div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;">
           <strong>[${i + 1}]</strong> ${k.metin || k.kaynak || JSON.stringify(k)}

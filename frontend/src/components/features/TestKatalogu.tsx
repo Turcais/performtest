@@ -146,7 +146,7 @@ export const TestKatalogu: React.FC<TestKataloguProps> = ({
         setYtAd("");
         setYtAciklama("");
         setDurumMesaji(
-          `✓ "${eklenenAd}" kataloğa eklendi ve 3D/Vektör SVG biyomekanik sahnesi otomatik sentezlendi! (Toplam: ${d.toplam_test} Test)`
+          `✓ "${eklenenAd}" kataloğa eklendi ve 3D/Vektör SVG performans ölçme ve değerlendirme sahnesi otomatik sentezlendi! (Toplam: ${d.toplam_test} Test)`
         );
         testleriYukle(eklenenAd);
         svgYukle(eklenenAd);
@@ -342,13 +342,13 @@ export const TestKatalogu: React.FC<TestKataloguProps> = ({
           </div>
         </div>
 
-        {/* Sağ Sütun: Biyomekanik SVG Sahnesi ve Bilimsel Protokol */}
+        {/* Sağ Sütun: Performans Ölçme ve Değerlendirme SVG Sahnesi ve Bilimsel Protokol */}
         <div className="lg:col-span-8 bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-4 sm:p-6 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] pb-3">
             <div>
               <h2 className="text-base font-extrabold tracking-tight">{seciliTest}</h2>
               <p className="text-xs text-[var(--muted)] font-medium mt-0.5">
-                İzometrik Biyomekanik SVG Sahne & Protokol Bilgi Kartı
+                Performans Ölçme ve Değerlendirme SVG Sahne & Protokol Bilgi Kartı
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -410,7 +410,7 @@ export const TestKatalogu: React.FC<TestKataloguProps> = ({
                 <div>
                   <h3 className="font-extrabold text-sm">Yeni Test Protokolü & Otomatik SVG Oluşturucu</h3>
                   <p className="text-[11px] text-[var(--muted)]">
-                    Test eklendiğinde vitrin sayacı güncellenir ve 3D/vektör SVG biyomekanik animasyonu otomatik üretilir.
+                    Test eklendiğinde vitrin sayacı güncellenir ve 3D/vektör SVG performans ölçme ve değerlendirme animasyonu otomatik üretilir.
                   </p>
                 </div>
               </div>
@@ -479,7 +479,7 @@ export const TestKatalogu: React.FC<TestKataloguProps> = ({
 
                 <div className="sm:col-span-2">
                   <label className="text-[11px] font-bold text-blue-500 block mb-1">
-                    🎨 Otomatik Biyomekanik SVG Hareket Arketipi (3D/Vektör Sahne Sentezi)
+                    🎨 Otomatik Performans Ölçme ve Değerlendirme SVG Hareket Arketipi (3D/Vektör Sahne Sentezi)
                   </label>
                   <select
                     value={ytHareketTipi}
@@ -611,7 +611,7 @@ export const TestKatalogu: React.FC<TestKataloguProps> = ({
             <div className="flex items-center justify-between border-b border-[var(--line)] pb-3">
               <div className="font-extrabold text-base flex items-center gap-2">
                 <Library className="w-5 h-5 text-blue-500" />
-                PerformTest Bilimsel Kütüphane ({kaynakcalar.length} Kaynak)
+                Performetre Bilimsel Kütüphane ({kaynakcalar.length} Kaynak)
               </div>
               <button
                 onClick={() => setKaynakcaModal(false)}

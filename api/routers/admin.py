@@ -298,7 +298,7 @@ def kulup_excel_disa_aktar(kulup_kodu: str):
     return Response(
         bellek.getvalue(),
         mimetype="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="PerformTest_{kulup_kodu}_veri_paketi.zip"'},
+        headers={"Content-Disposition": f'attachment; filename="Performetre_{kulup_kodu}_veri_paketi.zip"'},
     )
 
 
@@ -331,7 +331,7 @@ def kulup_sil(kulup_kodu: str):
 @yetki_gerekli("kullanici:yonet")
 def kullanici_sil(kullanici_id: str):
     kullanici = request.kullanici  # type: ignore[attr-defined]
-    if kullanici_id in ("usr-pt-super-admin", "usr-super-admin"):
+    if kullanici_id in ("usr-pm-super-admin", "usr-pt-super-admin", "usr-super-admin"):
         return json_yanit({"hata": "Ana Süper Admin hesabı silinemez."}, 400)
     with veritabani.baglanti() as con:
         con.execute("DELETE FROM kullanicilar WHERE id = ?", (kullanici_id,))
@@ -434,7 +434,7 @@ def katalog_test_ekle():
                 test_adi,
                 test_adi[:24],
                 kategori,
-                str(veri.get("batarya") or "PerformTest Özel Batarya"),
+                str(veri.get("batarya") or "Performetre Özel Batarya"),
                 str(veri.get("brans") or "Genel"),
                 nitelik,
                 str(veri.get("bilesen") or nitelik),

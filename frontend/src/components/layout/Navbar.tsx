@@ -48,12 +48,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   const aktifKulupObj = kulupler.find((k) => k.kod === aktifKulup);
 
   const rolSelectDegeri = isVeli
-    ? "veli@performtest.yerli|Veli123!"
+    ? "veli@performetre.yerli|Veli123!"
     : isAntrenor
-    ? "antrenor@performtest.yerli|Koc123!"
+    ? "antrenor@performetre.yerli|Koc123!"
     : isKulupAdmin
-    ? "kulup-a@performtest.yerli|Kulup123!"
-    : "admin@performtest.yerli|PerformAdmin2026!";
+    ? "kulup-a@performetre.yerli|Kulup123!"
+    : "admin@performetre.yerli|PerformAdmin2026!";
 
   return (
     <header className="h-14 sm:h-16 border-b border-[var(--line)] bg-[var(--surface)] px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm gap-2">
@@ -75,13 +75,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           <div className="min-w-0">
             <div className="font-extrabold text-sm sm:text-base tracking-tight flex items-center gap-1.5 truncate">
-              <span>PerformTest</span>
+              <span>Performetre</span>
               <span className="hidden xs:inline-block text-[9px] sm:text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">
                 Studio
               </span>
             </div>
             <div className="hidden sm:block text-xs text-[var(--muted)] font-medium truncate">
-              Biyomekanik Analiz & Yetenek Platformu
+              Performans Ölçme ve Değerlendirme Platformu
             </div>
           </div>
         </div>
@@ -163,10 +163,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             onChange={(e) => onRolDegis(e.target.value)}
             className="text-[11px] sm:text-xs font-semibold bg-transparent border-0 focus:outline-none max-w-[105px] sm:max-w-none truncate"
           >
-            <option value="admin@performtest.yerli|PerformAdmin2026!">Süper Admin</option>
-            <option value="kulup-a@performtest.yerli|Kulup123!">Kulüp Yöneticisi</option>
-            <option value="antrenor@performtest.yerli|Koc123!">Ölçüm Antrenörü</option>
-            <option value="veli@performtest.yerli|Veli123!">Sporcu Velisi</option>
+            <option value="admin@performetre.yerli|PerformAdmin2026!">Süper Admin</option>
+            <option value="kulup-a@performetre.yerli|Kulup123!">Kulüp Yöneticisi</option>
+            <option value="antrenor@performetre.yerli|Koc123!">Ölçüm Antrenörü</option>
+            <option value="veli@performetre.yerli|Veli123!">Sporcu Velisi</option>
           </select>
         </div>
 

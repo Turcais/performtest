@@ -36,7 +36,7 @@ interface VitrinProps {
 
 export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) => {
   const [girisModalAcik, setGirisModalAcik] = useState(false);
-  const [eposta, setEposta] = useState("admin@performtest.yerli");
+  const [eposta, setEposta] = useState("admin@performetre.yerli");
   const [parola, setParola] = useState("PerformAdmin2026!");
   const [hata, setHata] = useState<string | null>(null);
   const [yukleniyor, setYukleniyor] = useState(false);
@@ -112,13 +112,13 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
           </div>
           <div className="min-w-0">
             <div className="font-extrabold text-sm sm:text-base tracking-tight flex items-center gap-1.5 truncate">
-              <span>PerformTest</span>
+              <span>Performetre</span>
               <span className="text-[9px] sm:text-[10px] uppercase font-black px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-500 border border-blue-500/20">
                 Studio Next
               </span>
             </div>
             <div className="hidden sm:block text-[11px] text-[var(--muted)] font-medium truncate">
-              Biyomekanik Analiz & Yetenek Platformu
+              Performans Ölçme ve Değerlendirme Platformu
             </div>
           </div>
         </div>
@@ -139,7 +139,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
             {tema === "dark" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-600" />}
           </button>
           <button
-            onClick={() => onDemoGiris("admin@performtest.yerli", "PerformAdmin2026!")}
+            onClick={() => onDemoGiris("admin@performetre.yerli", "PerformAdmin2026!")}
             className="hidden sm:flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 transition"
           >
             <Zap className="w-3.5 h-3.5" />
@@ -160,11 +160,11 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
         <div className="max-w-5xl mx-auto text-center space-y-5 sm:space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-500 text-[11px] sm:text-xs font-bold shadow-sm">
             <Sparkles className="w-3.5 h-3.5 animate-spin shrink-0" />
-            <span className="truncate">PerformTest Studio 2.0 — Bilimsel Atletik Analiz</span>
+            <span className="truncate">Performetre 2.0 — Performans Ölçme ve Değerlendirme</span>
           </div>
 
           <h1 className="text-2xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
-            Sporcu Performansı, Biyomekanik Analiz ve{" "}
+            Sporcu Performans Ölçme ve Değerlendirme ile{" "}
             <span className="bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400 bg-clip-text text-transparent">
               Bilimsel Yetenek Seçimi
             </span>
@@ -176,7 +176,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-3 pt-2 sm:pt-4 max-w-md sm:max-w-none mx-auto">
             <button
-              onClick={() => onDemoGiris("admin@performtest.yerli", "PerformAdmin2026!")}
+              onClick={() => onDemoGiris("admin@performetre.yerli", "PerformAdmin2026!")}
               className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm shadow-xl shadow-blue-500/30 transition"
             >
               <Play className="w-4 h-4 fill-current" />
@@ -242,7 +242,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
               </div>
               <h3 className="font-extrabold text-base">Saha Ölçüm & Canlı Test Oturumu</h3>
               <p className="text-xs text-[var(--muted)] leading-relaxed">
-                Fizyolojik makul aralık ve eşik filtresi, hatalı veri giriş engeli ve gerçek zamanlı izometrik SVG biyomekanik sahnesi simülasyonu.
+                Fizyolojik makul aralık ve eşik filtresi, hatalı performans ölçüm verisi giriş engeli ve gerçek zamanlı SVG performans ölçme ve değerlendirme sahnesi simülasyonu.
               </p>
             </div>
 
@@ -264,7 +264,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
               </div>
               <h3 className="font-extrabold text-base">{katalogOzet.toplam_test} Test Kataloğu & {katalogOzet.toplam_kaynakca} Kaynakça</h3>
               <p className="text-xs text-[var(--muted)] leading-relaxed">
-                TSYT, Eurofit, ALPHA, BOT-2 bataryaları; her testin uygulama protokolü, birimi, otomatik sentezlenen 3D/vektör SVG biyomekanik sahnesi ve hakemli bilimsel makale atıfları.
+                TSYT, Eurofit, ALPHA, BOT-2 bataryaları; her testin uygulama protokolü, birimi, otomatik sentezlenen 3D/vektör SVG performans ölçme ve değerlendirme sahnesi ve hakemli bilimsel makale atıfları.
               </p>
             </div>
 
@@ -329,10 +329,10 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
       {/* ── Alt Bilgi / Footer ── */}
       <footer className="mt-auto py-8 px-6 border-t border-[var(--line)] bg-[var(--surface)] text-center text-xs text-[var(--muted)] space-y-2">
         <div className="font-bold text-[var(--text)]">
-          PerformTest Studio — Atletik Performans, Biyomekanik Analiz ve Yetenek Seçimi Platformu
+          Performetre — Performans Ölçme ve Değerlendirme & Yetenek Seçimi Platformu
         </div>
         <div>
-          © 2026 PerformTest · Tüm hakları saklıdır. · 6698 Sayılı KVKK Uyumlu Yerli Sunucu Çözümü
+          © 2026 Performetre · Tüm hakları saklıdır. · 6698 Sayılı KVKK Uyumlu Yerli Sunucu Çözümü
         </div>
       </footer>
 
@@ -346,7 +346,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
                   <Lock className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm tracking-tight">PerformTest Studio Girişi</h3>
+                  <h3 className="font-extrabold text-sm tracking-tight">Performetre Girişi</h3>
                   <p className="text-[11px] text-[var(--muted)]">Yetkili kulüp veya antrenör hesabı</p>
                 </div>
               </div>
@@ -373,7 +373,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
                   value={eposta}
                   onChange={(e) => setEposta(e.target.value)}
                   className="w-full text-xs px-3.5 py-2.5 bg-[var(--surface-2)] border border-[var(--line)] rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="admin@performtest.yerli"
+                  placeholder="admin@performetre.yerli"
                 />
               </div>
 
@@ -406,7 +406,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => hizliDemoRolSec("admin@performtest.yerli", "PerformAdmin2026!")}
+                  onClick={() => hizliDemoRolSec("admin@performetre.yerli", "PerformAdmin2026!")}
                   className="p-2 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] hover:border-blue-500 text-left text-[11px] transition"
                 >
                   <div className="font-bold text-blue-500">👑 Süper Admin</div>
@@ -415,7 +415,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
 
                 <button
                   type="button"
-                  onClick={() => hizliDemoRolSec("kulup-a@performtest.yerli", "Kulup123!")}
+                  onClick={() => hizliDemoRolSec("kulup-a@performetre.yerli", "Kulup123!")}
                   className="p-2 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] hover:border-blue-500 text-left text-[11px] transition"
                 >
                   <div className="font-bold text-emerald-500">🏢 Kulüp Yöneticisi</div>
@@ -424,7 +424,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
 
                 <button
                   type="button"
-                  onClick={() => hizliDemoRolSec("antrenor@performtest.yerli", "Koc123!")}
+                  onClick={() => hizliDemoRolSec("antrenor@performetre.yerli", "Koc123!")}
                   className="p-2 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] hover:border-blue-500 text-left text-[11px] transition"
                 >
                   <div className="font-bold text-amber-500">⏱️ Baş Antrenör</div>
@@ -433,7 +433,7 @@ export const Vitrin: React.FC<VitrinProps> = ({ onGirisBasarili, onDemoGiris }) 
 
                 <button
                   type="button"
-                  onClick={() => hizliDemoRolSec("veli@performtest.yerli", "Veli123!")}
+                  onClick={() => hizliDemoRolSec("veli@performetre.yerli", "Veli123!")}
                   className="p-2 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] hover:border-blue-500 text-left text-[11px] transition"
                 >
                   <div className="font-bold text-rose-500">👨‍👩‍👦 Sporcu Velisi</div>

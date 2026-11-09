@@ -358,7 +358,7 @@ class OlcutMotorServisi:
                 html = b["antrenor_raporu_html"](rv)
             else:
                 html = b["veli_raporu_html"](rv)
-            return html.replace("Ölçüt", "PerformTest")
+            return html.replace("Ölçüt", "Performetre")
 
     @classmethod
     def kulup_raporu_html(cls, kulup_kodu: str, sporcu_listesi: bool = True) -> str:
@@ -377,7 +377,7 @@ class OlcutMotorServisi:
         with cls._kulup_calisma_ortami(kulup_kodu) as (df_sp, df_ts, _):
             df_duzeltilmis = b["test_tablosu_duzelt"](df_ts) if not df_ts.empty else df_ts
             html = _kr_html(kulup_bilgi, df_sp, df_duzeltilmis, sporcu_listesi=sporcu_listesi)
-            return html.replace("Ölçüt", "PerformTest")
+            return html.replace("Ölçüt", "Performetre")
 
     @classmethod
     def sporcu_karsilastir(cls, kulup_kodu: str, sporcu_a: str, sporcu_b: str) -> dict[str, Any]:

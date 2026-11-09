@@ -17,12 +17,12 @@ export default function PerformTestStudioPage() {
   const [aktifSekme, setAktifSekme] = useState<SekmeTipi>("analiz");
   const [aktifKulup, setAktifKulup] = useState<string>("merkez");
   const [kulupler, setKulupler] = useState<Array<{ kod: string; ad: string }>>([
-    { kod: "merkez", ad: "PerformTest Merkez Lab" },
+    { kod: "merkez", ad: "Performetre Merkez Lab" },
     { kod: "demo-kulup-a", ad: "Ankara Gençlik Spor Kulübü" },
     { kod: "demo-kulup-b", ad: "İstanbul Atletik SK" },
   ]);
   const [jwtToken, setJwtToken] = useState<string>("");
-  const [kullaniciAdi, setKullaniciAdi] = useState<string>("PerformTest Sistem Yöneticisi");
+  const [kullaniciAdi, setKullaniciAdi] = useState<string>("Performetre Sistem Yöneticisi");
   const [rol, setRol] = useState<string>("super_admin");
 
   const [sporcular, setSporcular] = useState<SporcuKaydi[]>([]);
@@ -123,7 +123,7 @@ export default function PerformTestStudioPage() {
   };
 
   const handleDemoGiris = async (rolEposta?: string, parola?: string) => {
-    const ep = rolEposta || "admin@performtest.yerli";
+    const ep = rolEposta || "admin@performetre.yerli";
     const pw = parola || "PerformAdmin2026!";
     await girisYap(ep, pw);
   };

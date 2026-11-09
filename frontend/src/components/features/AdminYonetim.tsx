@@ -46,7 +46,7 @@ export const AdminYonetim: React.FC<AdminYonetimProps> = ({
         </div>
         <h3 className="text-lg font-black text-[var(--text)]">Erişim Yetkisi Sınırı (403)</h3>
         <p className="text-xs text-[var(--muted)] leading-relaxed">
-          PerformTest Sistem ve Tenant Yönetim Paneli yalnızca Süper Admin ve Kulüp Yöneticisi erişimine açıktır.
+          Performetre Sistem ve Tenant Yönetim Paneli yalnızca Süper Admin ve Kulüp Yöneticisi erişimine açıktır.
           Mevcut hesabınız ({rol}) bu modüle erişim yetkisine sahip değildir.
         </p>
       </div>
@@ -643,7 +643,7 @@ export const AdminYonetim: React.FC<AdminYonetimProps> = ({
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--surface)] border border-[var(--line)]">
                     {u.rol}
                   </span>
-                  {isSuperAdmin && u.eposta !== "admin@performtest.yerli" && (
+                  {isSuperAdmin && u.eposta !== "admin@performetre.yerli" && u.eposta !== "admin@performtest.yerli" && (
                     <button
                       onClick={() => kullaniciSil(u.id, u.eposta)}
                       className="p-1 rounded-lg hover:bg-red-500/15 text-red-500 transition"

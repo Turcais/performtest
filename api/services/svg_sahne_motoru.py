@@ -309,7 +309,7 @@ def _spor_renk_paleti(test_adi: str) -> tuple[str, str, str, str, str, str]:
         return ("#059669", "#065f46", "#0f172a", "#34d399", "#10b981", rozet or "SAHA SPORU")
     if any(k in ad for k in ("eurofit", "alpha", "prefit", "capl", "bot-2", "fitnessgram", "pyfp", "latorre")):
         return ("#4f46e5", "#3730a3", "#0f172a", "#818cf8", "#6366f1", rozet or "ULUSLARARASI BATARYA")
-    return ("#2563eb", "#1e40af", "#0f172a", "#38bdf8", "#38bdf8", rozet or "PERFORMTEST")
+    return ("#2563eb", "#1e40af", "#0f172a", "#38bdf8", "#38bdf8", rozet or "PERFORMETRE")
 
 
 def ozet_kisa_duzelt(k: str) -> str:
@@ -1084,7 +1084,7 @@ def gelismis_test_sahnesi_uret(
         f'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;'
         f'background:#0f172a;color:#f8fafc;padding:11px 15px;border-radius:12px 12px 0 0;border-bottom:1px solid #1e293b;">'
         f'<div style="display:flex;align-items:center;gap:9px;">'
-        f'<span style="background:linear-gradient(135deg,#2563eb,#06b6d4);color:#fff;padding:3px 9px;border-radius:6px;font-size:11.5px;font-weight:700;">BİYOMEKANİK SAHNE</span>'
+        f'<span style="background:linear-gradient(135deg,#2563eb,#06b6d4);color:#fff;padding:3px 9px;border-radius:6px;font-size:11.5px;font-weight:700;">PERFORMANS ÖLÇME VE DEĞERLENDİRME</span>'
         f'<span style="font-weight:700;font-size:14px;color:#f1f5f9;">{_html.escape(baslik_metni or test_adi)}</span>'
         f"</div>"
         f'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'
@@ -1103,7 +1103,7 @@ def gelismis_test_sahnesi_uret(
         f'<div style="background:#0f172a;color:#cbd5e1;padding:10px 15px;border-radius:0 0 12px 12px;border-top:1px solid #1e293b;'
         f'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:13px;">'
         f'<div><strong style="color:#38bdf8;">📌 Ölçüm Kuralı:</strong> {_html.escape(not_metni or kritik_ayrinti)}</div>'
-        f'<div style="color:#94a3b8;font-size:11.5px;">Döngü: {sure} sn · Biyomekanik Vektör Model</div>'
+        f'<div style="color:#94a3b8;font-size:11.5px;">Döngü: {sure} sn · Performetre Vektör Model</div>'
         f"</div>"
     )
 

@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class Ayarlar:
-    PROJE_ADI: str = "PerformTest — Atletik Performans, Yetenek Seçimi ve Sporcu Analiz Platformu"
-    MARKA_ADI: str = "PerformTest"
+    PROJE_ADI: str = "Performetre — Performans Ölçme ve Değerlendirme & Yetenek Seçimi Platformu"
+    MARKA_ADI: str = "Performetre"
     API_V1_ONEK: str = "/api/v1"
     ORTAM: str = os.getenv("PERFORMTEST_ORTAM", os.getenv("OLCUT_ORTAM", "development"))
 
