@@ -348,7 +348,7 @@ export default function PerformTestStudioPage() {
                 ✕ Kapat
               </button>
             </div>
-            <div dangerouslySetInnerHTML={{ __html: modalSvgHtml }} />
+            <div key={modalSvgTest} dangerouslySetInnerHTML={{ __html: modalSvgHtml }} />
           </div>
         </div>
       )}

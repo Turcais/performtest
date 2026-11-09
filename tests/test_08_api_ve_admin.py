@@ -332,3 +332,45 @@ def test_api_09_super_admin_katalog_ekle_cikar_ve_otomatik_svg(api_istemci):
     assert r_kay_sil.status_code == 200
     assert r_kay_sil.get_json()["toplam_kaynakca"] == 191
 
+
+def test_api_10_tum_196_test_svg_animasyon_dogrulugu():
+    """Tüm 196 testin SVG sahneleri benzersiz olmalı, statik heykel kalmamalı ve SMIL animasyonu içermeli."""
+    import math
+    import re
+    from api.services.motor_servisi import OlcutMotorServisi
+    from api.services.svg_sahne_motoru import gelismis_test_sahnesi_uret
+    from api.services.ozel_sahne_fabrikasi import OZEL_SAHNE_HARITASI
+    from olcut.gorseller import TEST_GORSELLERI
+
+    b = OlcutMotorServisi.baglam()
+    tekil_testler = list(dict.fromkeys(x["test_adi"] for x in OlcutMotorServisi.tum_testler()))
+    assert len(tekil_testler) >= 195
+
+    ic_svg_kumesi = set()
+    for t in tekil_testler:
+        res = gelismis_test_sahnesi_uret(b, t)
+        html = res["svg_html"]
+        assert "<svg" in html and "<animate" in html, f"{t} içinde animasyon yok!"
+        assert len(html) < 350_000, f"{t} SVG boyutu aşırı büyük: {len(html)}"
+
+        m = re.search(r"<svg[^>]*>(.*)</svg>", html, re.S)
+        assert m is not None
+        ic_norm = re.sub(r"pt-svg-[0-9a-f]{8}", "pt-svg-id", m.group(1))
+        ic_svg_kumesi.add(ic_norm)
+
+        fn = OZEL_SAHNE_HARITASI.get(t) or TEST_GORSELLERI[t][0]
+        S = fn()
+        olculen = [f for f in S.figurler if f.get("rol") == "olculen"]
+        if olculen:
+            kareler = olculen[0]["kareler"]
+            ilk = kareler[0][1]
+            hareket = max(
+                math.hypot(e[k][0] - ilk[k][0], e[k][1] - ilk[k][1])
+                for _, e in kareler
+                for k in ("kalca", "bas", "el1", "el2", "ayak1", "ayak2", "diz1")
+            )
+            assert hareket >= 1.5 or len(S.donusler) > 0, f"{t} sporcusu hareketsiz ({hareket:.2f}px)!"
+
+    assert len(ic_svg_kumesi) == len(tekil_testler)
+
+

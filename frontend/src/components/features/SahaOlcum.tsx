@@ -301,7 +301,7 @@ export const SahaOlcum: React.FC<SahaOlcumProps> = ({
             <Activity className="w-4 h-4 text-blue-500 shrink-0" />
             <span className="truncate">{seciliTest} — Biyomekanik Protokol Sahnesi</span>
           </div>
-          <div ref={svgRef} className="w-full overflow-x-auto" dangerouslySetInnerHTML={{ __html: svgHtml }} />
+          <div key={seciliTest} ref={svgRef} className="w-full overflow-x-auto" dangerouslySetInnerHTML={{ __html: svgHtml }} />
         </div>
       </div>
     </div>

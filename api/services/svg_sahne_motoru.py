@@ -17,6 +17,7 @@ from typing import Any
 
 from olcut.gorseller import TEST_GORSELLERI, TEST_GORSELSIZ
 from olcut.gorseller.cizim import TG_TUVAL, TG_ZEMIN
+from api.services.ozel_sahne_fabrikasi import OZEL_SAHNE_HARITASI
 
 
 def _birim_vektor(x1: float, y1: float, x2: float, y2: float) -> tuple[float, float, float, float, float]:
@@ -226,8 +227,10 @@ def _cizgi_d(p1: tuple[float, float], p2: tuple[float, float], bas_oran: float =
     return f"M{ax:.2f},{ay:.2f} L{bx:.2f},{by:.2f}"
 
 
-def _bas_noktalari(e: dict[str, tuple[float, float]], r: float, yon: float) -> dict[str, tuple[float, float]]:
-    """Baş için ortogonal (yukarı `u`, ileri `f`) bazda saç, ter bandı, kulak ve göz noktaları."""
+def _bas_noktalari(
+    e: dict[str, tuple[float, float]], r: float, yon: float, cephe: bool = False
+) -> dict[str, tuple[float, float]]:
+    """Baş için ortogonal (yukarı `u`, ileri/sağ `f`) bazda saç, ter bandı, kulak ve göz noktaları."""
     bx, by = e["bas"]
     ux, uy, _, _, _ = _birim_vektor(e["boyun"][0], e["boyun"][1], bx, by)
     fx, fy = -yon * uy, yon * ux
@@ -235,14 +238,82 @@ def _bas_noktalari(e: dict[str, tuple[float, float]], r: float, yon: float) -> d
     def n(ileri: float, yukari: float) -> tuple[float, float]:
         return (bx + (fx * ileri + ux * yukari) * r, by + (fy * ileri + uy * yukari) * r)
 
+    if cephe:
+        return {
+            "sac": n(0.0, 0.24),
+            "bant_a": n(-0.92, 0.38),
+            "bant_b": n(0.92, 0.38),
+            "kulak": n(-0.92, -0.02),
+            "kulak2": n(0.92, -0.02),
+            "goz": n(-0.34, 0.08),
+            "goz2": n(0.34, 0.08),
+            "burun": n(0.0, -0.08),
+        }
+
     return {
         "sac": n(-0.20, 0.16),
         "bant_a": n(-0.93, 0.40),
         "bant_b": n(0.93, 0.40),
         "kulak": n(-0.12, -0.02),
+        "kulak2": n(-0.12, -0.02),
         "goz": n(0.58, 0.12),
+        "goz2": n(0.58, 0.12),
         "burun": n(0.98, -0.05),
     }
+
+
+def _spor_renk_paleti(test_adi: str) -> tuple[str, str, str, str, str, str]:
+    """
+    Test adına göre (forma, forma_koyu, sort, vurgu, zemin_vurgu, protokol_etiketi) döndürür.
+    Böylece farklı branş, batarya ve mesafe testleri görsel olarak da ayırt edilir.
+    """
+    ad = test_adi.lower()
+    # Protokol / mesafe / batarya rozet etiketi
+    rozet = ""
+    m_parantez = re.findall(r"\(([^)]+)\)", test_adi)
+    if m_parantez:
+        rozet = m_parantez[-1].upper()
+    for ozel_kisa in ("10m", "20m", "30m", "40 yd", "50m", "60m", "100m", "200m", "400m", "600m", "800m", "1000m", "1 mil", "12 dk", "10x5m", "4x10m", "5-0-5", "5-10-5", "ir1", "ir2"):
+        if ozel_kisa in ad and ozel_kisa.upper() not in rozet:
+            rozet = f"{ozet_kisa_duzelt(ozel_kisa)} · {rozet}".strip(" ·")
+            break
+    if "— genel" in ad and "GENEL" not in rozet:
+        rozet = f"GENEL · {rozet}".strip(" ·")
+    if not rozet:
+        kelimeler = test_adi.split()
+        rozet = " ".join(kelimeler[:2]).upper()
+
+    if any(k in ad for k in ("futbol", "soccer", "uefa")):
+        return ("#16a34a", "#15803d", "#0f172a", "#4ade80", "#22c55e", rozet or "FUTBOL")
+    if any(k in ad for k in ("basketbol", "nba", "lane agility")):
+        return ("#ea580c", "#c2410c", "#1e293b", "#fb923c", "#f97316", rozet or "BASKETBOL")
+    if "voleybol" in ad:
+        return ("#dc2626", "#991b1b", "#0f172a", "#f87171", "#ef4444", rozet or "VOLEYBOL")
+    if "hentbol" in ad:
+        return ("#0284c7", "#0369a1", "#0f172a", "#38bdf8", "#0ea5e9", rozet or "HENTBOL")
+    if any(k in ad for k in ("tenis", "badminton", "squash", "raket")):
+        return ("#0d9488", "#0f766e", "#1e293b", "#2dd4bf", "#14b8a6", rozet or "RAKET SPORLARI")
+    if any(k in ad for k in ("judo", "karate", "taekwondo", "bjj", "jiu-jitsu")):
+        return ("#e2e8f0", "#94a3b8", "#0f172a", "#f43f5e", "#f43f5e", rozet or "DOJO / TATAMİ")
+    if any(k in ad for k in ("güreş", "gures", "boks", "kickboks", "muay thai", "mma", "dövüş")):
+        return ("#e11d48", "#9f1239", "#0f172a", "#fb7185", "#f43f5e", rozet or "MÜCADELE SPORU")
+    if any(k in ad for k in ("yüzme", "yuzme", "sutopu", "havuz", "css", "hidrostatik")):
+        return ("#06b6d4", "#0e7490", "#083344", "#67e8f9", "#22d3ee", rozet or "SU SPORLARI")
+    if any(k in ad for k in ("halter", "1rm", "squat", "bench", "imtp", "izokinetik", "rfd", "wingate")):
+        return ("#7c3aed", "#5b21b6", "#0f172a", "#c084fc", "#a78bfa", rozet or "KUVVET / GÜÇ")
+    if any(k in ad for k in ("jimnastik", "cimnastik", "esneklik", "otur-uzan", "otur ve uzan", "back-saver")):
+        return ("#db2777", "#9d174d", "#1e1b4b", "#f472b6", "#ec4899", rozet or "ESNEKLİK / CİMNASTİK")
+    if any(k in ad for k in ("buz hokeyi", "nhl")):
+        return ("#0284c7", "#1e3a8a", "#0f172a", "#7dd3fc", "#38bdf8", rozet or "BUZ HOKEYİ")
+    if any(k in ad for k in ("ragbi", "rugby", "nfl", "kriket", "çim hokeyi")):
+        return ("#059669", "#065f46", "#0f172a", "#34d399", "#10b981", rozet or "SAHA SPORU")
+    if any(k in ad for k in ("eurofit", "alpha", "prefit", "capl", "bot-2", "fitnessgram", "pyfp", "latorre")):
+        return ("#4f46e5", "#3730a3", "#0f172a", "#818cf8", "#6366f1", rozet or "ULUSLARARASI BATARYA")
+    return ("#2563eb", "#1e40af", "#0f172a", "#38bdf8", "#38bdf8", rozet or "PERFORMTEST")
+
+
+def ozet_kisa_duzelt(k: str) -> str:
+    return k.upper()
 
 
 def _smil_anim(nitelik: str, degerler: list[str], zamanlar: list[float], sure: float, dongu: bool = True) -> str:
@@ -260,6 +331,7 @@ def _anatomik_figur_svg(
     sure: float,
     donus_listesi: list[dict[str, Any]],
     dongu: bool = True,
+    test_adi: str = "",
 ) -> str:
     """
     `S.figurler` içindeki bir figürü 18 katmanlı anatomik sporcu modeliyle ve sahnedeki
@@ -270,30 +342,45 @@ def _anatomik_figur_svg(
     if not kareler:
         return ""
 
+    # Çok yoğun kareli parkur sahnelerinde (200+ kare) SVG boyutunu optimize et, ilk ve son kareyi koru
+    if len(kareler) > 64:
+        adim = (len(kareler) - 1) / 55.0
+        secilen_indeksler = sorted({0, len(kareler) - 1} | {int(round(i * adim)) for i in range(56)})
+        kareler = [kareler[i] for i in secilen_indeksler]
+
     # Ekipmanlarla (kaydir, top, cubuk) %100 senkronize olması için orijinal keyTimes kullanılır
     zamanlar = [round(float(t), 4) for t, _ in kareler]
     eklem_listesi = [e for _, e in kareler]
     bas_r = float(figur_bilgi.get("bas_r", 6.5))
     s = max(0.55, bas_r / 6.5)
 
-    yon_listesi = [_bakis_yonu_bul(e) for e in eklem_listesi]
-    # Tek karede yön sıçramasını (ara karelerde ayak düzleşince) önlemek için çoğunluk yönü kullanılır
-    yon = 1.0 if sum(yon_listesi) >= 0 else -1.0
+    # Her karede gerçek koşu/bakış yönünü takip et (mekik ve çeviklik dönüşlerinde kafanın ters kalmasını önler)
+    yon_listesi: list[float] = []
+    son_yon = _bakis_yonu_bul(eklem_listesi[0])
+    for e in eklem_listesi:
+        dx_ayak = e["parmak1"][0] - e["ayak1"][0]
+        if abs(dx_ayak) > 0.85:
+            son_yon = 1.0 if dx_ayak > 0 else -1.0
+        yon_listesi.append(son_yon)
+
     son_e = eklem_listesi[-1]
+    cephe = abs(son_e["kok_b1"][0] - son_e["kok_b2"][0]) > 1.2
     r_bas = bas_r * 0.92
+
+    sp_forma, sp_forma_koyu, sp_sort, sp_vurgu, _, _ = _spor_renk_paleti(test_adi)
 
     if rol == "iz":
         grup_opaklik = "0.28"
         forma, forma_koyu, sort, ten, ten_koyu, sac, vurgu = (
             "#64748b", "#475569", "#334155", "#94a3b8", "#64748b", "#334155", "#94a3b8")
     elif rol == "partner":
-        grup_opaklik = "0.85"
+        grup_opaklik = "0.88"
         forma, forma_koyu, sort, ten, ten_koyu, sac, vurgu = (
             "#10b981", "#047857", "#1e293b", "#f1c27d", "#c99a5e", "#3f2a1d", "#a7f3d0")
     else:
         grup_opaklik = "1.0"
         forma, forma_koyu, sort, ten, ten_koyu, sac, vurgu = (
-            "#2563eb", "#1e40af", "#0f172a", "#f5c9a0", "#d9a273", "#1f1410", "#38bdf8")
+            sp_forma, sp_forma_koyu, sp_sort, "#f5c9a0", "#d9a273", "#1f1410", sp_vurgu)
 
     parca_xml: list[str] = []
 
@@ -305,14 +392,16 @@ def _anatomik_figur_svg(
             f'stroke-linecap="{uc}" stroke-linejoin="round">{_smil_anim("d", d_list, zamanlar, sure, dongu)}</path>'
         )
 
-    def daire(nokta_fn, r: float, renk: str, ek: str = "") -> None:
-        noktalar = [nokta_fn(e) for e in eklem_listesi]
+    def daire_noktalar(noktalar: list[tuple[float, float]], r: float, renk: str, ek: str = "") -> None:
         cx = [f"{x:.2f}" for x, _ in noktalar]
         cy = [f"{y:.2f}" for _, y in noktalar]
         parca_xml.append(
             f'<circle cx="{cx[-1]}" cy="{cy[-1]}" r="{r:.2f}" fill="{renk}"{ek}>'
             f'{_smil_anim("cx", cx, zamanlar, sure, dongu)}{_smil_anim("cy", cy, zamanlar, sure, dongu)}</circle>'
         )
+
+    def daire(nokta_fn, r: float, renk: str, ek: str = "") -> None:
+        daire_noktalar([nokta_fn(e) for e in eklem_listesi], r, renk, ek)
 
     def ayakkabi(ayak: str, parmak: str, olcek: float, ust_renk: str, taban_renk: str) -> None:
         ciftler = [_ayakkabi_d(e[ayak], e[parmak], s * olcek) for e in eklem_listesi]
@@ -338,34 +427,51 @@ def _anatomik_figur_svg(
             f"</ellipse>"
         )
 
-    # 2. Uzak (arka) uzuvlar — koyu tonlu, derinlik hissi
-    cizgi("kok_k2", "dirsek2", ten_koyu, 3.3)
-    cizgi("dirsek2", "el2", ten_koyu, 2.8)
-    daire(lambda e: e["el2"], 1.55 * s, ten_koyu)
-    cizgi("kok_b2", "diz2", ten_koyu, 5.0)
-    cizgi("diz2", "ayak2", ten_koyu, 3.9)
+    # 2. Uzak (arka) veya Cephede sağ uzuvlar
+    arka_ten = ten if cephe else ten_koyu
+    cizgi("kok_k2", "dirsek2", arka_ten, 3.4 if cephe else 3.3)
+    cizgi("dirsek2", "el2", arka_ten, 2.9 if cephe else 2.8)
+    if cephe and rol != "iz":
+        cizgi("kok_k2", "dirsek2", forma, 4.5, 0.0, 0.42, "round")
+    daire(lambda e: e["el2"], (1.65 if cephe else 1.55) * s, arka_ten)
+    cizgi("kok_b2", "diz2", arka_ten, 5.2 if cephe else 5.0)
+    cizgi("diz2", "ayak2", arka_ten, 4.0 if cephe else 3.9)
     if rol != "iz":
-        cizgi("diz2", "ayak2", "#cbd5e1", 3.6, 0.62, 1.0, "butt")
-        cizgi("kok_b2", "diz2", sort, 6.0, -0.06, 0.5, "round")
-    ayakkabi("ayak2", "parmak2", 0.92, "#1e293b", "#cbd5e1")
+        cizgi("diz2", "ayak2", "#ffffff" if cephe else "#cbd5e1", 3.7, 0.62, 1.0, "butt")
+        cizgi("kok_b2", "diz2", sort, 6.2, -0.06, 0.5, "round")
+    ayakkabi("ayak2", "parmak2", 0.98 if cephe else 0.92, vurgu if (cephe and rol == "olculen") else "#1e293b", "#ffffff" if cephe else "#cbd5e1")
 
-    # 3. Boyun, gövde (forma) ve şort
+    # 3. Boyun, gövde (forma) ve şort (cephe duruşunda omuz ve pelvis köprüleri dahil)
     cizgi("boyun", "bas", ten_koyu, 3.6, 0.0, 0.55)
-    cizgi("kalca", "boyun", forma, 10.5, 0.04, 0.93)
-    if rol != "iz":
-        cizgi("kalca", "boyun", forma_koyu, 2.2, 0.15, 0.85, "butt")   # forma yan dikiş şeridi
-        cizgi("kalca", "boyun", vurgu, 0.9, 0.18, 0.82, "butt")
-    cizgi("kalca", "boyun", sort, 11.0, -0.06, 0.20, "round")
+    if cephe:
+        cizgi("kok_b1", "kok_b2", sort, 6.8)
+        cizgi("kalca", "boyun", forma, 12.6, 0.04, 0.94)
+        cizgi("kok_k1", "kok_k2", forma, 6.2)
+        if rol != "iz":
+            cizgi("kalca", "boyun", vurgu, 1.2, 0.22, 0.80, "butt")
+        cizgi("kalca", "boyun", sort, 12.8, -0.06, 0.22, "round")
+    else:
+        cizgi("kalca", "boyun", forma, 10.5, 0.04, 0.93)
+        if rol != "iz":
+            cizgi("kalca", "boyun", forma_koyu, 2.2, 0.15, 0.85, "butt")   # forma yan dikiş şeridi
+            cizgi("kalca", "boyun", vurgu, 0.9, 0.18, 0.82, "butt")
+        cizgi("kalca", "boyun", sort, 11.0, -0.06, 0.20, "round")
 
-    # 4. Baş: saç (arka-üst), yüz, kulak, göz, ter bandı
-    bas_n = [_bas_noktalari(e, r_bas, yon) for e in eklem_listesi]
-    sozluk = {id(e): bn for e, bn in zip(eklem_listesi, bas_n)}
-    daire(lambda e: sozluk[id(e)]["sac"], r_bas * 1.0, sac)
+    # 4. Baş: saç, yüz, kulak, göz, ter bandı (her karede gerçek bakış yönüyle senkron)
+    bas_n = [_bas_noktalari(e, r_bas, yk, cephe=cephe) for e, yk in zip(eklem_listesi, yon_listesi)]
+    daire_noktalar([bn["sac"] for bn in bas_n], r_bas * 1.0, sac)
     daire(lambda e: e["bas"], r_bas, ten, ' stroke="rgba(15,23,42,0.25)" stroke-width="0.35"')
     if rol != "iz":
-        daire(lambda e: sozluk[id(e)]["burun"], r_bas * 0.16, ten)
-        daire(lambda e: sozluk[id(e)]["kulak"], r_bas * 0.20, ten_koyu)
-        daire(lambda e: sozluk[id(e)]["goz"], r_bas * 0.11, "#0f172a")
+        if cephe:
+            daire_noktalar([bn["kulak"] for bn in bas_n], r_bas * 0.18, ten_koyu)
+            daire_noktalar([bn["kulak2"] for bn in bas_n], r_bas * 0.18, ten_koyu)
+            daire_noktalar([bn["goz"] for bn in bas_n], r_bas * 0.10, "#0f172a")
+            daire_noktalar([bn["goz2"] for bn in bas_n], r_bas * 0.10, "#0f172a")
+            daire_noktalar([bn["burun"] for bn in bas_n], r_bas * 0.12, ten_koyu)
+        else:
+            daire_noktalar([bn["burun"] for bn in bas_n], r_bas * 0.16, ten)
+            daire_noktalar([bn["kulak"] for bn in bas_n], r_bas * 0.20, ten_koyu)
+            daire_noktalar([bn["goz"] for bn in bas_n], r_bas * 0.11, "#0f172a")
         bant_d = [
             f"M{b['bant_a'][0]:.2f},{b['bant_a'][1]:.2f} L{b['bant_b'][0]:.2f},{b['bant_b'][1]:.2f}" for b in bas_n
         ]
@@ -388,7 +494,7 @@ def _anatomik_figur_svg(
         cizgi("kok_k1", "dirsek1", forma, 4.6, 0.0, 0.42, "round")   # forma kol ağzı
     daire(lambda e: e["el1"], 1.7 * s, ten)
 
-    # 4. Biyomekanik MoCap Eklem Noktaları (Varsayılan olarak gizli, kullanıcı "🎯 Eklem İzi" ile açar)
+    # 6. Biyomekanik MoCap Eklem Noktaları (Varsayılan olarak gizli, kullanıcı "🎯 Eklem İzi" ile açar)
     if rol == "olculen":
         for eklem_ad in ("diz1", "ayak1", "kalca", "dirsek1", "el1"):
             ex_list = [f"{e[eklem_ad][0]:.1f}" for e in eklem_listesi]
@@ -421,8 +527,9 @@ def _sahne_etiketlerini_zenginlestir(xml_parca: str) -> str:
     """
     1) Üst başlık (`y="11.0"`) ve alt not (`y="137.5"`) metinlerini diğer `<g>` etiketlerine dokunmadan
        yalnızca kendi `<text>` düğümleri bazında temizler.
-    2) Sahne içi ölçü oklarının (`olcu`, `isaret`) döngü sırasında kaybolmaması için `values="0;0;1;1"`
-       opaklık animasyonlarını sürekli görünür (`opacity="1"`) yapar.
+    2) Sahne içi ölçü oklarının (`olcu`, `isaret`) döngü sırasında `<g opacity="0">` yüzünden kaybolmaması için
+       `<g opacity="0"><animate attributeName="opacity" values="0;0;1;1".../>` yapısını metin/ölçü içeren
+       öğelerde `<g opacity="1">` yapar; sayaç (`S.sayac`) çubuklarında ise senkron animasyonu korur!
     3) Sahne içi ölçü etiketlerinin arkasına yüksek kontrastlı rozet kutusu ekler.
     4) Hareketli ekipmanların (`translate`, `rotate`, `x2`, `y2`) döngüsel oynamasını sağlar.
     """
@@ -433,13 +540,15 @@ def _sahne_etiketlerini_zenginlestir(xml_parca: str) -> str:
         xml_parca,
     )
 
-    # Ölçü oklarının/etiketlerinin döngüde %95 süre görünmez kalmasını önle:
-    # S.belir() tarafından üretilen `<animate attributeName="opacity" values="0;0;1;1".../>` düğümünü kaldır
-    xml_parca = re.sub(
-        r'<animate attributeName="opacity" values="0;0;1;1"[^/>]*/>',
-        "",
-        xml_parca,
-    )
+    # S.belir() tarafından üretilen `<g opacity="0"><animate attributeName="opacity" values="0;0;1;1".../>`:
+    # Eğer içinde ölçü metni (<text) veya ok çizgisi (<line, <path) varsa, sürekli görünür (<g opacity="1">) yap;
+    # yalnızca <rect> içeren tekrar sayaçlarında (S.sayac) ise döngüsel animasyonu koru!
+    if "<text" in xml_parca or "<line" in xml_parca or "<path" in xml_parca:
+        xml_parca = re.sub(
+            r'<g opacity="0">\s*<animate attributeName="opacity" values="0;0;1;1"[^/>]*/>',
+            '<g opacity="1">',
+            xml_parca,
+        )
 
     # Kalan ölçü etiketlerine arka plan rozet kutusu ekle
     def _etiket_hapla(eslesme: re.Match) -> str:
@@ -473,8 +582,11 @@ def _sahne_etiketlerini_zenginlestir(xml_parca: str) -> str:
     return xml_parca
 
 
-def _svg_defs_ve_sahne_zemini(sahne_id: str, w: int, h: int) -> str:
-    """Her sahneye özel (`{sahne_id}-*`) gradyan tanımları ve PerformTest Tartan Pist/Laboratuvar zemini."""
+def _svg_defs_ve_sahne_zemini(sahne_id: str, w: int, h: int, test_adi: str = "") -> str:
+    """Her sahneye özel (`{sahne_id}-*`) gradyan tanımları, branşa özgü saha/kort/tatami/pist zemini ve protokol rozeti."""
+    _, _, _, vurgu, zemin_cizgi, rozet = _spor_renk_paleti(test_adi)
+    ad = test_adi.lower()
+
     cetvel_cizgileri = "".join(
         f'<line x1="{x}" y1="{TG_ZEMIN}" x2="{x}" y2="{TG_ZEMIN + (3.2 if x % 20 == 0 else 1.8)}" '
         f'stroke="rgba(148,163,184,0.45)" stroke-width="0.6"/>'
@@ -484,6 +596,40 @@ def _svg_defs_ve_sahne_zemini(sahne_id: str, w: int, h: int) -> str:
         f'<line x1="6" y1="{y}" x2="{w - 6}" y2="{y}" stroke="rgba(148,163,184,0.12)" stroke-width="0.5" stroke-dasharray="2 3"/>'
         for y in (34, 62, 90)
     )
+
+    # Branşa/ortama özgü arka plan saha/kort/tatami/pist dokusu
+    saha_dokusu = ""
+    if any(k in ad for k in ("futbol", "soccer", "ragbi", "nfl", "kriket", "çim")):
+        saha_dokusu = (
+            f'<circle cx="{w/2:.1f}" cy="{TG_ZEMIN:.1f}" r="28" fill="none" stroke="rgba(34,197,94,0.14)" stroke-width="1.0"/>'
+            f'<line x1="{w/2:.1f}" y1="24" x2="{w/2:.1f}" y2="{TG_ZEMIN}" stroke="rgba(34,197,94,0.12)" stroke-width="0.8" stroke-dasharray="3 3"/>'
+        )
+    elif any(k in ad for k in ("basketbol", "nba", "voleybol", "hentbol", "badminton", "tenis", "squash")):
+        saha_dokusu = (
+            f'<path d="M 30,{TG_ZEMIN} A 45,32 0 0 1 {w-30},{TG_ZEMIN}" fill="none" stroke="rgba(251,146,60,0.14)" stroke-width="1.0"/>'
+        )
+    elif any(k in ad for k in ("judo", "karate", "taekwondo", "güreş", "gures", "bjj", "mma", "boks", "kickboks", "muay")):
+        saha_dokusu = (
+            f'<rect x="18" y="{TG_ZEMIN - 1.5:.1f}" width="{w - 36}" height="3.0" fill="rgba(244,63,94,0.32)"/>'
+        )
+    elif any(k in ad for k in ("sprint", "koşu", "kosu", "mil", "cooper", "100m", "200m", "400m", "800m", "1000m")):
+        saha_dokusu = (
+            f'<line x1="12" y1="{TG_ZEMIN + 4:.1f}" x2="{w - 12}" y2="{TG_ZEMIN + 4:.1f}" stroke="rgba(248,113,113,0.28)" stroke-width="0.7"/>'
+            f'<line x1="12" y1="{TG_ZEMIN + 8:.1f}" x2="{w - 12}" y2="{TG_ZEMIN + 8:.1f}" stroke="rgba(248,113,113,0.22)" stroke-width="0.7"/>'
+        )
+
+    rozet_xml = ""
+    if rozet:
+        rw = max(44.0, len(rozet) * 4.5 + 14.0)
+        rx = w - rw - 8.0
+        rozet_xml = (
+            f'<g class="pt-protokol-rozet">'
+            f'<rect x="{rx:.1f}" y="16.5" width="{rw:.1f}" height="13.5" rx="6.75" fill="#090d16" fill-opacity="0.92" stroke="{vurgu}" stroke-width="0.8"/>'
+            f'<text x="{rx + rw / 2:.1f}" y="25.7" text-anchor="middle" font-size="7.2" font-weight="800" fill="{vurgu}" '
+            f'font-family="system-ui,-apple-system,Inter,Segoe UI,Roboto,sans-serif" letter-spacing="0.4">{_html.escape(rozet)}</text>'
+            f'</g>'
+        )
+
     return f"""
     <defs>
       <linearGradient id="{sahne_id}-arkaplan" x1="0" y1="0" x2="0" y2="1">
@@ -496,37 +642,14 @@ def _svg_defs_ve_sahne_zemini(sahne_id: str, w: int, h: int) -> str:
         <stop offset="50%" stop-color="#334155"/>
         <stop offset="100%" stop-color="#1e293b"/>
       </linearGradient>
-      <linearGradient id="{sahne_id}-forma-grad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#3b82f6"/>
-        <stop offset="55%" stop-color="#2563eb"/>
-        <stop offset="100%" stop-color="#1d4ed8"/>
-      </linearGradient>
-      <linearGradient id="{sahne_id}-partner-grad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#10b981"/>
-        <stop offset="100%" stop-color="#059669"/>
-      </linearGradient>
-      <linearGradient id="{sahne_id}-iz-grad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#64748b"/>
-        <stop offset="100%" stop-color="#475569"/>
-      </linearGradient>
-      <linearGradient id="{sahne_id}-sort-grad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#1e293b"/>
-        <stop offset="100%" stop-color="#0f172a"/>
-      </linearGradient>
-      <linearGradient id="{sahne_id}-ten-grad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#fed7aa"/>
-        <stop offset="100%" stop-color="#f97316"/>
-      </linearGradient>
-      <linearGradient id="{sahne_id}-ayakkabi-grad" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stop-color="#0284c7"/>
-        <stop offset="100%" stop-color="#38bdf8"/>
-      </linearGradient>
     </defs>
     <rect x="0" y="0" width="{w}" height="{h}" rx="8" fill="url(#{sahne_id}-arkaplan)"/>
     {izgara_yatay}
+    {saha_dokusu}
     <rect x="0" y="{TG_ZEMIN}" width="{w}" height="{h - TG_ZEMIN}" rx="2" fill="url(#{sahne_id}-pist)"/>
-    <line x1="4" y1="{TG_ZEMIN}" x2="{w - 4}" y2="{TG_ZEMIN}" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.9"/>
+    <line x1="4" y1="{TG_ZEMIN}" x2="{w - 4}" y2="{TG_ZEMIN}" stroke="{zemin_cizgi}" stroke-width="1.5" stroke-opacity="0.9"/>
     {cetvel_cizgileri}
+    {rozet_xml}
     """
 
 
@@ -825,7 +948,17 @@ def gelismis_test_sahnesi_uret(
         else (b["protokol_ozet_cikar"](protokol_metni) if "protokol_ozet_cikar" in b and protokol_metni else "")
     )
 
-    if test_adi not in TEST_GORSELLERI:
+    if not ozel_test and test_adi in OZEL_SAHNE_HARITASI:
+        sahne_fn = OZEL_SAHNE_HARITASI[test_adi]
+        if test_adi in TEST_GORSELLERI:
+            _, kritik_ayrinti = TEST_GORSELLERI[test_adi]
+        else:
+            kritik_ayrinti = str(
+                bilgi.get("kritik_ayrinti")
+                or bilgi.get("aciklama")
+                or TEST_GORSELSIZ.get(test_adi, "Protokol yönergesine uygun standart ölçüm.")
+            )
+    elif test_adi not in TEST_GORSELLERI:
         hareket_tipi = str((ozel_test or {}).get("hareket_tipi") or "otomatik").lower().strip()
         ad_kucuk = test_adi.lower()
         nitelik_kucuk = nitelik.lower().strip()
@@ -865,7 +998,8 @@ def gelismis_test_sahnesi_uret(
             yedek_anahtar = _NITELIK_SAHNE_HARITASI[nitelik_kucuk]
         else:
             yedek_anahtar = "Durarak Uzun Atlama"
-        sahne_fn, varsayilan_kritik = TEST_GORSELLERI[yedek_anahtar]
+        _, varsayilan_kritik = TEST_GORSELLERI[yedek_anahtar]
+        sahne_fn = OZEL_SAHNE_HARITASI.get(yedek_anahtar, TEST_GORSELLERI[yedek_anahtar][0])
         if ozel_test:
             kritik_ayrinti = str(ozel_test.get("kritik_ayrinti") or ozel_test.get("aciklama") or varsayilan_kritik)
         else:
@@ -903,29 +1037,27 @@ def gelismis_test_sahnesi_uret(
         if dogrudan_figur and 'data-katman="' in har_xml and figur_indeks < len(S.figurler):
             fig_bilgi = S.figurler[figur_indeks]
             figur_indeks += 1
-            yeni_ogeler.append(_anatomik_figur_svg(sahne_id, fig_bilgi, sure, getattr(S, "donusler", []), dongu=True))
+            yeni_ogeler.append(
+                _anatomik_figur_svg(
+                    sahne_id, fig_bilgi, sure, getattr(S, "donusler", []), dongu=True, test_adi=test_adi
+                )
+            )
         else:
             temiz = _sahne_etiketlerini_zenginlestir(har_xml)
             if temiz.strip():
                 yeni_ogeler.append(temiz)
 
-    defs_ve_zemin = _svg_defs_ve_sahne_zemini(sahne_id, w, h)
+    defs_ve_zemin = _svg_defs_ve_sahne_zemini(sahne_id, w, h, test_adi=test_adi)
 
-    # Hareket fazı analizi (ölçülen sporcu) → faz rozeti, ilerleme çubuğu, iz hayaletleri, toz ve hız çizgileri
+    # Hareket fazı analizi (ölçülen sporcu) → faz rozeti, ilerleme çubuğu, toz ve hız çizgileri
     efekt_arka, faz_xml = "", ""
     olculen = next((f for f in S.figurler if f.get("rol", "olculen") == "olculen" and f.get("kareler")), None)
     if olculen:
         try:
             faz = _faz_analizi(olculen["kareler"])
-            bas_r_f = float(olculen.get("bas_r", 6.5))
             dondurme_var = bool(getattr(S, "donusler", []))
             parcalar_efekt = []
             if not dondurme_var:
-                for idx in (faz["yuklenme_idx"], faz["tepe_idx"]):
-                    if idx is not None:
-                        parcalar_efekt.append(
-                            _iz_hayaleti(sahne_id, faz["eklem"][idx], faz["zaman"][idx], bas_r_f, sure)
-                        )
                 parcalar_efekt.append(_ucus_cizgileri(faz, sure))
             for idx_ad, t_ad in (("kalkis_idx", "kalkis_t"), ("inis_idx", "inis_t")):
                 idx = faz[idx_ad]

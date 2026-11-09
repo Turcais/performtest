@@ -384,7 +384,7 @@ export const TestKatalogu: React.FC<TestKataloguProps> = ({
               </div>
 
               {/* SVG Sahnesi */}
-              <div ref={svgRef} dangerouslySetInnerHTML={{ __html: sahneDetay.svg_html || "" }} />
+              <div key={seciliTest} ref={svgRef} dangerouslySetInnerHTML={{ __html: sahneDetay.svg_html || "" }} />
             </div>
           ) : (
             <div className="py-12 text-center text-xs text-[var(--muted)]">Protokol sahnesi yükleniyor...</div>
